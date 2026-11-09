@@ -19,6 +19,8 @@ export const A320CEO: AircraftDefinition = {
     // каретки и обтекатели ≈0,94 т; интерцепторы 1,5% крыла; предкрылки и элероны ≈0,3 т — допущение.
     // Итого ≈1,3 т из ≈7,3 т крыла → 18%.
     movablesShareOfWing: 0.18,
+    // Однощелевые закрылки Фаулера на 74–100% хорды и предкрылки по всему размаху (AC 2-2-0, вид сверху).
+    highLift: { flapType: "single", flapChordFraction: 0.26, slats: true },
   },
   htail: { areaM2: 31.0, aspectRatio: 5.0, sweepDeg: 29, armM: 13.53, spanM: 12.45, thicknessPct: 10, controlFraction: 0.25 }, // Jenkinson; t/c и доля рулей — допущение
   vtail: { areaM2: 21.5, aspectRatio: 1.82, sweepDeg: 34, armM: 12.53, spanM: 6.26, thicknessPct: 10, controlFraction: 0.3 }, // Jenkinson; t/c и доля руля — допущение

@@ -17,6 +17,9 @@ import {
   nacelleRaise,
   wingSpan,
   wingTip,
+  doubleSlottedFlaps,
+  flapChord,
+  slats,
 } from "../src/levers.ts";
 import { BPR_VALID_RANGE } from "../src/propulsion.ts";
 
@@ -110,6 +113,40 @@ export const CONTROLS: Control[] = [
     parts: ["wingtips"],
     base: (d) => d.wing.tip === "sharklet",
     toLever: (on) => wingTip(on ? "sharklet" : "fence"),
+  },
+  {
+    id: "doubleFlaps",
+    group: "Механизация",
+    kind: "toggle",
+    label: "Двухщелевые закрылки",
+    hint: "как у A321: выше CLmax — ниже скорости взлёта и захода; тяжелее",
+    parts: ["wing.highLift"],
+    base: (d) => d.wing.highLift.flapType === "double",
+    toLever: (on) => doubleSlottedFlaps(on),
+  },
+  {
+    id: "flapChord",
+    group: "Механизация",
+    kind: "range",
+    label: "Хорда закрылков",
+    hint: "доля хорды крыла; больше — выше CLmax, тяжелее закрылки",
+    parts: ["wing.highLift"],
+    min: 18,
+    max: 36,
+    step: 1,
+    base: (d) => Math.round(d.wing.highLift.flapChordFraction * 100),
+    format: (v) => `${num(v, 0)}%`,
+    toLever: (v) => flapChord(v),
+  },
+  {
+    id: "slats",
+    group: "Механизация",
+    kind: "toggle",
+    label: "Предкрылки",
+    hint: "по всему размаху; без них легче, но быстрее взлёт и заход",
+    parts: ["wing.highLift"],
+    base: (d) => d.wing.highLift.slats,
+    toLever: (on) => slats(on),
   },
   {
     id: "bpr",
@@ -305,8 +342,8 @@ export const SCENARIOS: Scenario[] = [
     title: "Путь к A321",
     text:
       "+9 рядов, +54 места. С той же геометрией самолёт упирается в MZFW и угол касания хвостом. " +
-      "В режиме «под ту же миссию» (все места на ту же дальность) получается MTOW около 90 т — это класс A321. " +
-      "Но модель сохраняет удлинение крыла, поэтому размах выходит за код C; Airbus оставил крыло A320 и добавил двухщелевые закрылки.",
+      "В режиме «под ту же миссию» (все места на ту же дальность) получается MTOW около 89 т — это класс A321, но крыло под ту же скорость захода " +
+      "вырастает до ≈149 м², а размах — за код C. Включите двухщелевые закрылки: крыло нужно ≈134 м², размах снова в коде C. Так и сделал Airbus.",
     aircraft: "a320ceo",
     mode: "fixed",
     values: { rows: 9 },

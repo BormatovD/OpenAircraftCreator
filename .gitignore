@@ -1,0 +1,34 @@
+# Зависимости — ставятся через npm install
+node_modules/
+
+# Сборка (npm run build) и выводы скриптов (npm run calibrate и др.)
+dist/
+out/
+*.tsbuildinfo
+.vite/
+
+# Python-утилиты в tools/
+__pycache__/
+*.py[cod]
+.venv/
+
+# Скриншоты и черновые картинки в корне проекта
+/*.png
+/*.jpg
+
+# Архивы поставок и одиночные превью
+*.zip
+a320-preview.html
+
+# Исходные PDF Airbus — большие и под их лицензией; извлечённые данные лежат в data/ac
+*.pdf
+
+# Логи и локальные настройки
+*.log
+npm-debug.log*
+.env
+.env.*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -7,6 +7,7 @@ import { GROUP_MAP, analogueShares } from "../mass/analogue.ts";
 import { calibrateMasses } from "../mass/massTree.ts";
 import { A320CEO, AC_OEW_KG } from "./a320.ts";
 import { takeoffThrustN } from "../thrust.ts";
+import { highLiftAnchor, highLiftPerf } from "../highlift.ts";
 
 /**
  * Привязка сопротивления по составляющим к поляре Poll & Schumann: на A320 с шарклетами (по ним подобран TSFC)
@@ -38,8 +39,10 @@ export const A320_CONTEXT: EvalContext = {
     mtowKg: A320CEO.weights.mtowKg,
     wingAreaM2: A320CEO.wing.areaM2,
     takeoffThrustN: takeoffThrustN(A320CEO),
+    clMaxTakeoff: highLiftPerf(A320CEO, highLiftAnchor(A320CEO)).clMaxTakeoff,
     provenMinClearanceM: 0.46, // AC 2-3-0, A320neo при MRW
   },
   aero: anchoredAero(),
   fuelDensityKgL: 0.785,
+  highLiftAnchor: highLiftAnchor(A320CEO),
 };

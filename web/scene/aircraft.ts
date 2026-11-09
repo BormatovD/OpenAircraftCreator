@@ -125,6 +125,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
       m.userData.basePos = g.userData.basePos ?? null;
       m.userData.retract = g.userData.retract ?? null;
       m.userData.deploy = g.userData.deploy ?? null;
+      m.userData.hinge = g.userData.hinge ?? null;
       m.userData.hideRetracted = g.userData.hideRetracted ?? false;
       if (m.userData.basePos) m.position.copy(m.userData.basePos);
       group.add(m);
@@ -209,17 +210,24 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   // Кессон и панели: всё, кроме подвижных частей. Предкрылки идут от борта до законцовки,
   // закрылки — от борта до 77% полуразмаха, элероны — 77–97% (по чертежу A320).
   const uSide = sideZ / semi;
-  const SLAT = 0.11;
-  const FLAP = 0.74;
+  const hl = w.highLift;
+  // Без предкрылков передняя кромка — часть кессона.
+  const SLAT = hl.slats ? 0.11 : 0;
+  const FLAP = 1 - hl.flapChordFraction;
+  // Элероны — своя хорда (26%), рычаг хорды закрылков их не трогает.
+  const AIL = 0.74;
   const uFlapEnd = 0.77;
   const uTipDevices = 0.97;
   const wingSeg = (u0: number, u1: number) => Math.max(4, Math.round((u1 - u0) * 48));
   const boxPieces = (s: 1 | -1) => [
     surfaceGeometry(wingShape(s, { chordFrom: SLAT, chordTo: FLAP }), 48),
-    surfaceGeometry(wingShape(s, { chordTo: SLAT, spanTo: uSide }), 3, 8),
-    surfaceGeometry(wingShape(s, { chordTo: SLAT, spanFrom: uTipDevices }), 2, 8),
+    ...(hl.slats
+      ? [surfaceGeometry(wingShape(s, { chordTo: SLAT, spanTo: uSide }), 3, 8), surfaceGeometry(wingShape(s, { chordTo: SLAT, spanFrom: uTipDevices }), 2, 8)]
+      : []),
     surfaceGeometry(wingShape(s, { chordFrom: FLAP, spanTo: uSide }), 3, 8),
-    surfaceGeometry(wingShape(s, { chordFrom: FLAP, spanFrom: uTipDevices }), 2, 8),
+    surfaceGeometry(wingShape(s, { chordFrom: AIL, spanFrom: uTipDevices }), 2, 8),
+    // Закрылки шире элеронов — перед элеронами остаётся полоса кессона.
+    ...(FLAP < AIL - 0.005 ? [surfaceGeometry(wingShape(s, { chordFrom: FLAP, chordTo: AIL, spanFrom: uFlapEnd, spanTo: uTipDevices }), 8, 4)] : []),
   ].map((g) => sided(g, s));
   // Огни на законцовках и посадочные фары под корнем крыла.
   const tipLePt = surfacePoint(wingShape(1), 1, 0, true);
@@ -243,25 +251,60 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
     if (deploy) g.userData.deploy = deploy;
     return sided(g, side);
   };
-  // deploy — смещение при выпуске механизации (посадочная конфигурация): предкрылки вперёд-вниз,
-  // закрылки Фаулера назад-вниз.
+  // Выпуск механизации — поворот вокруг шарнира плюс выдвижение (как на каретках):
+  //   закрылки Фаулера уходят назад и отклоняются вниз до 40° (CONF FULL), предкрылки — вперёд и носком вниз до 27°.
+  // hinge.pivot — точка на оси шарнира, hinge.axis — ось от корня к концу консоли, angle — угол при полном выпуске,
+  // slide — выдвижение при полном выпуске. Как это зависит от доли выпуска — в pose() (main.ts).
+  const hinged = (g: THREE.BufferGeometry, side: 1 | -1, offset: THREE.Vector3, kind: "flap" | "slat", u0: number, u1: number, chordAt: number, angleDeg: number, slide: THREE.Vector3) => {
+    const a = surfacePoint(wingShape(side), u0, chordAt, false);
+    const b = surfacePoint(wingShape(side), u1, chordAt, false);
+    const axis = b.clone().sub(a).normalize();
+    // Закрылок: задняя кромка вниз; предкрылок: носок вниз — повороты в разные стороны.
+    const sign = kind === "flap" ? -side : side;
+    g.userData.hinge = { kind, pivot: a, axis, angle: (sign * angleDeg * Math.PI) / 180, slide };
+    return moved(g, side, offset);
+  };
+  const flapChordM = (u: number) => wingPlanform(u).chord * (1 - FLAP);
+  const slatChordM = (u: number) => wingPlanform(u).chord * 0.11;
+  const uMidFlap = (uSide + uFlapEnd) / 2;
+  const uMidSlat = (uSide + uTipDevices) / 2;
+  const flapSlide = v3(0.55 * flapChordM(uMidFlap), -0.08 * flapChordM(uMidFlap), 0);
+  const slatSlide = v3(-0.45 * slatChordM(uMidSlat), -0.3 * slatChordM(uMidSlat), 0);
+  // Двухщелевой закрылок: дефлектор (передние 30% хорды закрылка) и основное звено; основное звено уходит дальше и круче.
+  const VANE = FLAP + 0.3 * (1 - FLAP);
+  const flaps = (s: 1 | -1) =>
+    hl.flapType === "double"
+      ? [
+          hinged(surfaceGeometry(wingShape(s, { chordFrom: FLAP, chordTo: VANE, spanFrom: uSide, spanTo: uFlapEnd }), wingSeg(uSide, uFlapEnd), 6), s, v3(2.3, -0.6, 0), "flap", uSide, uFlapEnd, FLAP, 25, flapSlide.clone().multiplyScalar(0.8)),
+          hinged(surfaceGeometry(wingShape(s, { chordFrom: VANE + 0.01, spanFrom: uSide, spanTo: uFlapEnd }), wingSeg(uSide, uFlapEnd), 8), s, v3(2.9, -0.8, 0), "flap", uSide, uFlapEnd, VANE, 45, flapSlide.clone().multiplyScalar(1.35)),
+        ]
+      : [hinged(surfaceGeometry(wingShape(s, { chordFrom: FLAP, spanFrom: uSide, spanTo: uFlapEnd }), wingSeg(uSide, uFlapEnd), 8), s, v3(2.6, -0.7, 0), "flap", uSide, uFlapEnd, FLAP, 40, flapSlide)];
   const highLift = (s: 1 | -1) => [
-    moved(surfaceGeometry(wingShape(s, { chordTo: SLAT, spanFrom: uSide, spanTo: uTipDevices }), wingSeg(uSide, uTipDevices), 8), s, v3(-2.2, -0.3, 0), v3(-0.4, -0.22, 0)),
-    moved(surfaceGeometry(wingShape(s, { chordFrom: FLAP, spanFrom: uSide, spanTo: uFlapEnd }), wingSeg(uSide, uFlapEnd), 8), s, v3(2.6, -0.7, 0), v3(1.0, -0.55, 0)),
-    moved(surfaceGeometry(wingShape(s, { chordFrom: FLAP, spanFrom: uFlapEnd + 0.005, spanTo: uTipDevices }), 6, 8), s, v3(2.0, 0.3, 0)),
+    ...(hl.slats ? [hinged(surfaceGeometry(wingShape(s, { chordTo: SLAT, spanFrom: uSide, spanTo: uTipDevices }), wingSeg(uSide, uTipDevices), 8), s, v3(-2.2, -0.3, 0), "slat", uSide, uTipDevices, SLAT, 27, slatSlide)] : []),
+    ...flaps(s),
+    moved(surfaceGeometry(wingShape(s, { chordFrom: AIL, spanFrom: uFlapEnd + 0.005, spanTo: uTipDevices }), 6, 8), s, v3(2.0, 0.3, 0)),
   ];
-  // Обтекатели кареток закрылков — «лодочки» под крылом (на виде сверху AC выступают за заднюю кромку).
+  // Обтекатели кареток закрылков — «лодочки» под нижней поверхностью: начинаются под кессоном,
+  // выходят за заднюю кромку примерно на четверть хорды; при выпуске хвостовая часть идёт вместе с закрылком.
   const trackFairing = (side: 1 | -1, u: number) => {
     const c = wingPlanform(u).chord;
-    const len = c * 0.85;
-    const prof = [0, 0.25, 0.5, 0.75, 1].map((t) => new THREE.Vector2(Math.max(0.005, 0.2 * Math.sin(Math.PI * Math.pow(t, 0.7))), t * len));
-    const g = new THREE.LatheGeometry(prof, 16);
+    const len = c * 0.72;
+    const r = Math.min(0.26, 0.07 * c);
+    const prof: THREE.Vector2[] = [];
+    for (let i = 0; i <= 16; i++) {
+      const t = i / 16;
+      const rr = t < 0.3 ? r * Math.sqrt(Math.max(0, 1 - ((0.3 - t) / 0.3) ** 2)) : r * (1 - Math.pow((t - 0.3) / 0.7, 1.8)) + 0.012;
+      prof.push(new THREE.Vector2(Math.max(0.004, rr), t * len));
+    }
+    const g = new THREE.LatheGeometry(prof, 18);
     g.rotateZ(-Math.PI / 2);
-    g.scale(1, 0.9, 0.55);
-    const p0 = surfacePoint(wingShape(side), u, 0.55, false);
-    g.translate(p0.x, p0.y - 0.08, p0.z);
+    g.scale(1, 1.15, 0.6);
+    const p0 = surfacePoint(wingShape(side), u, 0.5, false);
+    // Верх «лодочки» утоплен в нижнюю поверхность крыла.
+    g.translate(p0.x, p0.y - r * 0.55, p0.z);
+    const piv = surfacePoint(wingShape(side), u, FLAP, false);
     g.userData.offset = v3(2.6, -0.7, 0);
-    g.userData.deploy = v3(0.5, -0.25, 0);
+    g.userData.hinge = { kind: "flap", pivot: piv, axis: new THREE.Vector3(0, 0, side), angle: (-side * 18 * Math.PI) / 180, slide: flapSlide.clone().multiplyScalar(0.35) };
     return sided(g, side);
   };
   const fairings = [1, -1].flatMap((sd) => [0.3, 0.45, 0.6, 0.74].map((u) => trackFairing(sd as 1 | -1, u)));

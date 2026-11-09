@@ -27,6 +27,7 @@ import {
 } from "../src/propulsion.ts";
 import { CONTROLS } from "./controls.ts";
 import { MAX_CERT_FL, TAKEOFF_POLAR, TOC_MASS_FRACTION, thrustLapse } from "../src/thrust.ts";
+import { AIRFOIL_CLMAX, DOUBLE_SLOTTED_MASS, FLAP_DCL, HIGHLIFT_MASS_SHARES, LANDING_FLAP_DEG, SLAT_DCL, TAKEOFF_SHARE, VAPP_FACTOR, highLiftPerf, highLiftRaw } from "../src/highlift.ts";
 import { coreRadiusFor, lptStagesFor } from "./scene/shapes.ts";
 
 const tex = (s: string, display = true) => katex.renderToString(s, { output: "mathml", displayMode: display, throwOnError: false });
@@ -353,13 +354,53 @@ function thrustSection(current: Evaluation): string {
     <h3>Набор с отказавшим двигателем</h3>
     ${tex(String.raw`\gamma = \frac{T_{n-1}}{W} - \frac{C_D}{C_L},\qquad C_L = \frac{C_{L\max,\text{взл}}}{1{,}13^2},\qquad C_D = C_{D0} + \Delta C_{D,\text{мех}} + \Delta C_{D,\text{отказ}} + \frac{C_L^2}{\pi A e}`)}
     <p>Второй сегмент: шасси убрано, закрылки во взлётном положении, скорость V2 ${ref("cs25")}. Норма для двух двигателей — ${t(String.raw`\gamma \ge 2{,}4\%`)}.
-    Допущения: ${t(String.raw`C_{L\max,\text{взл}} = ${nf(p.clMaxTakeoff, 1).replace(",", "{,}")}`)}, ${t(String.raw`\Delta C_{D,\text{мех}} = ${nf(p.flapCd0, 3).replace(",", "{,}")}`)}, ${t(String.raw`\Delta C_{D,\text{отказ}} = ${nf(p.oeiCd0, 3).replace(",", "{,}")}`)}
+    Механизация даёт ${t(String.raw`C_{L\max,\text{взл}} = ${nf(current.highLift.clMaxTakeoff, 2).replace(",", "{,}")}`)} (см. «Механизация»); допущения: ${t(String.raw`\Delta C_{D,\text{мех}} = ${nf(p.flapCd0, 3).replace(",", "{,}")}`)}, ${t(String.raw`\Delta C_{D,\text{отказ}} = ${nf(p.oeiCd0, 3).replace(",", "{,}")}`)}
     (авторотация и отклонённый руль направления). МСА, уровень моря, MTOW. Сейчас: V2 = ${nf(o.v2Ms * 1.944, 0)} уз, L/D = ${nf(o.ld, 1)}, ${t(String.raw`\gamma = ${nf(o.gradient * 100, 1).replace(",", "{,}")}\%`)}.
-    Механизация — отдельный следующий шаг; тогда ${t(String.raw`C_{L\max}`)} и ${t(String.raw`\Delta C_D`)} станут рычагами.</p>
+    </p>
 
     <h3>Рычаг тяги</h3>
     <p>Тот же цикл, другой размер: тяга × ${t("k")}, сухая масса × ${t("k")}, диаметр вентилятора и гондола × ${t(String.raw`\sqrt{k}`)} (тяга пропорциональна расходу воздуха, расход — площади).
     Меньший двигатель легче и чуть экономичнее на рейсе, но теряет потолок, запас на взлёте и удлиняет разбег — это и есть компромисс выбора размера двигателя.</p>
+  </section>`;
+}
+
+function highLiftSection(current: Evaluation): string {
+  const hl = (flapType: "single" | "double", chord: number, sl: boolean) => ({ ...A320CEO, wing: { ...A320CEO.wing, highLift: { flapType, flapChordFraction: chord, slats: sl } } });
+  const variants: [string, typeof A320CEO][] = [
+    ["A320: однощелевые, 26%, предкрылки", A320CEO],
+    ["Двухщелевые, 26%, предкрылки", hl("double", 0.26, true)],
+    ["Однощелевые, 26%, без предкрылков", hl("single", 0.26, false)],
+    ["Текущий вариант (масса A320)", { ...A320CEO, wing: { ...A320CEO.wing, highLift: current.definition.wing.highLift } }],
+  ];
+  const rows = variants.map(([n, d]) => {
+    const p = highLiftPerf(d, CTX.highLiftAnchor);
+    return [n, nf(p.clMaxClean, 2), nf(p.clMaxTakeoff, 2), nf(p.clMaxLanding, 2), `${nf(p.v2Kt, 0)} уз`, `${nf(p.vAppKt, 0)} уз`];
+  });
+  const raw = highLiftRaw(A320CEO);
+  const c = (x: number, d = 2) => nf(x, d).replace(",", "{,}");
+  return `
+  <section id="m-highlift">
+    <h2>Механизация</h2>
+    <p>Максимальный коэффициент подъёмной силы крыла — сумма чистого крыла и приростов от закрылков и предкрылков, по Raymer ${ref("raymer")}:</p>
+    ${tex(String.raw`C_{L\max} = 0{,}9\,C_{l\max}\cos\Lambda_{1/4} \;+\; 0{,}9\,\Delta C_{l\max}\,\frac{S_{\text{мех}}}{S}\cos\Lambda_{\text{шарн}}`)}
+    <p>${t(String.raw`C_{l\max} = ${c(AIRFOIL_CLMAX, 1)}`)} — профиль без механизации (допущение). Прирост профиля: однощелевой закрылок Фаулера ${t(String.raw`${c(FLAP_DCL.single, 1)}\,c'/c`)},
+    двухщелевой ${t(String.raw`${c(FLAP_DCL.double, 1)}\,c'/c`)}, предкрылок ${t(String.raw`${c(SLAT_DCL, 1)}\,c'/c`)}; ${t("c'/c")} — удлинение хорды при выпуске (Фаулер выезжает назад на ≈0,6 своей хорды,
+    двухщелевой — на ≈0,8). Закрылки занимают ${nf(raw.flappedShare * 100, 0)}% площади крыла (от борта до 77% полуразмаха), предкрылки — до 97%.</p>
+    <p>Привязка: посадочный ${t(String.raw`C_{L\max}`)} A320 — из скорости захода 134 уз при MLW ${ref("jenkinson")}, ${t(String.raw`V_{app} = ${c(VAPP_FACTOR)}\,V_S`)} ${ref("cs25")}.
+    Формулы без подгонки дают на ${nf((CTX.highLiftAnchor - 1) * 100, 0)}% меньше — один множитель ${nf(CTX.highLiftAnchor, 2)} на все конфигурации.
+    Взлётная конфигурация (CONF 1+F) берёт ${nf(TAKEOFF_SHARE.flaps * 100, 0)}% прироста закрылков и ${nf(TAKEOFF_SHARE.slats * 100, 0)}% предкрылков (Raymer: 60–80%, допущение).</p>
+    ${table(["", "чистое", "взлёт", "посадка", "V2 (MTOW)", "заход (MLW)"], rows, "num")}
+    <h3>Что это меняет</h3>
+    <ul>
+      <li><b>Длина ВПП</b> — ${t(String.raw`TOFL \propto W^2/(S\,C_{L\max,\text{взл}}\,T)`)}.</li>
+      <li><b>Скорость захода</b> — ${t(String.raw`V_{app} = ${c(VAPP_FACTOR)}\sqrt{2W_{MLW}/(\rho S C_{L\max})}`)}; выше 140 уз — категория D по ИКАО (PANS-OPS): выше минимумы и длиннее посадка.</li>
+      <li><b>Набор с отказом двигателя</b> — выше ${t(String.raw`C_{L\max}`)}, ниже V2, но больше индуктивное сопротивление: мощная механизация слегка снижает градиент.</li>
+      <li><b>Размер крыла в режиме «под ту же миссию»</b> — ${t(String.raw`S \propto 1/C_{L\max}`)} при той же скорости захода. Это и есть главная выгода механизации.</li>
+      <li><b>Масса</b> — доли узла механизации: закрылки с каретками ${nf(HIGHLIFT_MASS_SHARES.flaps * 100, 0)}%, предкрылки ${nf(HIGHLIFT_MASS_SHARES.slats * 100, 0)}%, остальное — элероны и интерцепторы (допущение).
+      Масса закрылков ∝ их хорде; двухщелевые × ${nf(DOUBLE_SLOTTED_MASS, 2)} (допущение).</li>
+    </ul>
+    <p>Прирост сопротивления на посадке (Raymer 12.61): ${t(String.raw`\Delta C_{D0} = 0{,}0074\,(c_f/c)(S_{\text{мех}}/S)(\delta - 10^\circ)`)}, при ${LANDING_FLAP_DEG}° — ${nf(current.highLift.flapCd0Landing, 3)}.
+    На взлёте — постоянные ${nf(TAKEOFF_POLAR.flapCd0, 3)} (допущение): при 10° формула Raymer даёт ноль, а предкрылки и обтекатели кареток всё равно добавляют сопротивление.</p>
   </section>`;
 }
 
@@ -445,12 +486,13 @@ function redesignSection(): string {
     <h2>Режим «под ту же миссию»</h2>
     <p>В режиме «та же геометрия» облегчение превращается в дальность или нагрузку. В реальном проекте его превращают в меньший самолёт:
     меньше топлива → меньше MTOW → меньше крыло и двигатели → ещё легче. Держим постоянными нагрузку (все места × 95 кг), дальность базового самолёта
-    с этой нагрузкой, нагрузку на крыло, удлинение и тяговооружённость:</p>
-    ${tex(String.raw`S \propto MTOW,\quad b \propto \sqrt{MTOW},\quad T \propto MTOW,\quad m_{\text{дв}} \propto T,\quad D_{\text{вент}} \propto \sqrt{T},\quad V_{\text{баков}} \propto S^{1{,}5}`)}
+    с этой нагрузкой, скорость захода, удлинение и тяговооружённость. Скорость захода держится, если ${t(String.raw`W/(S\,C_{L\max})`)} постоянно:
+    лучшая механизация позволяет меньшее крыло (см. «Механизация»).</p>
+    ${tex(String.raw`S \propto \frac{MTOW}{C_{L\max}},\quad b \propto \sqrt{MTOW},\quad T \propto MTOW,\quad m_{\text{дв}} \propto T,\quad D_{\text{вент}} \propto \sqrt{T},\quad V_{\text{баков}} \propto S^{1{,}5}`)}
     ${tex(String.raw`MTOW_{n+1} = MTOW_n + 0{,}7\left(OEW(MTOW_n) + PL + m_{\text{т}}(MTOW_n) - MTOW_n\right)`)}
     <p>Итерации останавливаются, когда шаг меньше 1 кг; множитель 0,7 гасит колебания. Оперение масштабируется вместе с крылом (тот же коэффициент статического объёма).
-    MZFW — расчётная нагрузка плюс тот же запас, что у базового самолёта. Ограничение подхода: удлинение крыла сохраняется, поэтому при росте MTOW растёт и размах —
-    у A321 Airbus сохранил крыло A320 и поставил двухщелевые закрылки, этого рычага в модели пока нет.</p>
+    MZFW — расчётная нагрузка плюс тот же запас, что у базового самолёта. Удлинение крыла сохраняется, поэтому при росте площади растёт и размах —
+    у A321 Airbus сохранил крыло A320 и поставил двухщелевые закрылки: рычаг «Двухщелевые закрылки» возвращает размах в код C.</p>
   </section>`;
 }
 
@@ -508,7 +550,7 @@ function limitsSection(): string {
       <li>Тяга на высоте — обобщённая формула для класса двигателей, а не характеристика CFM56 или LEAP; жаркий день и высокогорные аэродромы не считаются.</li>
       <li>Разделение выигрыша двигателя на ядро и вентилятор — допущение (см. «Двигатель»).</li>
       <li>Экономия от композитов (кессон −20%, механизация −15%) — отраслевые диапазоны, не данные Airbus.</li>
-      <li>Взлётная поляра (CLmax, прирост сопротивления механизации) — допущения; нет рычагов механизации на взлёте и посадке (двухщелевые закрылки A321), шасси при удлинении, редукторного вентилятора.</li>
+      <li>CLmax механизации — статистика Raymer, привязанная к A320 одним числом; сопротивление механизации на взлёте — допущение; длина пробега при посадке не считается. Нет рычагов шасси при удлинении и редукторного вентилятора.</li>
       <li>Стоимость топлива в евро пока не считается — будет из справочника FlightCostApp.</li>
     </ul>
   </section>`;
@@ -530,6 +572,7 @@ export const METHOD_TOC: [string, string][] = [
   ["m-aero", "Аэродинамика"],
   ["m-engine", "Двигатель"],
   ["m-thrust", "Тяга на режимах"],
+  ["m-highlift", "Механизация"],
   ["m-mission", "Полёт и топливо"],
   ["m-check", "Проверка"],
   ["m-levers", "Рычаги"],
@@ -561,6 +604,7 @@ export function renderMethod(current: Evaluation): string {
     ${aeroSection(current.definition, current)}
     ${engineSection(current)}
     ${thrustSection(current)}
+    ${highLiftSection(current)}
     ${missionSection()}
     ${checkSection()}
     ${leversSection()}

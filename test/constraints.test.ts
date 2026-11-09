@@ -26,6 +26,6 @@ test("двухконтурность 16 на установке CEO не пом�
 
 test("вставка как у A321 (6,94 м) даёт угол касания ≈9,7° (FCOM Bulletin 22/2)", () => {
   const def = { ...A320CEO, fuselage: { ...A320CEO.fuselage, lengthM: 37.57 + 6.94 } };
-  const r = checkConstraints(def, ctx.constraintsRef, { payloadLimitedByMzfw: false, ceilingFl: 350, oeiGradient: 0.04 });
+  const r = checkConstraints(def, ctx.constraintsRef, { payloadLimitedByMzfw: false, ceilingFl: 350, oeiGradient: 0.04, highLift: evaluate(A320CEO, [], ctx).highLift });
   assert.ok(Math.abs(parseFloat(byId(r, "tail-strike").value) - 9.7) < 0.15);
 });

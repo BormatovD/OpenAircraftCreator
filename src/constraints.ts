@@ -4,6 +4,7 @@
 import { type AircraftDefinition, aeroSpanM } from "./definition.ts";
 import { BPR_VALID_RANGE } from "./propulsion.ts";
 import { takeoffThrustN } from "./thrust.ts";
+import { type HighLiftPerf } from "./highlift.ts";
 
 export type Status = "ok" | "warning" | "violation";
 
@@ -33,6 +34,8 @@ export interface ConstraintReference {
   wingAreaM2: number;
   /** Суммарная взлётная тяга базового самолёта, Н. */
   takeoffThrustN: number;
+  /** CLmax во взлётной конфигурации базового самолёта (той же модели механизации). */
+  clMaxTakeoff: number;
   /** Минимальный клиренс, подтверждённый эксплуатацией (A320neo, AC 2-3-0: ≈0,46 м). */
   provenMinClearanceM: number;
 }
@@ -42,7 +45,7 @@ const ICAO_CODE_C_MAX_SPAN_M = 36; // ICAO Annex 14: код C — до 36 м, к
 export function checkConstraints(
   def: AircraftDefinition,
   ref: ConstraintReference,
-  opts: { payloadLimitedByMzfw: boolean; ceilingFl: number; oeiGradient: number },
+  opts: { payloadLimitedByMzfw: boolean; ceilingFl: number; oeiGradient: number; highLift: HighLiftPerf },
 ): ConstraintResult[] {
   const out: ConstraintResult[] = [];
 
@@ -127,9 +130,9 @@ export function checkConstraints(
           : "Не выполняется требование норм: нужна большая тяга, больше крыло или меньше MTOW",
   });
 
-  // 6. Длина ВПП: TOFL ∝ W² / (S · T) при той же механизации (Raymer, параметр взлёта).
+  // 6. Длина ВПП: TOFL ∝ W² / (S · CLmax,взл · T) (Raymer, параметр взлёта).
   const tofl =
-    (ref.takeoffFieldLengthM * Math.pow(def.weights.mtowKg / ref.mtowKg, 2) * (ref.wingAreaM2 / def.wing.areaM2)) /
+    (ref.takeoffFieldLengthM * Math.pow(def.weights.mtowKg / ref.mtowKg, 2) * (ref.wingAreaM2 / def.wing.areaM2) * (ref.clMaxTakeoff / opts.highLift.clMaxTakeoff)) /
     (takeoffThrustN(def) / ref.takeoffThrustN);
   const ratio = tofl / ref.takeoffFieldLengthM;
   out.push({
@@ -141,7 +144,23 @@ export function checkConstraints(
     message: ratio <= 1.05 ? "Как у базового самолёта" : "Меньше доступных аэропортов, ограничения в жару и на высокогорье",
   });
 
-  // 7. Масса: все места не помещаются в MZFW.
+  // 7. Скорость захода → категория воздушного судна ИКАО (PANS-OPS: V_AT = 1,23·V_SR при максимальной посадочной массе).
+  const vat = opts.highLift.vAppKt;
+  out.push({
+    id: "approach-speed",
+    label: "Скорость захода при MLW",
+    status: vat <= 140.5 ? "ok" : vat <= 165.5 ? "warning" : "violation",
+    value: `${Math.round(vat)} уз`,
+    limit: "категория C ≤ 140 уз, D — 141–165 уз (ИКАО PANS-OPS)",
+    message:
+      vat <= 140.5
+        ? "Категория C, как у A320"
+        : vat <= 165.5
+          ? "Категория D: выше минимумы захода, длиннее посадочная дистанция, часть схем недоступна"
+          : "Быстрее категории D: нужна более мощная механизация или больше крыло",
+  });
+
+  // 8. Масса: все места не помещаются в MZFW.
   out.push({
     id: "mzfw",
     label: "Нагрузка в пределах MZFW",
@@ -153,7 +172,7 @@ export function checkConstraints(
       : "Полная загрузка помещается",
   });
 
-  // 8. Двухконтурность вне диапазона данных.
+  // 9. Двухконтурность вне диапазона данных.
   const bpr = def.engine.bypassRatio;
   const inRange = bpr >= BPR_VALID_RANGE[0] && bpr <= BPR_VALID_RANGE[1];
   out.push({

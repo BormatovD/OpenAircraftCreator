@@ -1,7 +1,7 @@
 // Режим «перепроектировать под ту же миссию» — эффект снежного кома.
 //
 // Держим постоянными: расчётную нагрузку (все места × 95 кг) и расчётную дальность базового самолёта,
-// нагрузку на крыло (MTOW/S — та же скорость захода и ВПП), удлинение крыла и тяговооружённость.
+// скорость захода (W / (S·CLmax) — с лучшей механизацией крыло меньше), удлинение крыла и тяговооружённость.
 // Итерируем MTOW: геометрия и двигатели масштабируются под MTOW → массы по Raymer → топливо на миссию →
 // новое MTOW = OEW + нагрузка + топливо. Сходится, если каждое облегчение не порождает больше, чем снимает.
 
@@ -11,6 +11,26 @@ import { type Lever, applyDefinition } from "./levers.ts";
 import { rangeForFuel } from "./mission.ts";
 import { aeroFor, assumptionsFor, engineStateFor } from "./evaluate.ts";
 import { computeMasses } from "./mass/massTree.ts";
+import { highLiftRaw } from "./highlift.ts";
+
+/** Посадочный CLmax без привязки — для отношения двух вариантов механизации привязка не нужна. */
+function clMaxLandingRaw(def: AircraftDefinition): number {
+  const r = highLiftRaw(def);
+  return r.clean + r.flapLanding + r.slatLanding;
+}
+
+/** Площадь крыла (и оперения) × k при том же удлинении: так держится скорость захода при другом CLmax. */
+function scaleWingArea(d: AircraftDefinition, k: number): AircraftDefinition {
+  if (Math.abs(k - 1) < 1e-9) return d;
+  const r = Math.sqrt(k);
+  return {
+    ...d,
+    wing: { ...d.wing, areaM2: d.wing.areaM2 * k, spanM: d.wing.spanM * r, sharkletSpanM: d.wing.sharkletSpanM * r, controlSurfaceAreaM2: d.wing.controlSurfaceAreaM2 * k },
+    htail: { ...d.htail, areaM2: d.htail.areaM2 * k, spanM: d.htail.spanM * r },
+    vtail: { ...d.vtail, areaM2: d.vtail.areaM2 * k, spanM: d.vtail.spanM * r },
+    systems: { ...d.systems, fuelVolumeL: d.systems.fuelVolumeL * Math.pow(k, 1.5) },
+  };
+}
 
 export interface DesignMission {
   payloadKg: number;
@@ -77,7 +97,9 @@ export function redesign(
   reporting: MissionSpec = DEFAULT_MISSION,
 ): RedesignResult {
   // Рычаги применяются к базовому самолёту при исходном MTOW, затем всё масштабируется вместе.
-  const ref = applyDefinition(baseDef, levers);
+  // Механизация меняет CLmax: при той же скорости захода крыло масштабируется на CLmax_база / CLmax.
+  const applied = applyDefinition(baseDef, levers);
+  const ref = scaleWingArea(applied, clMaxLandingRaw(baseDef) / clMaxLandingRaw(applied));
   // Запас MZFW над расчётной нагрузкой — как у базового самолёта со всеми его местами.
   const basePayload = baseDef.systems.seats * reporting.massPerPaxKg;
   const mzfwMargin = baseDef.weights.mzfwKg - computeMasses(baseDef, ctx.calibration).oewKg - basePayload;

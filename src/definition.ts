@@ -19,6 +19,15 @@ export interface WingDef {
    * в массе крыла. Делит оценку Raymer на кессон и механизацию.
    */
   movablesShareOfWing: number;
+  /** Механизация: тип закрылков, их хорда (доля хорды крыла) и наличие предкрылков. */
+  highLift: HighLiftDef;
+}
+
+export interface HighLiftDef {
+  /** "single" — однощелевые Фаулера (A320), "double" — двухщелевые (A321). */
+  flapType: "single" | "double";
+  flapChordFraction: number;
+  slats: boolean;
 }
 
 export interface TailDef {

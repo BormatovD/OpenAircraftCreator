@@ -76,8 +76,6 @@ export function thrustCurve(def: AircraftDefinition, aero: AeroConfig, massKg: n
 
 /** Полёт с одним двигателем на втором сегменте: допущения по взлётной поляре. */
 export const TAKEOFF_POLAR = {
-  /** CLmax во взлётной конфигурации (CONF 1+F). Допущение по Obert: 2,0–2,4 для этого класса. */
-  clMaxTakeoff: 2.2,
   /** V2 ≥ 1,13·V_SR (CS 25.107). */
   v2Factor: 1.13,
   /** Прирост CD0 от закрылков и предкрылков во взлётном положении. Допущение (Raymer, ESDU: 0,010–0,015). */
@@ -96,10 +94,10 @@ export interface OeiClimb {
 }
 
 /** Градиент набора на втором сегменте с отказавшим двигателем при MTOW, МСА, уровень моря. */
-export function oeiSecondSegment(def: AircraftDefinition, aero: AeroConfig): OeiClimb {
+export function oeiSecondSegment(def: AircraftDefinition, aero: AeroConfig, clMaxTakeoff: number): OeiClimb {
   const p = TAKEOFF_POLAR;
   const w = def.weights.mtowKg * G0;
-  const cl = p.clMaxTakeoff / (p.v2Factor * p.v2Factor);
+  const cl = clMaxTakeoff / (p.v2Factor * p.v2Factor);
   const atm = isa(0);
   const v2 = Math.sqrt((2 * w) / (atm.densityKgM3 * aero.wingAreaM2 * cl));
   const ar = (aero.spanM * aero.spanM) / aero.wingAreaM2;

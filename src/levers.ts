@@ -8,6 +8,7 @@
 
 import { type AircraftDefinition } from "./definition.ts";
 import { BPR_VALID_RANGE, dryMassForBpr, fanDiameterForBpr } from "./propulsion.ts";
+import { DOUBLE_SLOTTED_MASS, HIGHLIFT_MASS_SHARES } from "./highlift.ts";
 
 export type Effect =
   | { kind: "definition"; apply: (def: AircraftDefinition) => AircraftDefinition }
@@ -83,6 +84,46 @@ export const compositeHighLift = (savingPct = 15): Lever => ({
   label: "Композитная механизация",
   rationale: `Масса механизации × ${(1 - savingPct / 100).toFixed(2)}. Допущение: у A320 элероны и интерцепторы уже композитные, выигрыш даёт в основном закрылки и предкрылки.`,
   effects: [{ kind: "massFactor", node: "wing.highLift", factor: 1 - savingPct / 100 }],
+});
+
+// ——— Механизация ———
+// Массы — через долю узла «механизация»: закрылки с каретками ≈60%, предкрылки ≈20% (допущение, highlift.ts).
+// Опорная механизация — A320: однощелевые закрылки Фаулера на 26% хорды и предкрылки.
+const A320_FLAP_CHORD = 0.26;
+
+/** Двухщелевые закрылки, как у A321: больше прирост CLmax, тяжелее каретки. */
+export const doubleSlottedFlaps = (on: boolean): Lever => ({
+  id: "flap-type",
+  label: on ? "Двухщелевые закрылки" : "Однощелевые закрылки",
+  rationale: on
+    ? `Прирост Cl профиля 1,6 вместо 1,3 (Raymer, табл. 12.2), выдвижение 0,8 хорды закрылка; масса закрылков × ${DOUBLE_SLOTTED_MASS} (допущение).`
+    : "Однощелевые закрылки Фаулера, как у A320.",
+  effects: [
+    { kind: "definition", apply: (d) => ({ ...d, wing: { ...d.wing, highLift: { ...d.wing.highLift, flapType: on ? "double" : "single" } } }) },
+    ...(on ? [{ kind: "massFactor" as const, node: "wing.highLift", factor: 1 + HIGHLIFT_MASS_SHARES.flaps * (DOUBLE_SLOTTED_MASS - 1) }] : []),
+  ],
+});
+
+/** Хорда закрылков в долях хорды крыла: прирост CLmax ∝ выдвижению, масса закрылков ∝ площади. */
+export const flapChord = (pct: number): Lever => ({
+  id: "flap-chord",
+  label: "Хорда закрылков",
+  rationale: `${pct}% хорды крыла (A320 — 26%). Масса закрылков пропорциональна их площади; кессон между лонжеронами не меняется.`,
+  effects: [
+    { kind: "definition", apply: (d) => ({ ...d, wing: { ...d.wing, highLift: { ...d.wing.highLift, flapChordFraction: pct / 100 } } }) },
+    { kind: "massFactor", node: "wing.highLift", factor: 1 + HIGHLIFT_MASS_SHARES.flaps * (pct / 100 / A320_FLAP_CHORD - 1) },
+  ],
+});
+
+/** Без предкрылков: легче, но меньше CLmax и выше скорости взлёта и захода. */
+export const slats = (on: boolean): Lever => ({
+  id: "slats",
+  label: on ? "Предкрылки" : "Без предкрылков",
+  rationale: on ? "Предкрылки по всему размаху, как у A320." : `Масса механизации × ${(1 - HIGHLIFT_MASS_SHARES.slats).toFixed(1)}; прирост CLmax от предкрылков теряется.`,
+  effects: [
+    { kind: "definition", apply: (d) => ({ ...d, wing: { ...d.wing, highLift: { ...d.wing.highLift, slats: on } } }) },
+    ...(on ? [] : [{ kind: "massFactor" as const, node: "wing.highLift", factor: 1 - HIGHLIFT_MASS_SHARES.slats }]),
+  ],
 });
 
 /** Тип законцовок: шарклеты (размах 35,8 м, ≈200 кг на пару) или «заборчики» A320ceo. */

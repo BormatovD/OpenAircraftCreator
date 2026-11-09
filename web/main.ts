@@ -38,6 +38,7 @@ const CONSTRAINT_PARTS: Record<string, string[]> = {
   "thrust-ceiling": ["engines"],
   "oei-climb": ["engines"],
   "takeoff-field": ["engines", "wing.highLift"],
+  "approach-speed": ["wing.highLift"],
 };
 /** Цвета огней (AC 2-10-0): левый навигационный — красный, правый — зелёный, проблесковые — белые, маяки — красные. */
 const LIGHTS: Record<string, string> = {
@@ -133,6 +134,7 @@ function run(): void {
   renderPayloadRange();
   renderDrag();
   renderThrust();
+  renderTakeoffLanding();
   renderConstraints();
   renderLevers();
   timing.panels = performance.now() - t;
@@ -390,6 +392,17 @@ function pose(): void {
         (b?.y ?? 0) + (off?.y ?? 0) * k + (d?.y ?? 0) * flaps,
         (b?.z ?? 0) + (o.userData.side ?? 0) * part.sideSpread * k + (off?.z ?? 0) * k,
       );
+      // Механизация: выдвижение и поворот вокруг шарнира. Взлёт (≈0,45) — закрылки ≈10–15°, предкрылки ≈18°;
+      // посадка — 40° и 27°. Каретка выдвигается быстрее, чем растёт угол (так устроен Фаулер).
+      const h = o.userData.hinge as { kind: "flap" | "slat"; pivot: THREE.Vector3; axis: THREE.Vector3; angle: number; slide: THREE.Vector3 } | null;
+      if (h) {
+        const f = flaps * (1 - k);
+        const ang = h.angle * (h.kind === "flap" ? Math.pow(f, 1.6) : Math.sqrt(f));
+        const sl = h.kind === "flap" ? Math.pow(f, 0.6) : Math.sqrt(f);
+        o.quaternion.setFromAxisAngle(h.axis, ang);
+        const rotated = h.pivot.clone().applyQuaternion(o.quaternion);
+        o.position.add(h.pivot).sub(rotated).addScaledVector(h.slide, sl);
+      }
       // Подкосы складываются при уборке — в модели их просто убираем, пока стойка не выпущена.
       if (o.userData.hideRetracted) o.visible = gearUp < 0.08;
       const r = o.userData.retract as { axis: "x" | "z"; angle: number } | null;
@@ -685,6 +698,42 @@ function renderLevers(): void {
 }
 
 // ——— Правая панель ———
+/** Всплывающая подсказка: одна на страницу, позиция — у значка, прижата к краям окна. */
+const tipPop = document.createElement("div");
+tipPop.className = "tip-pop";
+tipPop.hidden = true;
+document.body.append(tipPop);
+function showTip(el: HTMLElement): void {
+  tipPop.textContent = el.dataset.tip ?? "";
+  tipPop.hidden = false;
+  const r = el.getBoundingClientRect();
+  const w = tipPop.offsetWidth;
+  const h = tipPop.offsetHeight;
+  const left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2));
+  const below = r.bottom + 6 + h < window.innerHeight;
+  tipPop.style.left = `${left}px`;
+  tipPop.style.top = `${below ? r.bottom + 6 : r.top - h - 6}px`;
+}
+const hideTip = () => (tipPop.hidden = true);
+document.addEventListener("pointerover", (e) => {
+  const t = (e.target as HTMLElement).closest?.(".tip") as HTMLElement | null;
+  if (t) showTip(t);
+});
+document.addEventListener("pointerout", (e) => {
+  if ((e.target as HTMLElement).closest?.(".tip")) hideTip();
+});
+document.addEventListener("focusin", (e) => {
+  const t = (e.target as HTMLElement).closest?.(".tip") as HTMLElement | null;
+  if (t) showTip(t);
+});
+document.addEventListener("focusout", hideTip);
+document.addEventListener("scroll", hideTip, true);
+
+/** Подсказка при наведении (и по фокусу/касанию). */
+function tip(text: string): string {
+  return `<span class="tip" tabindex="0" role="note" aria-label="${text}" data-tip="${text}">?</span>`;
+}
+
 function deltaPct(cur: number, base: number, lowerIsBetter = true, digits = 1): string {
   const p = ((cur - base) / base) * 100;
   if (Math.abs(p) < 0.05) return `<span class="delta zero">как у базы</span>`;
@@ -750,11 +799,15 @@ function renderDrag(): void {
       }</span></li>`;
     })
     .join("");
+  const cdTip =
+    "Коэффициент лобового сопротивления всего самолёта в крейсере. В авиации его удобно считать в «каунтах»: 1 каунт = 0,0001 CD, у A320 это ≈0,35% всего сопротивления. Числа ниже — вклады агрегатов в каунтах.";
+  const ldTip =
+    "Аэродинамическое качество: во сколько раз подъёмная сила больше сопротивления в середине крейсера. Если рычаг облегчил самолёт, падают и нужная подъёмная сила, и индуктивное сопротивление — качество может не измениться, хотя топлива уходит меньше.";
   $("drag").innerHTML = `
-    <div class="drag-head"><span>CD = <b>${nf(d.total, 0)}</b> каунтов ${deltaPct(d.total, b.total)}</span><span>L/D <b>${nf(d.ld, 1)}</b> ${deltaPct(d.ld, b.ld, false)}</span></div>
+    <div class="drag-head"><span>C<sub>D</sub> <b>${nf(d.total / 1e4, 4)}</b> ${deltaPct(d.total, b.total)}${tip(cdTip)}</span><span>Качество L/D <b>${nf(d.ld, 1)}</b> ${deltaPct(d.ld, b.ld, false)}${tip(ldTip)}</span></div>
     <div class="drag-bar">${seg}</div>
     <ul class="drag-list">${rows}</ul>
-    <p class="drag-note">M ${nf(d.mach, 2)}, CL ${nf(d.cl, 2)} в середине крейсера на FL350; число Маха расходимости ${nf(d.mdd, 3)}. 1 каунт = 0,0001 CD.</p>`;
+    <p class="drag-note">Вклады — в каунтах (0,0001 C<sub>D</sub>). M ${nf(d.mach, 2)}, C<sub>L</sub> ${nf(d.cl, 2)} в середине крейсера на FL350; число Маха, после которого резко растёт волновое сопротивление, — ${nf(d.mdd, 3)}.</p>`;
 }
 
 function renderPayloadRange(): void {
@@ -787,6 +840,26 @@ function renderPayloadRange(): void {
     <div class="pr-legend"><span><i class="k-cur"></i>сейчас</span><span><i class="k-base"></i>${AIRCRAFT_LABEL[state.aircraftId]}</span><span><i class="k-mission"></i>рейс ${nf(Math.round(DEFAULT_MISSION.distanceNm * 1.852))} км</span></div>`;
 }
 
+/** Механизация: CLmax по конфигурациям и что из них следует на взлёте и посадке. */
+function renderTakeoffLanding(): void {
+  const { ev, base } = result;
+  const h = ev.highLift;
+  const hb = base.highLift;
+  const tofl = (e: Evaluation) => parseFloat(e.constraints.find((c) => c.id === "takeoff-field")!.value.replace(/\s/g, ""));
+  const row = (label: string, v: string, delta: string, t?: string) => `<tr><th>${label}${t ? tip(t) : ""}</th><td>${v}</td><td>${delta}</td></tr>`;
+  const kt = (cur: number, b: number) => (Math.abs(cur - b) < 0.5 ? `<span class="delta zero">как у базы</span>` : `<span class="delta ${cur < b ? "good" : "bad"}">${cur > b ? "+" : "−"}${nf(Math.abs(cur - b), 0)} уз</span>`);
+  $("tol").innerHTML = `
+    <table class="tol">
+      ${row("C<sub>L max</sub> чистое крыло", nf(h.clMaxClean, 2), deltaPct(h.clMaxClean, hb.clMaxClean, false), "Максимальный коэффициент подъёмной силы без механизации. Чем он выше, тем медленнее может лететь самолёт без сваливания.")}
+      ${row("C<sub>L max</sub> взлёт", nf(h.clMaxTakeoff, 2), deltaPct(h.clMaxTakeoff, hb.clMaxTakeoff, false), "Взлётная конфигурация (CONF 1+F): предкрылки 18°, закрылки 10°.")}
+      ${row("C<sub>L max</sub> посадка", nf(h.clMaxLanding, 2), deltaPct(h.clMaxLanding, hb.clMaxLanding, false), "Посадочная конфигурация (CONF FULL): предкрылки 27°, закрылки 40°. Привязано к A320 по скорости захода 134 уз.")}
+      ${row("V2 при MTOW", `${nf(h.v2Kt, 0)} уз`, kt(h.v2Kt, hb.v2Kt), "Безопасная скорость взлёта: 1,13 скорости сваливания во взлётной конфигурации.")}
+      ${row("Заход при MLW", `${nf(h.vAppKt, 0)} уз`, kt(h.vAppKt, hb.vAppKt), "1,23 скорости сваливания в посадочной конфигурации. По ней ИКАО делит самолёты на категории: C — до 140 уз.")}
+      ${row("ВПП при MTOW", `${nf(tofl(ev))} м`, deltaPct(tofl(ev), tofl(base)))}
+      ${row("Набор с отказом двигателя", `${nf(ev.oei.gradient * 100, 1)}%`, `<span class="delta ${ev.oei.gradient >= base.oei.gradient - 1e-4 ? (Math.abs(ev.oei.gradient - base.oei.gradient) < 5e-4 ? "zero" : "good") : "bad"}">${Math.abs(ev.oei.gradient - base.oei.gradient) < 5e-4 ? "как у базы" : `${ev.oei.gradient > base.oei.gradient ? "+" : "−"}${nf(Math.abs(ev.oei.gradient - base.oei.gradient) * 100, 1)} п.п.`}</span>`, "Второй сегмент взлёта: шасси убрано, один двигатель. Норма — не меньше 2,4%. Больше CLmax — ниже V2, но выше индуктивное сопротивление, поэтому мощная механизация градиент слегка снижает.")}
+    </table>`;
+}
+
 /** Тяга на верху набора: располагаемая (две двигателя, максимальный режим) и потребная по эшелонам. */
 function renderThrust(): void {
   const { ev, base } = result;
@@ -808,7 +881,6 @@ function renderThrust(): void {
     grid.push(`<line x1="${P.l}" x2="${W - P.r}" y1="${sy(fl)}" y2="${sy(fl)}" class="grid"/><text x="${P.l - 6}" y="${sy(fl) + 4}" text-anchor="end">FL${fl}</text>`);
   const ceil = ev.thrust.ceilingFl;
   const cy = sy(Math.min(ceil, fl1));
-  const oei = ev.oei.gradient * 100;
   $("thrust").innerHTML = `
     <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Располагаемая и потребная тяга по эшелонам на верху набора">
       ${grid.join("")}
@@ -823,7 +895,7 @@ function renderThrust(): void {
     <div class="pr-legend"><span><i class="k-avail"></i>располагаемая</span><span><i class="k-req"></i>потребная + 300 фут/мин</span><span><i class="k-base"></i>${AIRCRAFT_LABEL[state.aircraftId]}</span></div>
     <p class="drag-note">Масса ${nf(Math.round(ev.thrust.massKg / 100) / 10, 1)} т (MTOW − 2% на набор), M ${nf(ev.thrust.mach, 2)}. Тяга на FL350 — ${nf(
       Math.round((ev.thrust.points.find((p) => p.fl === 350)!.availableN / ev.definition.engine.count / 4.448 / 100)) * 100,
-    )} lbf на двигатель, ${nf(Math.round((ev.thrust.points.find((p) => p.fl === 350)!.availableN / (ev.definition.engine.takeoffThrustKn * 1000 * ev.definition.engine.thrustScale * ev.definition.engine.count)) * 100))}% взлётной. С отказавшим двигателем после взлёта — градиент ${nf(oei, 1)}% (норма 2,4%).</p>`;
+    )} lbf на двигатель, ${nf(Math.round((ev.thrust.points.find((p) => p.fl === 350)!.availableN / (ev.definition.engine.takeoffThrustKn * 1000 * ev.definition.engine.thrustScale * ev.definition.engine.count)) * 100))}% взлётной.</p>`;
 }
 
 const STATUS_ICON = { ok: "✓", warning: "!", violation: "✕" } as const;

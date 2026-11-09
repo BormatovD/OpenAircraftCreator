@@ -548,6 +548,8 @@ body.busy .busy-note {
 
 .drag-head {
   display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
   justify-content: space-between;
   font-size: 13px;
   margin-bottom: 6px;
@@ -1195,4 +1197,65 @@ body.method-mode .bar-controls {
 }
 .pr-legend {
   flex-wrap: wrap;
+}
+
+/* Подсказка при наведении */
+.tip {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  margin-left: 5px;
+  border-radius: 50%;
+  border: 1px solid var(--ink-soft);
+  color: var(--ink-soft);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: help;
+  vertical-align: 1px;
+}
+.tip:hover,
+.tip:focus-visible {
+  color: var(--ink);
+  border-color: var(--ink);
+  outline: none;
+}
+.tip-pop {
+  position: fixed;
+  max-width: 260px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.4;
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* Взлёт и посадка */
+table.tol {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+table.tol th {
+  text-align: left;
+  font-weight: 400;
+  color: var(--ink-soft);
+  padding: 3px 0;
+}
+table.tol td {
+  text-align: right;
+  padding: 3px 0 3px 8px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+table.tol td:nth-child(2) {
+  color: var(--ink);
+  font-weight: 600;
 }

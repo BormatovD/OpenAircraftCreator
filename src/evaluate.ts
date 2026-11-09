@@ -13,6 +13,7 @@ import { flightLevelToM, isa } from "./atmosphere.ts";
 import { type EngineDef } from "./definition.ts";
 import { tsfcFactor, tsfcMachFactor } from "./propulsion.ts";
 import { type ConstraintReference, type ConstraintResult, checkConstraints } from "./constraints.ts";
+import { type HighLiftPerf, highLiftPerf } from "./highlift.ts";
 import { type OeiClimb, type ThrustCurve, TOC_MASS_FRACTION, oeiSecondSegment, takeoffThrustN, thrustCurve } from "./thrust.ts";
 
 export interface BaselineAero {
@@ -34,6 +35,8 @@ export interface EvalContext {
   aero: BaselineAero;
   fuelDensityKgL: number;
   assumptions?: MissionAssumptions;
+  /** Множитель привязки CLmax механизации (highlift.ts). */
+  highLiftAnchor: number;
 }
 
 export interface MissionSpec {
@@ -76,6 +79,8 @@ export interface Evaluation {
   thrust: ThrustCurve;
   /** Второй сегмент взлёта с отказавшим двигателем. */
   oei: OeiClimb;
+  /** Механизация: CLmax по конфигурациям, V2, скорость захода. */
+  highLift: HighLiftPerf;
 }
 
 /** Аэродинамика с учётом рычагов. Общий множитель сопротивления действует через эквивалентные CD0 и e. */
@@ -201,7 +206,8 @@ export function evaluateResolved(
     { rangeNm: rangeForFuel(aero, engine, as, oew + fuelCapKg, fuelCapKg).rangeNm, payloadKg: 0 },
   ];
   const thrust = thrustCurve(def, aero, w.mtowKg * TOC_MASS_FRACTION, as.cruiseMach);
-  const oei = oeiSecondSegment(def, aero);
+  const highLift = highLiftPerf(def, ctx.highLiftAnchor);
+  const oei = oeiSecondSegment(def, aero, highLift.clMaxTakeoff);
   const k = 1 / (Math.PI * ((aero.spanM * aero.spanM) / aero.wingAreaM2) * aero.oswald);
   return {
     definition: def,
@@ -218,7 +224,7 @@ export function evaluateResolved(
     seats,
     payloadKg: payload,
     payloadLimitedByMzfw,
-    constraints: checkConstraints(def, ctx.constraintsRef, { payloadLimitedByMzfw, ceilingFl: thrust.ceilingFl, oeiGradient: oei.gradient }),
+    constraints: checkConstraints(def, ctx.constraintsRef, { payloadLimitedByMzfw, ceilingFl: thrust.ceilingFl, oeiGradient: oei.gradient, highLift }),
     // Расход на место — по местам, которые реально помещаются в MZFW.
     seatsCarried,
     fuelPerSeatPer100KmKg: (trip / seatsCarried / km) * 100,
@@ -226,6 +232,7 @@ export function evaluateResolved(
     cruiseDrag: cruiseDrag(def, aero, as, oew + payload + missionFuelKg / 2, ctx.aero),
     thrust,
     oei,
+    highLift,
   };
 }
 
