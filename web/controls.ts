@@ -1,0 +1,314 @@
+// Панель рычагов и сценарии — тоже данные. Каждая строка панели знает своё значение по умолчанию
+// (из определения выбранного самолёта) и как превратить положение ползунка в рычаг расчётного ядра.
+
+import { type AircraftDefinition } from "../src/definition.ts";
+import {
+  type Lever,
+  aeroQuality,
+  cruiseMach,
+  wingThickness,
+  bypassRatio,
+  compositeHighLift,
+  compositeWing,
+  coreTechnology,
+  thrustRating,
+  fuselageStretch,
+  lighterHarness,
+  nacelleRaise,
+  wingSpan,
+  wingTip,
+} from "../src/levers.ts";
+import { BPR_VALID_RANGE } from "../src/propulsion.ts";
+
+export type Mode = "fixed" | "redesign";
+
+interface Common {
+  id: string;
+  group: string;
+  label: string;
+  hint: string;
+  /** Узлы дерева масс, которые рычаг меняет напрямую, — подсвечиваются в 3D. */
+  parts: string[];
+  /** Что показывать в «рентгене», если отличается от parts (например, кресла без обшивки). */
+  focus?: string[];
+}
+export interface RangeControl extends Common {
+  kind: "range";
+  min: number;
+  max: number;
+  step: number;
+  base: (d: AircraftDefinition) => number;
+  format: (v: number) => string;
+  toLever: (v: number) => Lever;
+}
+export interface ToggleControl extends Common {
+  kind: "toggle";
+  base: (d: AircraftDefinition) => boolean;
+  toLever: (on: boolean) => Lever;
+}
+export type Control = RangeControl | ToggleControl;
+export type Values = Record<string, number | boolean>;
+
+const num = (v: number, digits = 1) => v.toLocaleString("ru-RU", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+const signed = (v: number, digits = 1) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${num(Math.abs(v), digits)}`;
+
+export const CONTROLS: Control[] = [
+  {
+    id: "compositeBox",
+    group: "Крыло",
+    kind: "toggle",
+    label: "Композитный кессон",
+    hint: "−20% массы кессона и панелей",
+    parts: ["wing.box"],
+    base: () => false,
+    toLever: () => compositeWing(20),
+  },
+  {
+    id: "compositeHighLift",
+    group: "Крыло",
+    kind: "toggle",
+    label: "Композитная механизация",
+    hint: "−15% массы закрылков, предкрылков, элеронов",
+    parts: ["wing.highLift"],
+    base: () => false,
+    toLever: () => compositeHighLift(15),
+  },
+  {
+    id: "span",
+    group: "Крыло",
+    kind: "range",
+    label: "Размах",
+    hint: "при той же площади: меньше индуктивное сопротивление, тяжелее крыло",
+    parts: ["wing.box", "wing.highLift", "wingtips"],
+    min: -2,
+    max: 5,
+    step: 0.1,
+    base: () => 0,
+    format: (v) => `${signed(v)} м`,
+    toLever: (v) => wingSpan(v),
+  },
+  {
+    id: "thickness",
+    group: "Крыло",
+    kind: "range",
+    label: "Толщина профиля",
+    hint: "у корня; тоньше — меньше волновое сопротивление, но тяжелее крыло и меньше баки",
+    parts: ["wing.box", "fuel"],
+    min: 10,
+    max: 18,
+    step: 0.5,
+    base: (d) => d.wing.thicknessRootPct,
+    format: (v) => `${num(v)}%`,
+    toLever: (v) => wingThickness(v),
+  },
+  {
+    id: "sharklets",
+    group: "Крыло",
+    kind: "toggle",
+    label: "Шарклеты",
+    hint: "вместо «заборчиков»: размах 35,8 м, +200 кг",
+    parts: ["wingtips"],
+    base: (d) => d.wing.tip === "sharklet",
+    toLever: (on) => wingTip(on ? "sharklet" : "fence"),
+  },
+  {
+    id: "bpr",
+    group: "Двигатель",
+    kind: "range",
+    label: "Двухконтурность",
+    hint: `больше вентилятор и гондола, выше пропульсивный КПД; данные — ${BPR_VALID_RANGE[0]}–${BPR_VALID_RANGE[1]}`,
+    parts: ["engines", "nacelles"],
+    min: 4,
+    max: 15,
+    step: 0.1,
+    base: (d) => d.engine.bypassRatio,
+    format: (v) => num(v),
+    toLever: (v) => bypassRatio(v),
+  },
+  {
+    id: "opr",
+    group: "Двигатель",
+    kind: "range",
+    label: "Степень сжатия ядра",
+    hint: "выше — выше термический КПД (цикл Брайтона)",
+    parts: ["engines"],
+    min: 25,
+    max: 55,
+    step: 0.5,
+    base: (d) => d.engine.overallPressureRatio,
+    format: (v) => num(v),
+    toLever: (v) => coreTechnology(v),
+  },
+  {
+    id: "thrust",
+    group: "Двигатель",
+    kind: "range",
+    label: "Взлётная тяга",
+    hint: "% от базовой; больше — выше потолок и запас на взлёте, но тяжелее и крупнее двигатель",
+    parts: ["engines", "nacelles"],
+    min: 85,
+    max: 125,
+    step: 1,
+    base: () => 100,
+    format: (v) => `${num(v, 0)}%`,
+    toLever: (v) => thrustRating(v),
+  },
+  {
+    id: "raise",
+    group: "Двигатель",
+    kind: "range",
+    label: "Подъём двигателя",
+    hint: "возвращает клиренс под большим вентилятором",
+    parts: ["nacelles"],
+    min: 0,
+    max: 0.4,
+    step: 0.01,
+    base: (d) => d.engine.nacelleRaiseM,
+    format: (v) => `${Math.round(v * 100)} см`,
+    toLever: (v) => nacelleRaise(v),
+  },
+  {
+    id: "rows",
+    group: "Фюзеляж и системы",
+    kind: "range",
+    label: "Длина фюзеляжа",
+    hint: "ряды по 6 кресел; MTOW и MZFW — по режиму пересчёта",
+    parts: ["fuselage", "furnishings"],
+    focus: ["furnishings", "operatorItems"],
+    min: -6,
+    max: 12,
+    step: 1,
+    base: () => 0,
+    format: (v) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v)} ряд${ruRows(Math.abs(v))}`,
+    toLever: (v) => fuselageStretch(v),
+  },
+  {
+    id: "harness",
+    group: "Фюзеляж и системы",
+    kind: "range",
+    label: "Облегчение кабельной сети",
+    hint: "алюминиевые жилы, тонкая изоляция, шины данных вместо отдельных линий; меньше дублирующих жгутов",
+    parts: ["electrical.harness"],
+    min: 0,
+    max: 50,
+    step: 5,
+    base: () => 0,
+    format: (v) => (v ? `−${v}%` : "0%"),
+    toLever: (v) => lighterHarness(v),
+  },
+  {
+    id: "aero",
+    group: "Аэродинамика",
+    kind: "range",
+    label: "Аэродинамическое качество",
+    hint: "общее снижение сопротивления: риблеты, зализы, герметизация щелей",
+    parts: [],
+    min: 0,
+    max: 6,
+    step: 0.5,
+    base: () => 0,
+    format: (v) => `+${num(v)}%`,
+    toLever: (v) => aeroQuality(v),
+  },
+  {
+    id: "mach",
+    group: "Аэродинамика",
+    kind: "range",
+    label: "Крейсерское число Маха",
+    hint: "быстрее — растут волновое сопротивление и удельный расход; медленнее — растёт индуктивное",
+    parts: [],
+    min: 0.7,
+    max: 0.84,
+    step: 0.01,
+    base: () => 0.78,
+    format: (v) => `M ${num(v, 2)}`,
+    toLever: (v) => cruiseMach(v),
+  },
+];
+
+function ruRows(n: number): string {
+  const d = n % 10;
+  const dd = n % 100;
+  if (d === 1 && dd !== 11) return "";
+  if (d >= 2 && d <= 4 && (dd < 12 || dd > 14)) return "а";
+  return "ов";
+}
+
+export function defaults(def: AircraftDefinition): Values {
+  const v: Values = {};
+  for (const c of CONTROLS) v[c.id] = c.base(def);
+  return v;
+}
+
+export function isChanged(c: Control, def: AircraftDefinition, value: number | boolean): boolean {
+  if (c.kind === "toggle") return value !== c.base(def);
+  return Math.abs((value as number) - c.base(def)) > c.step / 2;
+}
+
+/** Рычаги для ядра — только те, что сдвинуты от значений выбранного самолёта. */
+export function leversFor(def: AircraftDefinition, values: Values): Lever[] {
+  const out: Lever[] = [];
+  for (const c of CONTROLS) {
+    const v = values[c.id];
+    if (!isChanged(c, def, v)) continue;
+    out.push(c.kind === "toggle" ? c.toLever(v as boolean) : c.toLever(v as number));
+  }
+  return out;
+}
+
+export interface Scenario {
+  id: string;
+  title: string;
+  text: string;
+  aircraft: string;
+  mode: Mode;
+  values: Values;
+  /** С чем сравнить итог (другой самолёт без рычагов). */
+  compareWith?: string;
+}
+
+export const SCENARIOS: Scenario[] = [
+  {
+    id: "ceo-neo",
+    title: "CEO → NEO своими руками",
+    text:
+      "На A320ceo ставим вентилятор с двухконтурностью 11, ядро со степенью сжатия 40 и шарклеты. Расход на место выходит как у A320neo. " +
+      "Разница в нагрузке — Airbus ещё поднял MZFW на 2,3 т. Уберите подъём двигателя — клиренс станет жёлтым.",
+    aircraft: "a320ceo",
+    mode: "fixed",
+    values: { bpr: 11, opr: 40, sharklets: true, raise: 0.06 },
+    compareWith: "a320neo",
+  },
+  {
+    id: "composite",
+    title: "Композитное крыло",
+    text:
+      "Кессон и механизация из углепластика. В режиме перепроектирования облегчение уменьшает топливо на ту же миссию, " +
+      "а с ним — крыло, двигатели и MTOW: эффект снежного кома. Переключите режим, чтобы увидеть разницу.",
+    aircraft: "a320ceo",
+    mode: "redesign",
+    values: { compositeBox: true, compositeHighLift: true },
+  },
+  {
+    id: "ewis",
+    title: "Лёгкая кабельная сеть",
+    text:
+      "Проводка — около 1,85 т на A320 (оценка для узкофюзеляжника — ≈2 т): её доля есть в каждой системе. " +
+      "Облегчение на 40% — алюминиевые жилы, тонкая изоляция и шины данных вместо дублирующих линий — снимает ≈740 кг. " +
+      "Наведите на рычаг: в «рентгене» видно, как в пучках становится меньше проводов.",
+    aircraft: "a320ceo",
+    mode: "fixed",
+    values: { harness: 40 },
+  },
+  {
+    id: "a321",
+    title: "Путь к A321",
+    text:
+      "+9 рядов, +54 места. С той же геометрией самолёт упирается в MZFW и угол касания хвостом. " +
+      "В режиме «под ту же миссию» (все места на ту же дальность) получается MTOW около 90 т — это класс A321. " +
+      "Но модель сохраняет удлинение крыла, поэтому размах выходит за код C; Airbus оставил крыло A320 и добавил двухщелевые закрылки.",
+    aircraft: "a320ceo",
+    mode: "fixed",
+    values: { rows: 9 },
+  },
+];

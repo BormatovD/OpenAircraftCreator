@@ -1,0 +1,51 @@
+{
+  "_about": "Калибровочный набор A320ceo/A320neo. Источник масс и топлива — Airbus AC A320, ред. 44 (июнь 2024), разделы 2-1-1, 2-3-0, 2-14-0. Углы диаграмм нагрузка–дальность оцифрованы с AC 3-2-1 (МСА), точность ≈±0,2 т и ≈±30 nm.",
+  "fuelDensityKgPerL": 0.785,
+  "geometry": {
+    "wingAreaM2": 122.4,
+    "spanFenceM": 34.1,
+    "spanSharkletM": 35.8,
+    "sweepQuarterChordDeg": 25
+  },
+  "aircraft": {
+    "ceo_fence": {
+      "label": "A320ceo, законцовки-«заборчики» (CFM56-5B)",
+      "engine": "CFM56-5B",
+      "spanM": 34.1,
+      "fuelCapacityL": 24209,
+      "actFuelL": 3121,
+      "oewAcKg": 41244,
+      "curves": [
+        { "mtowKg": 73500, "act": false, "maxPayloadT": 18.2, "rangeAtMaxPayloadNm": 1670, "fullTankPayloadT": 11.9, "rangeAtFullTankNm": 3000, "ferryRangeNm": null },
+        { "mtowKg": 78000, "act": false, "maxPayloadT": 19.7, "rangeAtMaxPayloadNm": 2120, "fullTankPayloadT": 16.2, "rangeAtFullTankNm": 2810, "ferryRangeNm": 3670 },
+        { "mtowKg": 78000, "act": true, "maxPayloadT": 19.1, "rangeAtMaxPayloadNm": 2120, "fullTankPayloadT": 13.3, "rangeAtFullTankNm": 3320, "ferryRangeNm": 4100 }
+      ]
+    },
+    "ceo_sharklet": {
+      "label": "A320ceo, шарклеты (CFM56-5B)",
+      "engine": "CFM56-5B",
+      "spanM": 35.8,
+      "fuelCapacityL": 24209,
+      "actFuelL": 3121,
+      "oewAcKg": 41244,
+      "curves": [
+        { "mtowKg": 73500, "act": false, "maxPayloadT": 18.0, "rangeAtMaxPayloadNm": 1740, "fullTankPayloadT": 11.7, "rangeAtFullTankNm": 3130, "ferryRangeNm": null },
+        { "mtowKg": 78000, "act": false, "maxPayloadT": 19.5, "rangeAtMaxPayloadNm": 2210, "fullTankPayloadT": 16.0, "rangeAtFullTankNm": 2920, "ferryRangeNm": 3780 },
+        { "mtowKg": 78000, "act": true, "maxPayloadT": 19.0, "rangeAtMaxPayloadNm": 2210, "fullTankPayloadT": 13.1, "rangeAtFullTankNm": 3440, "ferryRangeNm": 4210 }
+      ]
+    },
+    "neo": {
+      "label": "A320neo (LEAP-1A / PW1100G)",
+      "engine": "LEAP-1A",
+      "spanM": 35.8,
+      "fuelCapacityL": 23740,
+      "actFuelL": 3121,
+      "oewAcKg": 43144,
+      "curves": [
+        { "mtowKg": 73500, "act": false, "maxPayloadT": 17.7, "rangeAtMaxPayloadNm": 1700, "fullTankPayloadT": 10.1, "rangeAtFullTankNm": 3690, "ferryRangeNm": null },
+        { "mtowKg": 79000, "act": false, "maxPayloadT": 19.4, "rangeAtMaxPayloadNm": 2460, "fullTankPayloadT": 15.2, "rangeAtFullTankNm": 3410, "ferryRangeNm": 4290 },
+        { "mtowKg": 79000, "act": true, "maxPayloadT": 18.7, "rangeAtMaxPayloadNm": 2460, "fullTankPayloadT": 12.3, "rangeAtFullTankNm": 3990, "ferryRangeNm": 4750 }
+      ]
+    }
+  }
+}

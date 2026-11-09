@@ -1,0 +1,33 @@
+{
+  "name": "openaircraftcreator-core",
+  "version": "0.17.0",
+  "description": "Расчётное ядро OpenAircraftCreator: миссия, поляра, калибровка по диаграммам нагрузка–дальность",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "calibrate": "node scripts/calibrate-a320.ts",
+    "masses": "node scripts/masses-a320.ts",
+    "levers": "node scripts/levers-demo.ts",
+    "constraints": "node scripts/constraints-demo.ts",
+    "redesign": "node scripts/redesign-demo.ts",
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/three": "^0.187.0",
+    "typescript": "^5.6.0",
+    "vite": "^8.3.7",
+    "vite-plugin-singlefile": "^2.3.4"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "katex": "^0.16.22",
+    "three": "^0.187.0"
+  }
+}

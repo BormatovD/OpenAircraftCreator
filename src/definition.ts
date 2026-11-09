@@ -1,0 +1,129 @@
+// Определение самолёта — чистые данные. Рычаги меняют определение (геометрию, двигатель),
+// а оценщики масс и аэродинамика читают только его. Новый рычаг = новое поле или новая правка
+// определения, без переписывания расчёта.
+
+export interface WingDef {
+  areaM2: number;
+  /** Конструктивный размах без законцовок. */
+  spanM: number;
+  /** Законцовки: дают эффективный размах для аэродинамики и собственную массу. */
+  tip: "fence" | "sharklet";
+  sharkletSpanM: number;
+  taper: number;
+  sweepQuarterDeg: number;
+  thicknessRootPct: number;
+  /** Площадь механизации и элеронов на крыле, м². */
+  controlSurfaceAreaM2: number;
+  /**
+   * Доля подвижных частей (предкрылки, закрылки с кареткам и обтекателями, элероны, интерцепторы)
+   * в массе крыла. Делит оценку Raymer на кессон и механизацию.
+   */
+  movablesShareOfWing: number;
+}
+
+export interface TailDef {
+  areaM2: number;
+  aspectRatio: number;
+  sweepDeg: number;
+  armM: number;
+  spanM: number;
+  thicknessPct: number;
+  controlFraction: number;
+}
+
+export interface FuselageDef {
+  lengthM: number;
+  widthM: number;
+  heightM: number;
+  pressurizedVolumeM3: number;
+  /** Raymer K_door: 1,06 — один боковой грузовой люк. */
+  doorFactor: number;
+}
+
+export interface GearDef {
+  mainLengthM: number;
+  noseLengthM: number;
+  mainWheels: number;
+  noseWheels: number;
+  mainStruts: number;
+  stallSpeedMs: number;
+}
+
+export interface EngineDef {
+  name: string;
+  count: number;
+  dryMassKg: number;
+  fanDiameterM: number;
+  bypassRatio: number;
+  /** Суммарная степень сжатия — задаёт термический КПД ядра (идеальный цикл Брайтона). */
+  overallPressureRatio: number;
+  /** Прочие технологии ядра (температура, материалы, КПД узлов) — множитель к термическому КПД. */
+  coreTechFactor: number;
+  nacelleLengthM: number;
+  nacelleWidthM: number;
+  /** Взлётная тяга одного двигателя (статика, МСА, уровень моря), кН. */
+  takeoffThrustKn: number;
+  /** Масштаб тяги относительно базового двигателя (режим перепроектирования, рычаг тяги). */
+  thrustScale: number;
+  /** Подъём гондолы относительно базовой установки (пилон, стойки), м. */
+  nacelleRaiseM: number;
+  thrustReverser: boolean;
+  /** Схема двигателя для визуализации: число лопаток вентилятора и ступеней. Ступени ТНД — от двухконтурности. */
+  architecture: { fanBlades: number; boosterStages: number; hpcStages: number; hptStages: number };
+}
+
+export interface SystemsDef {
+  crew: number;
+  /** Пассажирские места. */
+  seats: number;
+  cabinCrew: number;
+  /** Шаг кресел, м (A320 в один класс — 28–29 in, AC 2-4-1). */
+  seatPitchM: number;
+  seatsAbreast: number;
+  cargoMassKg: number;
+  fuelVolumeL: number;
+  fuelTanks: number;
+  flightControlFunctions: number;
+  generatorsKva: number;
+  generators: number;
+  electricalRoutingM: number;
+  avionicsUninstalledKg: number;
+  apuUninstalledKg: number;
+  /** Доля электрожгутов и распределения в массе ATA 24. Допущение, публичных данных нет. */
+  harnessShareOfElectrical: number;
+  /**
+   * Бортовая кабельная сеть (EWIS) — сквозной узел: провода есть в каждой системе. Доли масс систем,
+   * которые на самом деле приходятся на жгуты, переносятся в узел «электрожгуты». Допущение; итог сверяется
+   * с оценкой ≈2 т проводки на узкофюзеляжный самолёт.
+   */
+  ewisShares: Record<string, number>;
+}
+
+export interface WeightsDef {
+  mtowKg: number;
+  mlwKg: number;
+  mzfwKg: number;
+  /** Ультимативная перегрузка: 1,5 × 2,5. */
+  ultimateLoadFactor: number;
+  landingLoadFactor: number;
+  /** Оборудование эксплуатанта (экипаж, кейтеринг, вода, невырабатываемое топливо). Допущение. */
+  operatorItemsKg: number;
+}
+
+export interface AircraftDefinition {
+  id: string;
+  label: string;
+  wing: WingDef;
+  htail: TailDef;
+  vtail: TailDef;
+  fuselage: FuselageDef;
+  gear: GearDef;
+  engine: EngineDef;
+  systems: SystemsDef;
+  weights: WeightsDef;
+}
+
+/** Размах, который «видит» аэродинамика: с шарклетами — их размах. */
+export function aeroSpanM(def: AircraftDefinition): number {
+  return def.wing.tip === "sharklet" ? def.wing.sharkletSpanM : def.wing.spanM;
+}

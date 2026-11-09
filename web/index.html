@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A320 в разборе</title>
+  </head>
+  <body>
+    <header class="bar">
+      <div class="brand">
+        <h1>A320 в разборе</h1>
+        <p>Рычаги меняют геометрию, массы, расход и ограничения — расчёт по модели, откалиброванной по данным Airbus</p>
+      </div>
+      <nav class="views" aria-label="Разделы">
+        <a href="#" id="nav-model" aria-current="page">Модель</a>
+        <a href="#method" id="nav-method">Как рассчитано</a>
+      </nav>
+      <div class="bar-controls">
+        <div class="segmented" role="radiogroup" aria-label="Базовый самолёт">
+          <button role="radio" data-aircraft="a320ceo" aria-checked="true">A320ceo</button>
+          <button role="radio" data-aircraft="a320neo" aria-checked="false">A320neo</button>
+        </div>
+        <button class="theme-toggle" id="theme-toggle" aria-label="Переключить тему">Светлая тема</button>
+      </div>
+    </header>
+
+    <aside class="panel left" aria-label="Сценарии и рычаги">
+      <section>
+        <h2>Сценарии</h2>
+        <div class="scenarios" id="scenarios"></div>
+        <p class="scenario-text" id="scenario-text" hidden></p>
+      </section>
+      <section>
+        <h2>Пересчёт</h2>
+        <div class="segmented wide" role="radiogroup" aria-label="Режим пересчёта">
+          <button role="radio" data-mode="fixed" aria-checked="true">Та же геометрия</button>
+          <button role="radio" data-mode="redesign" aria-checked="false">Под ту же миссию</button>
+        </div>
+        <p class="mode-hint" id="mode-hint"></p>
+      </section>
+      <section>
+        <div class="section-head">
+          <h2>Рычаги</h2>
+          <button class="link" id="reset" disabled>Сбросить</button>
+        </div>
+        <div id="levers"></div>
+      </section>
+      <section>
+        <label class="field-label" for="explode">Разбор</label>
+        <input id="explode" type="range" min="0" max="1" step="0.001" value="0" />
+        <div class="explode-ends"><span>собран</span><span>разобран</span></div>
+        <label class="spin-toggle"><input type="checkbox" id="spin" checked /> Движение: полёт и роторы</label>
+        <div class="field-label livery-label">Окраска</div>
+        <div class="scenarios" id="liveries"></div>
+      </section>
+      <section>
+        <h2>Группы</h2>
+        <ul class="legend" id="legend"></ul>
+      </section>
+    </aside>
+
+    <main id="viewport" aria-label="3D-модель самолёта">
+      <div class="busy-note" aria-live="polite">Перепроектирую…</div>
+      <div class="segmented phase-bar" role="radiogroup" aria-label="Фаза полёта" id="phases"></div>
+    </main>
+
+    <aside class="panel right" aria-label="Показатели">
+      <section id="metrics" class="metrics" aria-live="polite"></section>
+      <section id="detail" class="detail" hidden></section>
+      <section>
+        <h2>Сопротивление в крейсере</h2>
+        <div id="drag" class="drag"></div>
+      </section>
+      <section>
+        <h2>Тяга на наборе</h2>
+        <div id="thrust" class="pr"></div>
+      </section>
+      <section>
+        <h2>Нагрузка — дальность</h2>
+        <div id="pr" class="pr"></div>
+      </section>
+      <section>
+        <h2>Ограничения</h2>
+        <ul class="constraints" id="constraints"></ul>
+      </section>
+      <section>
+        <h2>Массы агрегатов</h2>
+        <ol class="tree" id="tree"></ol>
+      </section>
+    </aside>
+
+    <article id="method" class="method" hidden></article>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
