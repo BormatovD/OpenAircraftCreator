@@ -8,6 +8,8 @@ import { type EngineState, type MissionAssumptions, rangeForFuel } from "./missi
 export interface CurveData {
   mtowKg: number;
   act: boolean;
+  /** Число доп. баков (ACT); по умолчанию — один, если act. */
+  acts?: number;
   maxPayloadT: number;
   rangeAtMaxPayloadNm: number;
   fullTankPayloadT: number;
@@ -39,7 +41,7 @@ export interface CornerComparison {
 }
 
 export function takeoffFuelCapacityKg(ac: AircraftData, curve: CurveData, densityKgL: number, taxiKg: number): number {
-  const litres = ac.fuelCapacityL + (curve.act ? ac.actFuelL : 0);
+  const litres = ac.fuelCapacityL + (curve.act ? ac.actFuelL * (curve.acts ?? 1) : 0);
   return litres * densityKgL - taxiKg;
 }
 
@@ -57,7 +59,7 @@ export function compareCurve(
   densityKgL: number,
 ): CornerComparison[] {
   const t = curve.mtowKg / 1000;
-  const name = `${Number.isInteger(t) ? t : t.toFixed(1)} т${curve.act ? " + доп. бак" : ""}`;
+  const name = `${Number.isInteger(t) ? t : t.toFixed(1)} т${curve.act ? ((curve.acts ?? 1) > 1 ? ` + ${curve.acts} доп. бака` : " + доп. бак") : ""}`;
   const fuelFull = takeoffFuelCapacityKg(ac, curve, densityKgL, as.taxiFuelKg);
   const oew = chartOewKg(ac, curve, densityKgL, as.taxiFuelKg);
   const out: CornerComparison[] = [];

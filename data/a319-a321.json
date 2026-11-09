@@ -1,0 +1,56 @@
+{
+  "_about": "Проверочный набор A319 и A321 (ceo с «заборчиками», ceo с шарклетами, neo). Источник — Airbus AC A319 и A321 (ред. июль 2026): массы и топливо — 2-1-1, углы диаграмм нагрузка–дальность (МСА) — 3-2-1. Углы извлечены из векторных графиков утилитой tools/pr_extract.py по сетке графика, точность ≈±0,05 т и ≈±5 nm. Для кривых с MTOW ниже предельной (64 т у A319, 89 т у A321) угол «полные баки» — точка, где линия MTOW упирается в линию полных баков. Ёмкость доп. бака (ACT) — 3 121 л (AC 2-1-1 A319; для A321ceo в таблице AC не указана — принято то же значение).",
+  "fuelDensityKgPerL": 0.785,
+  "aircraft": {
+    "a319_fence": {
+      "label": "A319ceo, «заборчики» (CFM56-5B)", "engine": "CFM56-5B", "spanM": 34.1, "fuelCapacityL": 24209, "actFuelL": 3121, "oewAcKg": 0,
+      "curves": [
+        { "mtowKg": 64000, "act": false, "maxPayloadT": 16.0, "rangeAtMaxPayloadNm": 739, "fullTankPayloadT": 3.98, "rangeAtFullTankNm": 3535, "ferryRangeNm": null },
+        { "mtowKg": 75500, "act": false, "maxPayloadT": 17.47, "rangeAtMaxPayloadNm": 2500, "fullTankPayloadT": 15.46, "rangeAtFullTankNm": 2921, "ferryRangeNm": 3788 },
+        { "mtowKg": 75500, "act": true, "acts": 2, "maxPayloadT": 16.45, "rangeAtMaxPayloadNm": 2500, "fullTankPayloadT": 9.64, "rangeAtFullTankNm": 3974, "ferryRangeNm": 4653 }
+      ]
+    },
+    "a319_sharklet": {
+      "label": "A319ceo, шарклеты (CFM56-5B)", "engine": "CFM56-5B", "spanM": 35.8, "fuelCapacityL": 24209, "actFuelL": 3121, "oewAcKg": 0,
+      "curves": [
+        { "mtowKg": 64000, "act": false, "maxPayloadT": 15.89, "rangeAtMaxPayloadNm": 771, "fullTankPayloadT": 3.55, "rangeAtFullTankNm": 3692, "ferryRangeNm": null },
+        { "mtowKg": 75500, "act": false, "maxPayloadT": 17.37, "rangeAtMaxPayloadNm": 2616, "fullTankPayloadT": 15.38, "rangeAtFullTankNm": 3045, "ferryRangeNm": 3910 },
+        { "mtowKg": 75500, "act": true, "acts": 2, "maxPayloadT": 16.3, "rangeAtMaxPayloadNm": 2614, "fullTankPayloadT": 9.55, "rangeAtFullTankNm": 4145, "ferryRangeNm": 4814 }
+      ]
+    },
+    "a319_neo": {
+      "label": "A319neo", "engine": "LEAP-1A", "spanM": 35.8, "fuelCapacityL": 23740, "actFuelL": 3121, "oewAcKg": 0,
+      "curves": [
+        { "mtowKg": 64000, "act": false, "maxPayloadT": 16.14, "rangeAtMaxPayloadNm": 606, "fullTankPayloadT": 2.48, "rangeAtFullTankNm": 4293, "ferryRangeNm": null },
+        { "mtowKg": 75500, "act": false, "maxPayloadT": 17.74, "rangeAtMaxPayloadNm": 2719, "fullTankPayloadT": 14.0, "rangeAtFullTankNm": 3651, "ferryRangeNm": 4422 },
+        { "mtowKg": 75500, "act": true, "acts": 1, "maxPayloadT": 17.14, "rangeAtMaxPayloadNm": 2720, "fullTankPayloadT": 11.01, "rangeAtFullTankNm": 4279, "ferryRangeNm": 4958 }
+      ]
+    },
+    "a321_fence": {
+      "label": "A321ceo, «заборчики» (CFM56-5B)", "engine": "CFM56-5B", "spanM": 34.1, "fuelCapacityL": 24050, "actFuelL": 3121, "oewAcKg": 0,
+      "curves": [
+        { "mtowKg": 89000, "act": false, "maxPayloadT": 22.89, "rangeAtMaxPayloadNm": 2031, "fullTankPayloadT": 21.48, "rangeAtFullTankNm": 2273, "ferryRangeNm": null },
+        { "mtowKg": 93500, "act": false, "maxPayloadT": 25.12, "rangeAtMaxPayloadNm": 2158, "fullTankPayloadT": 25.12, "rangeAtFullTankNm": 2158, "ferryRangeNm": 3158 },
+        { "mtowKg": 93500, "act": true, "acts": 2, "maxPayloadT": 24.15, "rangeAtMaxPayloadNm": 2265, "fullTankPayloadT": 20.15, "rangeAtFullTankNm": 2933, "ferryRangeNm": 3932 }
+      ]
+    },
+    "a321_sharklet": {
+      "label": "A321ceo, шарклеты (CFM56-5B)", "engine": "CFM56-5B", "spanM": 35.8, "fuelCapacityL": 24050, "actFuelL": 3121, "oewAcKg": 0,
+      "curves": [
+        { "mtowKg": 89000, "act": false, "maxPayloadT": 22.72, "rangeAtMaxPayloadNm": 2126, "fullTankPayloadT": 21.34, "rangeAtFullTankNm": 2370, "ferryRangeNm": null },
+        { "mtowKg": 93500, "act": false, "maxPayloadT": 25.0, "rangeAtMaxPayloadNm": 2252, "fullTankPayloadT": 25.0, "rangeAtFullTankNm": 2252, "ferryRangeNm": 3258 },
+        { "mtowKg": 93500, "act": true, "acts": 2, "maxPayloadT": 23.97, "rangeAtMaxPayloadNm": 2368, "fullTankPayloadT": 20.0, "rangeAtFullTankNm": 3062, "ferryRangeNm": 4072 }
+      ]
+    },
+    "a321_neo": {
+      "label": "A321neo", "engine": "LEAP-1A", "spanM": 35.8, "fuelCapacityL": 23490, "actFuelL": 3121, "oewAcKg": 0,
+      "curves": [
+        { "mtowKg": 89000, "act": false, "maxPayloadT": 23.0, "rangeAtMaxPayloadNm": 2246, "fullTankPayloadT": 19.75, "rangeAtFullTankNm": 2815, "ferryRangeNm": null },
+        { "mtowKg": 93500, "act": false, "maxPayloadT": 25.01, "rangeAtMaxPayloadNm": 2498, "fullTankPayloadT": 24.32, "rangeAtFullTankNm": 2688, "ferryRangeNm": 3747 },
+        { "mtowKg": 93500, "act": true, "acts": 1, "maxPayloadT": 24.35, "rangeAtMaxPayloadNm": 2503, "fullTankPayloadT": 20.63, "rangeAtFullTankNm": 3153, "ferryRangeNm": 4182 },
+        { "mtowKg": 97000, "act": true, "acts": 2, "maxPayloadT": 23.97, "rangeAtMaxPayloadNm": 3044, "fullTankPayloadT": 21.32, "rangeAtFullTankNm": 3502, "ferryRangeNm": 4684 },
+        { "mtowKg": 97000, "act": true, "acts": 3, "maxPayloadT": 23.56, "rangeAtMaxPayloadNm": 3048, "fullTankPayloadT": 18.02, "rangeAtFullTankNm": 4003, "ferryRangeNm": 5122 }
+      ]
+    }
+  }
+}

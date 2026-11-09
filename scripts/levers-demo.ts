@@ -9,12 +9,13 @@ import {
   aeroQuality,
   bypassRatio,
   compositeWing,
-  coreTechnology,
+  gearedFan,
+  pressureRatio,
   fuselageStretch,
   lighterHarness,
   wingSpan,
 } from "../src/levers.ts";
-import { propulsiveEfficiency } from "../src/propulsion.ts";
+import { engineCycle } from "../src/propulsion.ts";
 
 const f0 = (x: number) => Math.round(x).toString();
 const pct = (a: number, b: number) => `${a >= b ? "+" : ""}${(((a - b) / b) * 100).toFixed(1)}%`;
@@ -40,7 +41,7 @@ const cases: [string, Lever[]][] = [
   ["Размах +1,5 м", [wingSpan(1.5)]],
   ["Двухконтурность 5,7 → 11", [bypassRatio(11)]],
   ["Двухконтурность 5,7 → 15", [bypassRatio(15)]],
-  ["Ядро: степень сжатия 32,6 → 40", [coreTechnology(40)]],
+  ["Степень сжатия 32,6 → 40", [pressureRatio(40)]],
   ["Фюзеляж +3 ряда", [fuselageStretch(3)]],
   ["Фюзеляж −3 ряда", [fuselageStretch(-3)]],
 ];
@@ -52,7 +53,7 @@ row("A320neo (определение NEO целиком)", neo);
 console.log(
   `  Airbus: NEO экономит не менее 15% топлива (с кабинными улучшениями — до 20%). Модель: ${pct(neo.fuelPerSeatPer100KmKg, base.fuelPerSeatPer100KmKg)} на место.`,
 );
-const pw = propulsiveEfficiency(11) / propulsiveEfficiency(12.5);
-console.log(
-  `  Проверка без подгонки: PW1100G (двухконтурность 12,5) против LEAP-1A (11) при том же ядре — TSFC ${((pw - 1) * 100).toFixed(1)}%.`,
-);
+const leap = A320NEO.engine;
+const pw = engineCycle({ ...leap, bypassRatio: 12.5, cycle: { ...leap.cycle, gearbox: true, lptEff: leap.cycle.lptEff + 0.015 } }).tsfc / engineCycle(leap).tsfc;
+console.log(`  PW1100G (редуктор, двухконтурность 12,5) против LEAP-1A при том же ядре — TSFC ${((pw - 1) * 100).toFixed(1)}%.`);
+void gearedFan;

@@ -1,0 +1,72 @@
+{
+ "110": {
+  "startRangeNm": 0,
+  "startZfwKlb": 104.6,
+  "slopeKlbPer1000nm": -8.05
+ },
+ "115": {
+  "startRangeNm": 0,
+  "startZfwKlb": 109.5,
+  "slopeKlbPer1000nm": -8.15
+ },
+ "120": {
+  "startRangeNm": 0,
+  "startZfwKlb": 114.45,
+  "slopeKlbPer1000nm": -8.45
+ },
+ "125": {
+  "startRangeNm": 0,
+  "startZfwKlb": 119.25,
+  "slopeKlbPer1000nm": -8.5
+ },
+ "130": {
+  "startRangeNm": 0,
+  "startZfwKlb": 124.1,
+  "slopeKlbPer1000nm": -8.6
+ },
+ "135": {
+  "startRangeNm": 0,
+  "startZfwKlb": 128.85,
+  "slopeKlbPer1000nm": -8.7
+ },
+ "140": {
+  "startRangeNm": 0,
+  "startZfwKlb": 133.05,
+  "slopeKlbPer1000nm": -8.65
+ },
+ "145": {
+  "startRangeNm": 0,
+  "startZfwKlb": 137.45,
+  "slopeKlbPer1000nm": -8.7
+ },
+ "150": {
+  "startRangeNm": 0,
+  "startZfwKlb": 142.0,
+  "slopeKlbPer1000nm": -8.85
+ },
+ "155": {
+  "startRangeNm": 230,
+  "startZfwKlb": 145.4,
+  "slopeKlbPer1000nm": -9.35
+ },
+ "160": {
+  "startRangeNm": 680,
+  "startZfwKlb": 145.4,
+  "slopeKlbPer1000nm": -9.45
+ },
+ "165": {
+  "startRangeNm": 1140,
+  "startZfwKlb": 145.4,
+  "slopeKlbPer1000nm": -9.65
+ },
+ "170": {
+  "startRangeNm": 1600,
+  "startZfwKlb": 145.4,
+  "slopeKlbPer1000nm": -9.8
+ },
+ "175": {
+  "startRangeNm": 2000,
+  "startZfwKlb": 145.4,
+  "slopeKlbPer1000nm": -9.85
+ }
+}

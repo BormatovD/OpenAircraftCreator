@@ -1,0 +1,392 @@
+[
+{
+"towKg": 40823,
+"zfwKg": 35783,
+"rangeNm": 500
+},
+{
+"towKg": 40823,
+"zfwKg": 34673,
+"rangeNm": 750
+},
+{
+"towKg": 40823,
+"zfwKg": 33570,
+"rangeNm": 1000
+},
+{
+"towKg": 40823,
+"zfwKg": 32548,
+"rangeNm": 1250
+},
+{
+"towKg": 40823,
+"zfwKg": 31526,
+"rangeNm": 1500
+},
+{
+"towKg": 40823,
+"zfwKg": 30505,
+"rangeNm": 1750
+},
+{
+"towKg": 40823,
+"zfwKg": 29483,
+"rangeNm": 2000
+},
+{
+"towKg": 43091,
+"zfwKg": 37930,
+"rangeNm": 500
+},
+{
+"towKg": 43091,
+"zfwKg": 36805,
+"rangeNm": 750
+},
+{
+"towKg": 43091,
+"zfwKg": 35681,
+"rangeNm": 1000
+},
+{
+"towKg": 43091,
+"zfwKg": 34568,
+"rangeNm": 1250
+},
+{
+"towKg": 43091,
+"zfwKg": 33529,
+"rangeNm": 1500
+},
+{
+"towKg": 43091,
+"zfwKg": 32489,
+"rangeNm": 1750
+},
+{
+"towKg": 43091,
+"zfwKg": 31450,
+"rangeNm": 2000
+},
+{
+"towKg": 43091,
+"zfwKg": 30410,
+"rangeNm": 2250
+},
+{
+"towKg": 45359,
+"zfwKg": 39933,
+"rangeNm": 500
+},
+{
+"towKg": 45359,
+"zfwKg": 38735,
+"rangeNm": 750
+},
+{
+"towKg": 45359,
+"zfwKg": 37563,
+"rangeNm": 1000
+},
+{
+"towKg": 45359,
+"zfwKg": 36470,
+"rangeNm": 1250
+},
+{
+"towKg": 45359,
+"zfwKg": 35376,
+"rangeNm": 1500
+},
+{
+"towKg": 45359,
+"zfwKg": 34283,
+"rangeNm": 1750
+},
+{
+"towKg": 45359,
+"zfwKg": 33221,
+"rangeNm": 2000
+},
+{
+"towKg": 45359,
+"zfwKg": 32222,
+"rangeNm": 2250
+},
+{
+"towKg": 45359,
+"zfwKg": 31222,
+"rangeNm": 2500
+},
+{
+"towKg": 45359,
+"zfwKg": 30223,
+"rangeNm": 2750
+},
+{
+"towKg": 47627,
+"zfwKg": 42073,
+"rangeNm": 500
+},
+{
+"towKg": 47627,
+"zfwKg": 40886,
+"rangeNm": 750
+},
+{
+"towKg": 47627,
+"zfwKg": 39699,
+"rangeNm": 1000
+},
+{
+"towKg": 47627,
+"zfwKg": 38565,
+"rangeNm": 1250
+},
+{
+"towKg": 47627,
+"zfwKg": 37460,
+"rangeNm": 1500
+},
+{
+"towKg": 47627,
+"zfwKg": 36355,
+"rangeNm": 1750
+},
+{
+"towKg": 47627,
+"zfwKg": 35250,
+"rangeNm": 2000
+},
+{
+"towKg": 47627,
+"zfwKg": 34155,
+"rangeNm": 2250
+},
+{
+"towKg": 47627,
+"zfwKg": 33125,
+"rangeNm": 2500
+},
+{
+"towKg": 47627,
+"zfwKg": 32095,
+"rangeNm": 2750
+},
+{
+"towKg": 49895,
+"zfwKg": 44247,
+"rangeNm": 500
+},
+{
+"towKg": 49895,
+"zfwKg": 43061,
+"rangeNm": 750
+},
+{
+"towKg": 49895,
+"zfwKg": 41874,
+"rangeNm": 1000
+},
+{
+"towKg": 49895,
+"zfwKg": 40688,
+"rangeNm": 1250
+},
+{
+"towKg": 49895,
+"zfwKg": 39501,
+"rangeNm": 1500
+},
+{
+"towKg": 49895,
+"zfwKg": 38334,
+"rangeNm": 1750
+},
+{
+"towKg": 49895,
+"zfwKg": 37255,
+"rangeNm": 2000
+},
+{
+"towKg": 49895,
+"zfwKg": 36176,
+"rangeNm": 2250
+},
+{
+"towKg": 49895,
+"zfwKg": 35097,
+"rangeNm": 2500
+},
+{
+"towKg": 49895,
+"zfwKg": 34018,
+"rangeNm": 2750
+},
+{
+"towKg": 52163,
+"zfwKg": 46322,
+"rangeNm": 500
+},
+{
+"towKg": 52163,
+"zfwKg": 45056,
+"rangeNm": 750
+},
+{
+"towKg": 52163,
+"zfwKg": 43790,
+"rangeNm": 1000
+},
+{
+"towKg": 52163,
+"zfwKg": 42562,
+"rangeNm": 1250
+},
+{
+"towKg": 52163,
+"zfwKg": 41386,
+"rangeNm": 1500
+},
+{
+"towKg": 52163,
+"zfwKg": 40211,
+"rangeNm": 1750
+},
+{
+"towKg": 52163,
+"zfwKg": 39035,
+"rangeNm": 2000
+},
+{
+"towKg": 52163,
+"zfwKg": 37863,
+"rangeNm": 2250
+},
+{
+"towKg": 52163,
+"zfwKg": 36774,
+"rangeNm": 2500
+},
+{
+"towKg": 54431,
+"zfwKg": 48318,
+"rangeNm": 500
+},
+{
+"towKg": 54431,
+"zfwKg": 47069,
+"rangeNm": 750
+},
+{
+"towKg": 54431,
+"zfwKg": 45821,
+"rangeNm": 1000
+},
+{
+"towKg": 54431,
+"zfwKg": 44573,
+"rangeNm": 1250
+},
+{
+"towKg": 54431,
+"zfwKg": 43325,
+"rangeNm": 1500
+},
+{
+"towKg": 54431,
+"zfwKg": 42077,
+"rangeNm": 1750
+},
+{
+"towKg": 54431,
+"zfwKg": 40905,
+"rangeNm": 2000
+},
+{
+"towKg": 54431,
+"zfwKg": 39771,
+"rangeNm": 2250
+},
+{
+"towKg": 54431,
+"zfwKg": 38637,
+"rangeNm": 2500
+},
+{
+"towKg": 56472,
+"zfwKg": 47545,
+"rangeNm": 1000
+},
+{
+"towKg": 56472,
+"zfwKg": 46284,
+"rangeNm": 1250
+},
+{
+"towKg": 56472,
+"zfwKg": 45023,
+"rangeNm": 1500
+},
+{
+"towKg": 56472,
+"zfwKg": 43762,
+"rangeNm": 1750
+},
+{
+"towKg": 56472,
+"zfwKg": 42515,
+"rangeNm": 2000
+},
+{
+"towKg": 56472,
+"zfwKg": 41350,
+"rangeNm": 2250
+},
+{
+"towKg": 58967,
+"zfwKg": 48352,
+"rangeNm": 1250
+},
+{
+"towKg": 58967,
+"zfwKg": 47077,
+"rangeNm": 1500
+},
+{
+"towKg": 58967,
+"zfwKg": 45801,
+"rangeNm": 1750
+},
+{
+"towKg": 58967,
+"zfwKg": 44525,
+"rangeNm": 2000
+},
+{
+"towKg": 58967,
+"zfwKg": 43304,
+"rangeNm": 2250
+},
+{
+"towKg": 61235,
+"zfwKg": 47553,
+"rangeNm": 1750
+},
+{
+"towKg": 61235,
+"zfwKg": 46312,
+"rangeNm": 2000
+},
+{
+"towKg": 62823,
+"zfwKg": 47538,
+"rangeNm": 2000
+},
+{
+"towKg": 63276,
+"zfwKg": 47973,
+"rangeNm": 2000
+}
+]

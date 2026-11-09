@@ -1,0 +1,712 @@
+[
+{
+"towKg": 49895,
+"zfwKg": 45620,
+"rangeNm": 500
+},
+{
+"towKg": 52163,
+"zfwKg": 47820,
+"rangeNm": 500
+},
+{
+"towKg": 52163,
+"zfwKg": 46896,
+"rangeNm": 750
+},
+{
+"towKg": 52163,
+"zfwKg": 45972,
+"rangeNm": 1000
+},
+{
+"towKg": 52163,
+"zfwKg": 45047,
+"rangeNm": 1250
+},
+{
+"towKg": 54431,
+"zfwKg": 49997,
+"rangeNm": 500
+},
+{
+"towKg": 54431,
+"zfwKg": 49039,
+"rangeNm": 750
+},
+{
+"towKg": 54431,
+"zfwKg": 48081,
+"rangeNm": 1000
+},
+{
+"towKg": 54431,
+"zfwKg": 47123,
+"rangeNm": 1250
+},
+{
+"towKg": 54431,
+"zfwKg": 46164,
+"rangeNm": 1500
+},
+{
+"towKg": 54431,
+"zfwKg": 45206,
+"rangeNm": 1750
+},
+{
+"towKg": 56699,
+"zfwKg": 52163,
+"rangeNm": 500
+},
+{
+"towKg": 56699,
+"zfwKg": 51199,
+"rangeNm": 750
+},
+{
+"towKg": 56699,
+"zfwKg": 50235,
+"rangeNm": 1000
+},
+{
+"towKg": 56699,
+"zfwKg": 49271,
+"rangeNm": 1250
+},
+{
+"towKg": 56699,
+"zfwKg": 48308,
+"rangeNm": 1500
+},
+{
+"towKg": 56699,
+"zfwKg": 47344,
+"rangeNm": 1750
+},
+{
+"towKg": 56699,
+"zfwKg": 46380,
+"rangeNm": 2000
+},
+{
+"towKg": 56699,
+"zfwKg": 45416,
+"rangeNm": 2250
+},
+{
+"towKg": 58967,
+"zfwKg": 54340,
+"rangeNm": 500
+},
+{
+"towKg": 58967,
+"zfwKg": 53365,
+"rangeNm": 750
+},
+{
+"towKg": 58967,
+"zfwKg": 52390,
+"rangeNm": 1000
+},
+{
+"towKg": 58967,
+"zfwKg": 51415,
+"rangeNm": 1250
+},
+{
+"towKg": 58967,
+"zfwKg": 50439,
+"rangeNm": 1500
+},
+{
+"towKg": 58967,
+"zfwKg": 49464,
+"rangeNm": 1750
+},
+{
+"towKg": 58967,
+"zfwKg": 48489,
+"rangeNm": 2000
+},
+{
+"towKg": 58967,
+"zfwKg": 47514,
+"rangeNm": 2250
+},
+{
+"towKg": 58967,
+"zfwKg": 46539,
+"rangeNm": 2500
+},
+{
+"towKg": 58967,
+"zfwKg": 45563,
+"rangeNm": 2750
+},
+{
+"towKg": 61235,
+"zfwKg": 56472,
+"rangeNm": 500
+},
+{
+"towKg": 61235,
+"zfwKg": 55486,
+"rangeNm": 750
+},
+{
+"towKg": 61235,
+"zfwKg": 54499,
+"rangeNm": 1000
+},
+{
+"towKg": 61235,
+"zfwKg": 53513,
+"rangeNm": 1250
+},
+{
+"towKg": 61235,
+"zfwKg": 52526,
+"rangeNm": 1500
+},
+{
+"towKg": 61235,
+"zfwKg": 51539,
+"rangeNm": 1750
+},
+{
+"towKg": 61235,
+"zfwKg": 50553,
+"rangeNm": 2000
+},
+{
+"towKg": 61235,
+"zfwKg": 49566,
+"rangeNm": 2250
+},
+{
+"towKg": 61235,
+"zfwKg": 48580,
+"rangeNm": 2500
+},
+{
+"towKg": 61235,
+"zfwKg": 47593,
+"rangeNm": 2750
+},
+{
+"towKg": 61235,
+"zfwKg": 46607,
+"rangeNm": 3000
+},
+{
+"towKg": 61235,
+"zfwKg": 45620,
+"rangeNm": 3250
+},
+{
+"towKg": 63503,
+"zfwKg": 58389,
+"rangeNm": 500
+},
+{
+"towKg": 63503,
+"zfwKg": 57408,
+"rangeNm": 750
+},
+{
+"towKg": 63503,
+"zfwKg": 56427,
+"rangeNm": 1000
+},
+{
+"towKg": 63503,
+"zfwKg": 55446,
+"rangeNm": 1250
+},
+{
+"towKg": 63503,
+"zfwKg": 54465,
+"rangeNm": 1500
+},
+{
+"towKg": 63503,
+"zfwKg": 53484,
+"rangeNm": 1750
+},
+{
+"towKg": 63503,
+"zfwKg": 52503,
+"rangeNm": 2000
+},
+{
+"towKg": 63503,
+"zfwKg": 51522,
+"rangeNm": 2250
+},
+{
+"towKg": 63503,
+"zfwKg": 50542,
+"rangeNm": 2500
+},
+{
+"towKg": 63503,
+"zfwKg": 49561,
+"rangeNm": 2750
+},
+{
+"towKg": 63503,
+"zfwKg": 48580,
+"rangeNm": 3000
+},
+{
+"towKg": 63503,
+"zfwKg": 47599,
+"rangeNm": 3250
+},
+{
+"towKg": 63503,
+"zfwKg": 46618,
+"rangeNm": 3500
+},
+{
+"towKg": 63503,
+"zfwKg": 45637,
+"rangeNm": 3750
+},
+{
+"towKg": 65771,
+"zfwKg": 60373,
+"rangeNm": 500
+},
+{
+"towKg": 65771,
+"zfwKg": 59387,
+"rangeNm": 750
+},
+{
+"towKg": 65771,
+"zfwKg": 58400,
+"rangeNm": 1000
+},
+{
+"towKg": 65771,
+"zfwKg": 57413,
+"rangeNm": 1250
+},
+{
+"towKg": 65771,
+"zfwKg": 56427,
+"rangeNm": 1500
+},
+{
+"towKg": 65771,
+"zfwKg": 55440,
+"rangeNm": 1750
+},
+{
+"towKg": 65771,
+"zfwKg": 54454,
+"rangeNm": 2000
+},
+{
+"towKg": 65771,
+"zfwKg": 53467,
+"rangeNm": 2250
+},
+{
+"towKg": 65771,
+"zfwKg": 52481,
+"rangeNm": 2500
+},
+{
+"towKg": 65771,
+"zfwKg": 51494,
+"rangeNm": 2750
+},
+{
+"towKg": 65771,
+"zfwKg": 50508,
+"rangeNm": 3000
+},
+{
+"towKg": 65771,
+"zfwKg": 49521,
+"rangeNm": 3250
+},
+{
+"towKg": 65771,
+"zfwKg": 48534,
+"rangeNm": 3500
+},
+{
+"towKg": 65771,
+"zfwKg": 47548,
+"rangeNm": 3750
+},
+{
+"towKg": 65771,
+"zfwKg": 46561,
+"rangeNm": 4000
+},
+{
+"towKg": 65771,
+"zfwKg": 45575,
+"rangeNm": 4250
+},
+{
+"towKg": 68039,
+"zfwKg": 62403,
+"rangeNm": 500
+},
+{
+"towKg": 68039,
+"zfwKg": 61399,
+"rangeNm": 750
+},
+{
+"towKg": 68039,
+"zfwKg": 60396,
+"rangeNm": 1000
+},
+{
+"towKg": 68039,
+"zfwKg": 59392,
+"rangeNm": 1250
+},
+{
+"towKg": 68039,
+"zfwKg": 58389,
+"rangeNm": 1500
+},
+{
+"towKg": 68039,
+"zfwKg": 57385,
+"rangeNm": 1750
+},
+{
+"towKg": 68039,
+"zfwKg": 56382,
+"rangeNm": 2000
+},
+{
+"towKg": 68039,
+"zfwKg": 55378,
+"rangeNm": 2250
+},
+{
+"towKg": 68039,
+"zfwKg": 54374,
+"rangeNm": 2500
+},
+{
+"towKg": 68039,
+"zfwKg": 53371,
+"rangeNm": 2750
+},
+{
+"towKg": 68039,
+"zfwKg": 52367,
+"rangeNm": 3000
+},
+{
+"towKg": 68039,
+"zfwKg": 51364,
+"rangeNm": 3250
+},
+{
+"towKg": 68039,
+"zfwKg": 50360,
+"rangeNm": 3500
+},
+{
+"towKg": 68039,
+"zfwKg": 49357,
+"rangeNm": 3750
+},
+{
+"towKg": 68039,
+"zfwKg": 48353,
+"rangeNm": 4000
+},
+{
+"towKg": 68039,
+"zfwKg": 47349,
+"rangeNm": 4250
+},
+{
+"towKg": 70307,
+"zfwKg": 64807,
+"rangeNm": 500
+},
+{
+"towKg": 70307,
+"zfwKg": 63747,
+"rangeNm": 750
+},
+{
+"towKg": 70307,
+"zfwKg": 62687,
+"rangeNm": 1000
+},
+{
+"towKg": 70307,
+"zfwKg": 61626,
+"rangeNm": 1250
+},
+{
+"towKg": 70307,
+"zfwKg": 60566,
+"rangeNm": 1500
+},
+{
+"towKg": 70307,
+"zfwKg": 59506,
+"rangeNm": 1750
+},
+{
+"towKg": 70307,
+"zfwKg": 58446,
+"rangeNm": 2000
+},
+{
+"towKg": 70307,
+"zfwKg": 57385,
+"rangeNm": 2250
+},
+{
+"towKg": 70307,
+"zfwKg": 56325,
+"rangeNm": 2500
+},
+{
+"towKg": 70307,
+"zfwKg": 55265,
+"rangeNm": 2750
+},
+{
+"towKg": 70307,
+"zfwKg": 54205,
+"rangeNm": 3000
+},
+{
+"towKg": 70307,
+"zfwKg": 53144,
+"rangeNm": 3250
+},
+{
+"towKg": 70307,
+"zfwKg": 52084,
+"rangeNm": 3500
+},
+{
+"towKg": 70307,
+"zfwKg": 51024,
+"rangeNm": 3750
+},
+{
+"towKg": 70307,
+"zfwKg": 49963,
+"rangeNm": 4000
+},
+{
+"towKg": 72575,
+"zfwKg": 65652,
+"rangeNm": 750
+},
+{
+"towKg": 72575,
+"zfwKg": 64581,
+"rangeNm": 1000
+},
+{
+"towKg": 72575,
+"zfwKg": 63509,
+"rangeNm": 1250
+},
+{
+"towKg": 72575,
+"zfwKg": 62437,
+"rangeNm": 1500
+},
+{
+"towKg": 72575,
+"zfwKg": 61366,
+"rangeNm": 1750
+},
+{
+"towKg": 72575,
+"zfwKg": 60294,
+"rangeNm": 2000
+},
+{
+"towKg": 72575,
+"zfwKg": 59223,
+"rangeNm": 2250
+},
+{
+"towKg": 72575,
+"zfwKg": 58151,
+"rangeNm": 2500
+},
+{
+"towKg": 72575,
+"zfwKg": 57079,
+"rangeNm": 2750
+},
+{
+"towKg": 72575,
+"zfwKg": 56008,
+"rangeNm": 3000
+},
+{
+"towKg": 72575,
+"zfwKg": 54936,
+"rangeNm": 3250
+},
+{
+"towKg": 72575,
+"zfwKg": 53865,
+"rangeNm": 3500
+},
+{
+"towKg": 72575,
+"zfwKg": 52793,
+"rangeNm": 3750
+},
+{
+"towKg": 74843,
+"zfwKg": 65471,
+"rangeNm": 1250
+},
+{
+"towKg": 74843,
+"zfwKg": 64377,
+"rangeNm": 1500
+},
+{
+"towKg": 74843,
+"zfwKg": 63282,
+"rangeNm": 1750
+},
+{
+"towKg": 74843,
+"zfwKg": 62188,
+"rangeNm": 2000
+},
+{
+"towKg": 74843,
+"zfwKg": 61094,
+"rangeNm": 2250
+},
+{
+"towKg": 74843,
+"zfwKg": 59999,
+"rangeNm": 2500
+},
+{
+"towKg": 74843,
+"zfwKg": 58905,
+"rangeNm": 2750
+},
+{
+"towKg": 74843,
+"zfwKg": 57811,
+"rangeNm": 3000
+},
+{
+"towKg": 74843,
+"zfwKg": 56717,
+"rangeNm": 3250
+},
+{
+"towKg": 74843,
+"zfwKg": 55622,
+"rangeNm": 3500
+},
+{
+"towKg": 74843,
+"zfwKg": 54528,
+"rangeNm": 3750
+},
+{
+"towKg": 77111,
+"zfwKg": 65286,
+"rangeNm": 1750
+},
+{
+"towKg": 77111,
+"zfwKg": 64174,
+"rangeNm": 2000
+},
+{
+"towKg": 77111,
+"zfwKg": 63063,
+"rangeNm": 2250
+},
+{
+"towKg": 77111,
+"zfwKg": 61952,
+"rangeNm": 2500
+},
+{
+"towKg": 77111,
+"zfwKg": 60840,
+"rangeNm": 2750
+},
+{
+"towKg": 77111,
+"zfwKg": 59729,
+"rangeNm": 3000
+},
+{
+"towKg": 77111,
+"zfwKg": 58618,
+"rangeNm": 3250
+},
+{
+"towKg": 77111,
+"zfwKg": 57506,
+"rangeNm": 3500
+},
+{
+"towKg": 77111,
+"zfwKg": 56395,
+"rangeNm": 3750
+},
+{
+"towKg": 79379,
+"zfwKg": 65952,
+"rangeNm": 2000
+},
+{
+"towKg": 79379,
+"zfwKg": 64835,
+"rangeNm": 2250
+},
+{
+"towKg": 79379,
+"zfwKg": 63718,
+"rangeNm": 2500
+},
+{
+"towKg": 79379,
+"zfwKg": 62601,
+"rangeNm": 2750
+},
+{
+"towKg": 79379,
+"zfwKg": 61484,
+"rangeNm": 3000
+},
+{
+"towKg": 79379,
+"zfwKg": 60367,
+"rangeNm": 3250
+},
+{
+"towKg": 79379,
+"zfwKg": 59251,
+"rangeNm": 3500
+}
+]

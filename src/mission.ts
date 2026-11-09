@@ -31,6 +31,8 @@ export interface MissionAssumptions {
   alternateDistanceNm: number;
   contingencyFraction: number;
   finalReserveMin: number;
+  /** "hold" — финальный резерв как ожидание на максимальном качестве (ICAO/EASA); "cruise" — 45 мин на крейсерском режиме (ATA domestic, FAR 121.639). */
+  finalReserveMode?: "hold" | "cruise";
   /** Отношение TSFC в зоне ожидания к крейсерскому (низкая скорость и высота). */
   holdTsfcRatio: number;
   /** Отношение КПД силовой установки на наборе к крейсерскому. */
@@ -245,6 +247,11 @@ export function reserves(
   // Финальный резерв: ожидание на максимальном L/D.
   const massAfterAlt = landingMassKg - alternateKg;
   const t = as.finalReserveMin * 60;
+  if (as.finalReserveMode === "cruise") {
+    // Продолжение крейсерского полёта: расход по Бреге на крейсерском качестве и TSFC (упрощение — L/D при CL 0,5).
+    const finalKg = massAfterAlt * (1 - Math.exp((-t * G0 * engine.tsfcCruise) / liftToDrag(aero, 0.5, as.cruiseMach)));
+    return { contingencyKg, alternateKg, finalKg, totalKg: contingencyKg + alternateKg + finalKg };
+  }
   const tsfcHold = engine.tsfcCruise * as.holdTsfcRatio;
   const finalKg = massAfterAlt * (1 - Math.exp((-t * G0 * tsfcHold) / maxLiftToDrag(aero)));
   return { contingencyKg, alternateKg, finalKg, totalKg: contingencyKg + alternateKg + finalKg };

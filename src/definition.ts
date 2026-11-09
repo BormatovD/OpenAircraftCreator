@@ -21,6 +21,11 @@ export interface WingDef {
   movablesShareOfWing: number;
   /** Механизация: тип закрылков, их хорда (доля хорды крыла) и наличие предкрылков. */
   highLift: HighLiftDef;
+  /**
+   * Профиль крыла — константа Корна κ в формуле числа Маха расходимости: обычный профиль (NACA 6-й серии) 0,87,
+   * суперкритический 0,95 (Raymer, Korn). Чем выше, тем позже начинается волновое сопротивление.
+   */
+  airfoil: { kind: "conventional" | "aft-loaded" | "supercritical"; kornKappa: number };
 }
 
 export interface HighLiftDef {
@@ -64,21 +69,40 @@ export interface EngineDef {
   dryMassKg: number;
   fanDiameterM: number;
   bypassRatio: number;
-  /** Суммарная степень сжатия — задаёт термический КПД ядра (идеальный цикл Брайтона). */
+  /** Суммарная степень сжатия (вентилятор × компрессоры). */
   overallPressureRatio: number;
-  /** Прочие технологии ядра (температура, материалы, КПД узлов) — множитель к термическому КПД. */
-  coreTechFactor: number;
+  /** Параметры цикла в крейсере — каждое — следствие конкретных инженерных решений (см. cycle.ts). */
+  cycle: EngineCycleDef;
   nacelleLengthM: number;
   nacelleWidthM: number;
   /** Взлётная тяга одного двигателя (статика, МСА, уровень моря), кН. */
   takeoffThrustKn: number;
   /** Масштаб тяги относительно базового двигателя (режим перепроектирования, рычаг тяги). */
   thrustScale: number;
+  /**
+   * Установка двигателя: на пилоне впереди крыла (интерференция Q = 1,3) или вплотную под крылом (Q = 1,5) —
+   * Raymer, табл. 12.6: гондола ближе одного диаметра — 1,3, прямо на крыле — 1,5.
+   */
+  installation: "pylon" | "close-coupled";
   /** Подъём гондолы относительно базовой установки (пилон, стойки), м. */
   nacelleRaiseM: number;
   thrustReverser: boolean;
   /** Схема двигателя для визуализации: число лопаток вентилятора и ступеней. Ступени ТНД — от двухконтурности. */
   architecture: { fanBlades: number; boosterStages: number; hpcStages: number; hptStages: number };
+}
+
+export interface EngineCycleDef {
+  /** Температура газа перед турбиной в крейсере, К. */
+  t4K: number;
+  /** Доля воздуха ядра на охлаждение турбины. */
+  coolingFrac: number;
+  /** Политропные КПД: вентилятор, компрессоры (подпорный + ВД), турбины ВД и НД. */
+  fanEff: number;
+  compEff: number;
+  hptEff: number;
+  lptEff: number;
+  /** Редуктор между вентилятором и ТНД. */
+  gearbox: boolean;
 }
 
 export interface SystemsDef {

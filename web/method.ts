@@ -2,7 +2,6 @@
 // они считаются тем же ядром, что и модель, поэтому страница не расходится с расчётом.
 
 import katex from "katex";
-import data from "../data/a320.json" with { type: "json" };
 import { A320CEO, A320NEO, AC_OEW_KG } from "../src/aircraft/a320.ts";
 import { A320_CONTEXT as CTX } from "../src/aircraft/a320Context.ts";
 import { aspectRatio, maxLiftToDrag } from "../src/aero.ts";
@@ -14,18 +13,13 @@ import { KORN_KAPPA, MISC_SHARE, dragBuildup, waveDrag, waveParams } from "../sr
 import { cruiseMach as cruiseMachLever } from "../src/levers.ts";
 import { NODES, computeMasses } from "../src/mass/massTree.ts";
 import { DEFAULT_ASSUMPTIONS as AS, LHV_JET_A } from "../src/mission.ts";
-import { type AircraftData, compareAircraft, maxAbsErrorPct, rmsErrorPct } from "../src/payloadRange.ts";
-import {
-  CORE_SPECIFIC_WORK,
-  V_CRUISE_REF,
-  dryMassForBpr,
-  fanDiameterForBpr,
-  propulsiveEfficiency,
-  thermalEfficiency,
-  tsfcFactor,
-  tsfcMachFactor,
-} from "../src/propulsion.ts";
+import { dryMassForBpr, engineCycle, fanDiameterForBpr, tsfcFactor, tsfcMachFactor } from "../src/propulsion.ts";
+import { runCycle } from "../src/cycle.ts";
+import { B737_300 } from "../src/aircraft/b737.ts";
 import { CONTROLS } from "./controls.ts";
+import { relativeOewErrorPct, validateFamily } from "../src/validation.ts";
+import vb from "../data/validation-boeing.json" with { type: "json" };
+import { boeingCases } from "../src/validation.ts";
 import { MAX_CERT_FL, TAKEOFF_POLAR, TOC_MASS_FRACTION, thrustLapse } from "../src/thrust.ts";
 import { AIRFOIL_CLMAX, DOUBLE_SLOTTED_MASS, FLAP_DCL, HIGHLIFT_MASS_SHARES, LANDING_FLAP_DEG, SLAT_DCL, TAKEOFF_SHARE, VAPP_FACTOR, highLiftPerf, highLiftRaw } from "../src/highlift.ts";
 import { coreRadiusFor, lptStagesFor } from "./scene/shapes.ts";
@@ -49,10 +43,34 @@ export const SOURCES: Source[] = [
     note: "Размеры, массы (MTOW, MZFW, OEW), топливо, клиренсы, диаграммы нагрузка–дальность 3-2-1",
   },
   {
+    id: "ac-a319",
+    title: "Airbus. A319 Aircraft Characteristics — Airport and Maintenance Planning (июль 2026)",
+    url: "https://aircraft.airbus.com/en/customer-care/fleet-wide-care/airport-operations-and-aircraft-characteristics/aircraft-characteristics",
+    note: "Массы, топливо, места, диаграммы нагрузка–дальность A319ceo и A319neo (2-1-1, 2-4-1, 3-2-1)",
+  },
+  {
+    id: "b737",
+    title: "Boeing. D6-58325-6 737 Airplane Characteristics for Airport Planning, ред. E (ноябрь 2023)",
+    url: "https://www.boeing.com/commercial/airports/plan-manuals",
+    note: "737-300: массы, OEW, топливо, размеры (2.1.6, 2.2.3), нагрузка–дальность (3.2.6)",
+  },
+  {
+    id: "b737max",
+    title: "Boeing. D6-38A004 737 MAX Airplane Characteristics for Airport Planning, ред. K (июль 2025)",
+    url: "https://www.boeing.com/commercial/airports/plan-manuals",
+    note: "737-8: массы, топливо, размеры (2.1.2, 2.2.2), нагрузка–дальность (3.2.3)",
+  },
+  {
+    id: "b757",
+    title: "Boeing. D6-58327 757 Airplane Characteristics for Airport Planning, ред. H (декабрь 2024)",
+    url: "https://www.boeing.com/commercial/airports/plan-manuals",
+    note: "757-200: массы, OEW, топливо, размеры (2.1.1–2.2.1), нагрузка–дальность для RB211-535E4 и PW2037 (3.2.2–3.2.3)",
+  },
+  {
     id: "ac-a321",
     title: "Airbus. A321 Aircraft Characteristics — Airport and Maintenance Planning (июнь 2024)",
     url: "https://aircraft.airbus.com/sites/g/files/jlcbta126/files/2024-06/AC_A321_0624.pdf",
-    note: "Удлинение фюзеляжа A321 для калибровки угла касания хвостом",
+    note: "Удлинение фюзеляжа A321; массы, топливо, места, диаграммы нагрузка–дальность A321ceo и A321neo (2-1-1, 2-4-1, 3-2-1)",
   },
   {
     id: "raymer",
@@ -94,7 +112,7 @@ export const SOURCES: Source[] = [
     id: "mattingly",
     title: "Mattingly J. D., Heiser W. H., Pratt D. T. Aircraft Engine Design. 2-е изд., AIAA, 2002",
     url: "https://search.worldcat.org/title/49821935",
-    note: "Падение тяги ТРДД большой двухконтурности с высотой и скоростью (гл. 2)",
+    note: "Падение тяги ТРДД с высотой и скоростью (гл. 2), параметрический расчёт цикла (гл. 4); типичные КПД узлов и температуры по годам — Mattingly «Elements of Propulsion», табл. 4.4",
   },
   {
     id: "cs25",
@@ -233,7 +251,8 @@ function aeroSection(def: AircraftDefinition, current: Evaluation): string {
     <p>Метод Raymer «component buildup» ${ref("raymer")}: каждый агрегат — турбулентная пластина с поправками на форму и интерференцию:</p>
     ${tex(String.raw`C_{D0} = \frac{\sum_i C_{f,i}\,FF_i\,Q_i\,S_{wet,i}}{S_{ref}}\,(1 + k_{\text{пр}}),\qquad C_f = \frac{0{,}455}{(\lg Re)^{2{,}58}\,(1 + 0{,}144M^2)^{0{,}65}}`)}
     ${tex(String.raw`FF_{\text{несущ}} = \Bigl(1 + \frac{0{,}6}{0{,}35}\frac{t}{c} + 100\Bigl(\frac{t}{c}\Bigr)^4\Bigr)\,1{,}34M^{0{,}18}(\cos\Lambda)^{0{,}28},\quad FF_{\text{фюз}} = 1 + \frac{60}{f^3} + \frac{f}{400},\quad FF_{\text{гонд}} = 1 + \frac{0{,}35}{f}`)}
-    <p>${t("Re")} — по характерной длине агрегата на FL350, M 0,78; ${t("f")} — удлинение тела; ${t("Q")} — интерференция (гондолы под крылом ближе диаметра — 1,3);
+    <p>${t("Re")} — по характерной длине агрегата на FL350, M 0,78; ${t("f")} — удлинение тела; ${t("Q")} — интерференция: у гондол — по типу установки (Raymer, табл. 12.6): на пилоне впереди крыла, как у A320 и 757, — 1,3;
+    вплотную под крылом, как у всех 737, — 1,5;
     ${t(String.raw`k_{\text{пр}} = ${nf(MISC_SHARE * 100, 0)}\%`)} — допущение. Без всякой подгонки сумма для A320 даёт ${t(String.raw`C_{D0} = ${nf(b.cd0, 4)}`)} против
     0,019 у Poll & Schumann ${ref("poll-2")}: расхождение ${nf((b.cd0 / 0.019 - 1) * 100, 1)}%. Уровень привязан одним множителем ×${nf(k, 3)}, формулы дают
     чувствительность: длиннее фюзеляж, больше гондола, толще профиль — выше ${t("C_{D0}")}.</p>
@@ -247,7 +266,9 @@ function aeroSection(def: AircraftDefinition, current: Evaluation): string {
 
     <h3>Волновое</h3>
     ${tex(String.raw`M_{dd} = \frac{\kappa_A}{\cos\Lambda} - \frac{t/c}{\cos^2\Lambda} - \frac{C_L}{10\cos^3\Lambda},\qquad M_{cr} = M_{dd} - \sqrt[3]{0{,}1/80},\qquad C_{D,w} = 20\,(M - M_{cr})^4`)}
-    <p>Уравнение Корна и закон Локка; ${t(String.raw`\kappa_A = ${nf(KORN_KAPPA, 3)}`)} — суперкритический профиль, ${t("t/c")} — средняя по размаху
+    <p>Уравнение Корна и закон Локка; ${t(String.raw`\kappa_A`)} — тип профиля крыла: обычный (NACA 6-й серии, крыло 737 Classic) 0,87,
+    суперкритический 0,95 (Raymer); A320 — ${nf(KORN_KAPPA, 3)} (так, чтобы ${t("M_{dd}")} ≈ MMO), 757 — 0,91 (профиль с нагруженной хвостовой частью, допущение),
+    737NG/MAX — как A320. Сейчас: ${t(String.raw`\kappa_A = ${nf(def.wing.airfoil.kornKappa, 3)}`)}. ${t("t/c")} — средняя по размаху
     (корневая ×0,75, допущение), ${t(String.raw`\Lambda`)} — стреловидность по ¼ хорды. Для текущего самолёта в середине крейсера: ${t("C_L")} = ${nf(cd.cl, 2)},
     ${t("M_{dd}")} = ${nf(cd.mdd, 3)} (у A320 MMO = 0,82). Привязка: на A320 с шарклетами при ${t("C_L")} 0,55 и M 0,78 сумма ${t(String.raw`C_{D0} + C_{D,w}`)} = 0,019.</p>
 
@@ -263,60 +284,91 @@ function aeroSection(def: AircraftDefinition, current: Evaluation): string {
 function engineSection(current: Evaluation): string {
   const ce = A320CEO.engine;
   const ne = A320NEO.engine;
+  const c3 = B737_300.engine;
   const cur = current.definition.engine;
-  const row = (name: string, e: typeof ce) => {
-    const ep = propulsiveEfficiency(e.bypassRatio);
-    const et = thermalEfficiency(e.overallPressureRatio, e.coreTechFactor);
-    return [
-      name,
-      nf(e.bypassRatio, 1),
-      nf(e.overallPressureRatio, 1),
-      nf(ep, 3),
-      nf(et, 3),
-      nf(ep * et, 3),
-      `${nf((tsfcFactor(ce, e) - 1) * 100, 1)}%`,
-      nf(tsfcToImperial(CTX.tsfcCruise * tsfcFactor(ce, e)), 3),
-    ];
-  };
-  const v = V_CRUISE_REF;
-  const vj = (b: number) => Math.sqrt(v * v + (2 * CORE_SPECIFIC_WORK) / (1 + b));
+  const imp = (x: number) => nf(tsfcToImperial(x), 3);
+  const engines: [string, typeof ce][] = [["CFM56-3 (737-300)", c3], ["CFM56-5B (A320ceo)", ce], ["LEAP-1A (A320neo)", ne], ["Текущий вариант", cur]];
+  const cy = engines.map(([, e]) => engineCycle(e));
+  const anchor = CTX.tsfcCruise / engineCycle(ce).tsfc;
+  const col = (f: (e: typeof ce, i: number) => string) => engines.map(([, e], i) => f(e, i));
+  const prow = (label: string, f: (e: typeof ce, i: number) => string) => [label, ...col(f)];
+  const params = [
+    prow("Двухконтурность B", (e) => nf(e.bypassRatio, 1)),
+    prow("Степень сжатия Π", (e) => nf(e.overallPressureRatio, 1)),
+    prow("Температура перед турбиной, К", (e) => nf(e.cycle.t4K)),
+    prow("Воздух на охлаждение", (e) => `${nf(e.cycle.coolingFrac * 100, 0)}%`),
+    prow("КПД вентилятора e<sub>f</sub>", (e) => nf(e.cycle.fanEff, 3)),
+    prow("КПД компрессоров e<sub>c</sub>", (e) => nf(e.cycle.compEff, 3)),
+    prow("КПД ТВД / ТНД", (e) => `${nf(e.cycle.hptEff, 3)} / ${nf(e.cycle.lptEff, 3)}`),
+    prow("Редуктор", (e) => (e.cycle.gearbox ? "да" : "нет")),
+    prow("π вентилятора (оптимум)", (_, i) => nf(cy[i].fanPressureRatio, 2)),
+    prow("Струи: наружная / ядра, м/с", (_, i) => `${nf(cy[i].bypassJetMs)} / ${nf(cy[i].coreJetMs)}`),
+    prow("η<sub>th</sub> / η<sub>p</sub> / η<sub>0</sub>", (_, i) => `${nf(cy[i].etaThermal, 3)} / ${nf(cy[i].etaPropulsive, 3)} / ${nf(cy[i].etaOverall, 3)}`),
+    prow("TSFC цикла, lb/(lbf·h)", (_, i) => imp(cy[i].tsfc)),
+    prow("TSFC в расчёте", (e) => imp(CTX.tsfcCruise * tsfcFactor(ce, e))),
+  ];
+  // Водопад CEO → NEO: параметры LEAP подставляются по одному.
+  const steps: [string, (c: typeof ce) => typeof ce][] = [
+    ["Степень сжатия 32,6 → 40 (больше ступеней КВД, 3D-лопатки)", (e) => ({ ...e, overallPressureRatio: ne.overallPressureRatio })],
+    [`Температура перед турбиной ${ce.cycle.t4K} → ${ne.cycle.t4K} К (монокристалл 2-го поколения, CMC-бандажи)`, (e) => ({ ...e, cycle: { ...e.cycle, t4K: ne.cycle.t4K } })],
+    [`Охлаждение ${nf(ce.cycle.coolingFrac * 100, 0)} → ${nf(ne.cycle.coolingFrac * 100, 0)}% (CMC не нужно охлаждать так сильно)`, (e) => ({ ...e, cycle: { ...e.cycle, coolingFrac: ne.cycle.coolingFrac } })],
+    ["КПД компрессоров (3D-аэродинамика, блиски)", (e) => ({ ...e, cycle: { ...e.cycle, compEff: ne.cycle.compEff } })],
+    ["КПД турбин (3D-профили, зазоры)", (e) => ({ ...e, cycle: { ...e.cycle, hptEff: ne.cycle.hptEff, lptEff: ne.cycle.lptEff } })],
+    ["КПД вентилятора (широкохордные лопатки из 3D-плетёного углепластика без полок)", (e) => ({ ...e, cycle: { ...e.cycle, fanEff: ne.cycle.fanEff } })],
+    ["Двухконтурность 5,7 → 11 (вентилятор 1,73 → 1,98 м)", (e) => ({ ...e, bypassRatio: ne.bypassRatio })],
+  ];
+  let e0 = ce;
+  let prev = runCycle({ bypassRatio: e0.bypassRatio, overallPressureRatio: e0.overallPressureRatio, ...e0.cycle }).tsfc;
+  const waterfall = steps.map(([label, f]) => {
+    e0 = f(e0);
+    const x = runCycle({ bypassRatio: e0.bypassRatio, overallPressureRatio: e0.overallPressureRatio, ...e0.cycle }).tsfc;
+    const d = (x / prev - 1) * 100;
+    prev = x;
+    return [label, `${d > 0 ? "+" : "−"}${nf(Math.abs(d), 1)}%`];
+  });
+  const total = (tsfcFactor(ce, ne) - 1) * 100;
+  const pw = runCycle({ bypassRatio: 12.5, overallPressureRatio: ne.overallPressureRatio, ...ne.cycle, gearbox: true, lptEff: ne.cycle.lptEff + 0.015 }).tsfc / engineCycle(ne).tsfc;
   return `
   <section id="m-engine">
     <h2>Двигатель</h2>
-    <p>Удельный расход топлива ${t("TSFC")} (кг топлива на Н тяги в секунду) связан с общим КПД двигателя:</p>
-    ${tex(String.raw`TSFC = \frac{V}{\eta_0\, LHV},\qquad \eta_0 = \eta_{th}\,\eta_p`)}
-    <p>${t("LHV")} = ${nf(LHV_JET_A / 1e6, 1)} МДж/кг — теплотворная способность керосина. Опорный ${t("TSFC")} A320ceo
-    (${nf(tsfcToImperial(CTX.tsfcCruise), 3)} lb/(lbf·h)) подобран так, чтобы модель повторила диаграммы нагрузка–дальность AC 3-2-1 ${ref("ac-a320")}
-    при закреплённой аэродинамике. Любой другой двигатель считается относительно него: ${t(String.raw`TSFC = TSFC_{\text{ref}}\cdot \eta_{0,\text{ref}} / \eta_0`)}.</p>
-
-    <h3>Термический КПД — ядро</h3>
-    ${tex(String.raw`\eta_{th} = \left(1 - \Pi^{-(\gamma-1)/\gamma}\right) k_{\text{тех}},\qquad \gamma = 1{,}4`)}
-    <p>${t(String.raw`\Pi`)} — суммарная степень сжатия, ${t(String.raw`k_{\text{тех}}`)} — прочие технологии ядра (температура, материалы, КПД узлов). Это идеальный цикл
-    Брайтона: он даёт тенденцию, а не абсолютное значение.</p>
-
-    <h3>Пропульсивный КПД — вентилятор и двухконтурность</h3>
-    <p>Ядро отдаёт удельную работу ${t("w")} на килограмм воздуха, прошедшего через него. При двухконтурности ${t("B")} эту работу делят ${t("1+B")}
-    килограммов воздуха: чем больше ${t("B")}, тем медленнее струя и тем меньше энергии уходит на её разгон:</p>
-    ${tex(String.raw`V_j = \sqrt{V^2 + \frac{2w}{1+B}},\qquad \eta_p = \frac{2V}{V + V_j}`)}
-    <p>${t(String.raw`V = ${nf(v, 0)}`)} м/с (M 0,78 на FL350), ${t(String.raw`w = ${nf(CORE_SPECIFIC_WORK / 1000, 0)}`)} кДж/кг. Скорость струи: ${t(String.raw`B = 5{,}7`)} → ${nf(vj(5.7), 0)} м/с,
-    ${t(String.raw`B = 11`)} → ${nf(vj(11), 0)} м/с.</p>
-    <p class="caveat"><b>Допущение.</b> Выигрыш NEO по ${t("TSFC")} (≈15%) делится на «ядро» и «вентилятор» не по данным производителя: ядру приписан только рост
-    степени сжатия 32,6 → 40 по идеальному циклу, остальное — вентилятору. Отсюда и ${t("w")}. При других оценках степени сжатия CFM56-5B (27–35,5)
-    ${t(String.raw`\eta_p`)} CEO выходит 0,62–0,76.</p>
-    ${table(["", "B", "Π", "η<sub>p</sub>", "η<sub>th</sub>", "η<sub>0</sub>", "TSFC к CEO", "TSFC, lb/(lbf·h)"], [row("CFM56-5B (A320ceo)", ce), row("LEAP-1A (A320neo)", ne), row("Текущий вариант", cur)], "num")}
+    <p>Удельный расход топлива ${t("TSFC")} считается по реальному циклу двухконтурного двигателя с раздельными соплами — параметрический расчёт
+    Mattingly ${ref("mattingly")} в точке крейсера (M 0,78, FL350). Каждый параметр цикла — физическая величина, за которой стоит конкретное
+    инженерное решение; «уровня технологий» или множителя «новизны» в модели нет.</p>
+    ${tex(String.raw`\tau_f = \pi_f^{\frac{\gamma-1}{\gamma e_f}},\quad \tau_c = \pi_c^{\frac{\gamma-1}{\gamma e_c}},\quad f = \frac{c_{pt}T_4 - c_{pc}T_3}{\eta_b H - c_{pt}T_4},\quad \pi_t = \tau_t^{\frac{\gamma_t}{(\gamma_t-1)e_t}}`)}
+    ${tex(String.raw`c_{pc}(T_3 - T_{25}) = \dot m_{41} c_{pt} T_{41}(1-\tau_{tH})\,\eta_m,\qquad (1+B)\,c_{pc}(T_{25} - T_2) = \dot m_{45} c_{pt} T_{45}(1-\tau_{tL})\,\eta_m\eta_{\text{ред}}`)}
+    ${tex(String.raw`F = \dot m_9 V_9 - V_0 + B\,(V_{19} - V_0),\qquad TSFC = \frac{(1-\beta) f}{F}`)}
+    <p>Вентилятор и компрессоры — политропные КПД ${t("e_f, e_c")}; камера — температура газа ${t("T_4")}; доля ${t(String.raw`\beta`)} воздуха ядра идёт мимо камеры
+    на охлаждение (половина смешивается перед ротором ТВД, половина — после); ТВД вращает компрессор, ТНД — вентилятор, с редуктором — с потерей 0,5%.
+    Сопла — полное расширение с коэффициентом скорости 0,985. Степень повышения давления вентилятора ${t(String.raw`\pi_f`)} выбирается оптимальной для заданной
+    двухконтурности — минимум ${t("TSFC")}, как при проектировании реальных двигателей. Модель отдаёт ${t("TSFC")} без гондолы: её сопротивление — в аэродинамике.</p>
+    ${table(["", ...engines.map(([n]) => n)], params, "num")}
+    <p class="caveat"><b>Откуда числа.</b> Двухконтурность, степень сжатия, конструкция (число и материал лопаток, ступени) — из данных CFM ${ref("cfm")} ${ref("leap")}.
+    Температура, охлаждение и КПД узлов производитель не публикует: это допущения в диапазонах учебной литературы для двигателей своего времени
+    (Mattingly, табл. 4.4), согласованные с конструкцией — у LEAP широкохордный вентилятор без полок, керамика в турбине, у CFM56-3 — узкохордный вентилятор
+    с полками и более холодная турбина. Каждое можно менять рычагом.</p>
+    <p><b>Уровень.</b> Упрощённый цикл (без отборов воздуха и мощности на самолёт, с грубым охлаждением) даёт CFM56-5B ${imp(engineCycle(ce).tsfc)} lb/(lbf·h),
+    а диаграммы A320 — ${imp(CTX.tsfcCruise)}. Один множитель ${nf(anchor, 3)} — общий для всех двигателей, как привязка поляры; разница между двигателями
+    идёт только от параметров цикла.</p>
+    <h3>Из чего складывается выигрыш LEAP-1A против CFM56-5B</h3>
+    ${table(["Изменение", "TSFC"], [...waterfall, ["Итого", `${total > 0 ? "+" : "−"}${nf(Math.abs(total), 1)}%`]], "num")}
+    <p>Порядок шагов влияет на долю каждого (эффекты не складываются линейно), итог — нет. Двухконтурность даёт больше всего, но работает только вместе с
+    горячим и эффективным ядром: без него вентилятору не хватило бы мощности. Сопротивление большой гондолы LEAP (≈5 каунтов) считается в аэродинамике.
+    Проверка по диаграммам A320neo — в разделе «Проверка»: модель недооценивает дальность NEO в среднем на 2% — то есть выигрыш двигателя
+    в действительности чуть больше, чем дают принятые числа.</p>
+    <p>Редуктор (PW1100G): та же LEAP с редуктором, быстрой ТНД и двухконтурностью 12,5 — ${nf((pw - 1) * 100, 1)}% по ${t("TSFC")}.</p>
 
     <h3>Размер и масса при другой двухконтурности</h3>
     <p>Линии через CFM56-5B и LEAP-1A ${ref("engines-text")} ${ref("leap")}; PW1100G (${t(String.raw`B \approx 12{,}5`)}, ≈2,05 м) ложится на линию диаметра с точностью ±0,02 м:</p>
     ${tex(String.raw`D_{\text{вент}} = 1{,}73 + 0{,}0472\,(B - 5{,}7)\ \text{м},\qquad m_{\text{сух}} = 2380 + 115\,(B - 5{,}7)\ \text{кг}`)}
-    <p>Гондола масштабируется по диаметру вентилятора. Линия массы — для прямоприводных двигателей; редукторный PW1100G легче. Вне ${t(String.raw`B = 5\ldots13`)}
-    это экстраполяция, о чём предупреждает ограничение. Сейчас: ${t(String.raw`B = ${nf(cur.bypassRatio, 1)}`)} → ${nf(fanDiameterForBpr(cur.bypassRatio), 2)} м, ${nf(dryMassForBpr(cur.bypassRatio))} кг.</p>
+    <p>Гондола масштабируется по диаметру вентилятора. Линия массы — для прямоприводных двигателей; масса редуктора и сэкономленных ступеней ТНД не учитывается.
+    Вне ${t(String.raw`B = 5\ldots13`)} это экстраполяция, о чём предупреждает ограничение. Сейчас: ${t(String.raw`B = ${nf(cur.bypassRatio, 1)}`)} → ${nf(fanDiameterForBpr(cur.bypassRatio), 2)} м, ${nf(dryMassForBpr(cur.bypassRatio))} кг.</p>
 
     <h3>Что показывает разрез</h3>
     <p>Вентилятор, подпорный компрессор и турбина низкого давления сидят на одном валу (НД), компрессор и турбина высокого давления — на другом (ВД),
     вал НД проходит внутри полого вала ВД. Радиус входа в ядро на модели: ${t(String.raw`r_{\text{ядро}} = R\sqrt{1{,}6/(1+B)}`)} — площадь ядра
     обратно пропорциональна ${t("1+B")}. Число ступеней ТНД — ${t(String.raw`\mathrm{round}(4 + 0{,}57(B-5{,}7))`)}: больший вентилятор вращается медленнее, и турбине
-    нужно больше ступеней (CFM56 — 4, LEAP — 7). Сейчас ядро ${nf(coreRadiusFor(1, cur.bypassRatio) * 100, 0)}% радиуса вентилятора, ТНД — ${lptStagesFor(cur.bypassRatio)} ступ.
-    Скорости вращения на модели условные (ВД ≈ втрое быстрее НД).</p>
+    нужно больше ступеней (CFM56 — 4, LEAP — 7); с редуктором ТНД быстроходная — 3 ступени. Сейчас ядро ${nf(coreRadiusFor(1, cur.bypassRatio) * 100, 0)}% радиуса вентилятора,
+    ТНД — ${cur.cycle.gearbox ? 3 : lptStagesFor(cur.bypassRatio)} ступ. Скорости вращения на модели условные (ВД ≈ втрое быстрее НД).</p>
   </section>`;
 }
 
@@ -428,37 +480,72 @@ function missionSection(): string {
   </section>`;
 }
 
+let familyCache: ReturnType<typeof validateFamily> | null = null;
+
 function checkSection(): string {
-  const d = data as unknown as { fuelDensityKgPerL: number; geometry: { wingAreaM2: number }; aircraft: Record<string, AircraftData> };
-  const aero = (ac: AircraftData) => ({ wingAreaM2: d.geometry.wingAreaM2, spanM: ac.spanM, cd0: CTX.aero.cd0, oswald: CTX.aero.oswald });
-  const cases: [string, AircraftData, number, string][] = [
-    ["A320ceo, шарклеты", d.aircraft.ceo_sharklet, CTX.tsfcCruise, "калибровка TSFC"],
-    ["A320ceo, «заборчики»", d.aircraft.ceo_fence, CTX.tsfcCruise, "проверка"],
-    ["A320neo", d.aircraft.neo, CTX.tsfcCruise * tsfcFactor(A320CEO.engine, A320NEO.engine), "прогноз по модели двигателя"],
-  ];
+  // Проверка по всему семейству считается тем же ядром (≈0,3 с) — один раз за сессию.
+  familyCache ??= validateFamily(CTX);
+  const fam = familyCache;
   const corner = { maxPayload: "макс. нагрузка", fullTank: "полные баки", ferry: "перегон" } as const;
-  const rows: string[][] = [];
-  const summary: string[][] = [];
-  for (const [name, ac, tsfc, role] of cases) {
-    const r = compareAircraft(ac, aero(ac), { tsfcCruise: tsfc }, AS, d.fuelDensityKgPerL);
-    summary.push([name, role, `${nf(rmsErrorPct(r), 1)}%`, `${nf(maxAbsErrorPct(r), 1)}%`]);
-    for (const c of r) rows.push([name, c.curve, corner[c.corner], nf(c.chartNm), nf(c.modelNm), `${c.errorPct > 0 ? "+" : ""}${nf(c.errorPct, 1)}%`]);
-  }
+  const sg = (x: number, d = 1) => (Math.abs(x) < 0.5 * 10 ** -d ? nf(0, d) : `${x > 0 ? "+" : "−"}${nf(Math.abs(x), d)}`);
+  const summary = fam.map((r) => [
+    r.c.name,
+    r.c.role,
+    `${nf(r.rmsPct, 1)}%`,
+    `${sg(r.biasPct)}%`,
+    `${nf(r.maxAbsPct, 1)}%`,
+    `${sg(relativeOewErrorPct(r, fam))}%`,
+  ]);
+  const rows = fam.flatMap((r) => r.rows.map((c) => [r.c.name, c.curve, corner[c.corner], nf(c.chartNm), nf(c.modelNm), `${sg(c.errorPct)}%`]));
   const ceo = evaluate(A320CEO, [], CTX);
   const neo = evaluate(A320NEO, [], CTX);
   const tsfcPoll = (0.753 * isa(flightLevelToM(AS.cruiseFL)).speedOfSoundMs) / (0.309 * LHV_JET_A);
+  const sv = vb as unknown as Record<string, { blindRmsPct: number; blindBiasPct: number; points: number; oewModelKg: number; residualFactor: number; fittedRmsPct: number }>;
+  const boeingRows = boeingCases().map((c) => {
+    const r = sv[c.def.id];
+    return [
+      c.name,
+      String(r.points),
+      `${nf(r.blindRmsPct, 1)}%`,
+      `${sg(r.blindBiasPct)}%`,
+      c.oewKg ? `${sg(((r.oewModelKg - c.oewKg) / c.oewKg) * 100)}%` : "нет в документе",
+      `×${nf(r.residualFactor, 3)} (СКО ${nf(r.fittedRmsPct, 1)}%)`,
+    ];
+  });
+  const steps737 = (vb as unknown as { b737Steps: [string, number][] }).b737Steps.map(([n, b]) => [n, `${sg(b)}%`]);
   return `
   <section id="m-check">
-    <h2>Проверка по данным Airbus</h2>
-    <p>Углы диаграмм нагрузка–дальность оцифрованы с AC 3-2-1 ${ref("ac-a320")} (точность ≈±0,2 т и ±30 nm). Массы в углах берутся из самих графиков,
-    поэтому сравнение проверяет аэродинамику, двигатель и профиль полёта, а не массовую сводку. Подгоняется один параметр — ${t("TSFC")} A320ceo;
-    «заборчики» и A320neo считаются без подгонки.</p>
-    ${table(["Вариант", "Роль", "Ошибка СКО", "Макс. ошибка"], summary, "num")}
+    <h2>Проверка по данным Airbus и Boeing</h2>
+    <p>Углы диаграмм нагрузка–дальность — из AC 3-2-1 A319, A320 и A321 ${ref("ac-a320")} ${ref("ac-a319")} ${ref("ac-a321")}: у A319 и A321 они извлечены из векторных графиков
+    (точность ≈±0,05 т и ±5 nm), у A320 — оцифрованы (±0,2 т, ±30 nm). Массы в углах берутся из самих графиков, поэтому сравнение дальности проверяет
+    аэродинамику, двигатель и профиль полёта. Подгоняется один параметр — ${t("TSFC")} A320ceo по кривым с шарклетами; всё остальное — прогноз:
+    A319 и A321 строятся из A320 заменой длины, мест, топлива, масс, тяги и механизации по AC и считаются с калибровкой A320 как есть.</p>
+    ${table(["Вариант", "Роль", "Дальность: СКО", "среднее", "макс.", "OEW к A320"], summary, "num")}
+    <p>«OEW к A320» — насколько модель масс ошибается в OEW относительно A320 того же поколения. OEW, «зашитый» в графики AC, на ≈4% тяжелее OEW из 2-3-0,
+    по которому откалиброваны массы, поэтому сравнивается масштабирование с длиной и MTOW, а не абсолютный уровень.
+    Большие максимальные ошибки у A319neo и A319 с шарклетами — это угол «макс. нагрузка» на кривой 64 т при дальности 600–770 nm: там ошибка в несколько
+    десятков миль уже даёт 8–18%.</p>
     <details><summary>Все углы диаграмм</summary>${table(["Вариант", "Кривая", "Угол", "AC, nm", "Модель, nm", "Ошибка"], rows, "num")}</details>
+    <h3>Boeing: 737-300, 737-8, 757-200</h3>
+    <p>Графики Boeing устроены иначе: ось — ZFW (OEW + нагрузка), линии — взлётные массы. Каждая точка (взлётная масса, ZFW, дальность) — проверка
+    аэродинамики, двигателя и профиля полёта, независимо от массовой сводки. Из векторных графиков (737-300, 757) линии взяты автоматически, растровый
+    график 737-8 оцифрован подбором прямых по пикселям (точность ≈±25 nm, ±0,3 т). Определения — из документов Boeing ${ref("b737")} ${ref("b737max")} ${ref("b757")}:
+    размеры, массы, топливо, двигатели; плечи оперения сняты с общих видов, параметры циклов двигателей — допущения в диапазонах литературы.
+    Правила резервов — ATA для внутренних рейсов США: запасной 200 nm и 45 мин крейсера (у 737-8 «typical mission rules» не расписаны — приняты те же).</p>
+    ${table(["Самолёт", "Точек", "Дальность: СКО", "среднее", "OEW: модель к Boeing", "Не объяснено (множитель расхода)"], boeingRows, "num")}
+    <p>Пустая масса 757-200 по модели на 6–7% легче, чем у Boeing: модель масс с A320 переносится на самолёт в полтора раза тяжелее хуже, чем на 737
+    (−1%). Форма ошибки подсказывает, где искать: у 757 и 737-8 на коротких дальностях модель недооценивает дальность сильнее, чем на длинных (−10…−23% при 500 nm),
+    то есть резервы и топливо на взлёт, набор и снижение в модели больше, чем в графиках Boeing; у 737-300 наоборот — к длинным дальностям растёт завышение
+    (до +16% при 2 750 nm), то есть крейсер оптимистичен. Множитель расхода — только мера того, сколько осталось объяснить; в расчёт он не входит.</p>
+    <p>Что дали конкретные отличия 737-300 от A320 (среднее завышение дальности):</p>
+    ${table(["Шаг", "Среднее"], steps737, "num")}
+    <p>Вывод: внутри семейства A320 модель переносится без подгонки — дальность ceo в пределах 1–3%, OEW в пределах ≈2%. На самолёты другого
+    производителя — с ошибкой в среднем до 6%, кроме 737-300 (+10%): разница поколений объясняется конкретными решениями — циклом двигателя, профилем
+    крыла, установкой гондолы, правилом резервов. Остаток у 737-300 — крейсерская экономичность, которую модель всё ещё переоценивает.</p>
     <p>Независимая проверка ${t("TSFC")}: общий КПД ${t(String.raw`\eta_0 = 0{,}309`)} при M 0,753 для A320ceo у Poll & Schumann ${ref("poll-1")} даёт
-    ${nf(tsfcToImperial(tsfcPoll), 3)} lb/(lbf·h) против подобранных ${nf(tsfcToImperial(CTX.tsfcCruise), 3)} (${nf(((CTX.tsfcCruise - tsfcPoll) / tsfcPoll) * 100, 1)}%).
+    ${nf(tsfcToImperial(tsfcPoll), 3)} lb/(lbf·h) против подобранных ${nf(tsfcToImperial(CTX.tsfcCruise), 3)} (${sg(((CTX.tsfcCruise - tsfcPoll) / tsfcPoll) * 100)}%).
     Итог по расходу: A320ceo ${nf(ceo.fuelPerSeatPer100KmKg, 3)}, A320neo ${nf(neo.fuelPerSeatPer100KmKg, 3)} кг на место на 100 км
-    (${nf(((neo.fuelPerSeatPer100KmKg - ceo.fuelPerSeatPer100KmKg) / ceo.fuelPerSeatPer100KmKg) * 100, 1)}%).</p>
+    (${sg(((neo.fuelPerSeatPer100KmKg - ceo.fuelPerSeatPer100KmKg) / ceo.fuelPerSeatPer100KmKg) * 100)}%).</p>
   </section>`;
 }
 
@@ -574,7 +661,7 @@ export const METHOD_TOC: [string, string][] = [
   ["m-thrust", "Тяга на режимах"],
   ["m-highlift", "Механизация"],
   ["m-mission", "Полёт и топливо"],
-  ["m-check", "Проверка"],
+  ["m-check", "Проверка: A319, A321, 737, 757"],
   ["m-levers", "Рычаги"],
   ["m-redesign", "Под ту же миссию"],
   ["m-constraints", "Ограничения"],

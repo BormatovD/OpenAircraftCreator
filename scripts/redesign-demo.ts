@@ -5,7 +5,7 @@ import { A320CEO } from "../src/aircraft/a320.ts";
 import { A320_CONTEXT as ctx } from "../src/aircraft/a320Context.ts";
 import { worstStatus } from "../src/constraints.ts";
 import { evaluate } from "../src/evaluate.ts";
-import { type Lever, aeroQuality, bypassRatio, compositeWing, coreTechnology, fuselageStretch } from "../src/levers.ts";
+import { type Lever, aeroQuality, bypassRatio, compositeWing, pressureRatio, fuselageStretch } from "../src/levers.ts";
 import { designMissionOf, redesign } from "../src/redesign.ts";
 
 const base = evaluate(A320CEO, [], ctx);
@@ -23,7 +23,7 @@ const cases: [string, Lever[]][] = [
   ["Без рычагов (самопроверка)", []],
   ["Композитное крыло −20%", [compositeWing(20)]],
   ["Аэродинамическое качество +5%", [aeroQuality(5)]],
-  ["Двухконтурность 11 + ядро 40", [bypassRatio(11), coreTechnology(40)]],
+  ["Двухконтурность 11 + ядро 40", [bypassRatio(11), pressureRatio(40)]],
   ["Фюзеляж +9 рядов (≈A321)", [fuselageStretch(9)]],
 ];
 

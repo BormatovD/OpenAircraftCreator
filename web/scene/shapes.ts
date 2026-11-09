@@ -329,6 +329,8 @@ export interface EngineSpec {
   boosterStages: number;
   hpcStages: number;
   hptStages: number;
+  /** Редуктор вентилятора: быстроходная ТНД из трёх ступеней. */
+  gearbox?: boolean;
 }
 
 /** Ступени ТНД: больше вентилятор → медленнее вал НД → больше ступеней турбины (CFM56 4, LEAP 7). */
@@ -369,7 +371,7 @@ export function engineCutaway(e: EngineSpec): EnginePiece[] {
   const L = e.lengthM;
   const rc = coreRadiusFor(R, e.bypassRatio);
   const hub = 0.28 * R;
-  const lpt = lptStagesFor(e.bypassRatio);
+  const lpt = e.gearbox ? 3 : lptStagesFor(e.bypassRatio);
   const v = (x: number, y = 0) => new THREE.Vector3(x, y, 0);
   const out: EnginePiece[] = [];
 

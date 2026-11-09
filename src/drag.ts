@@ -16,6 +16,7 @@ export const DRAG_REF = { mach: 0.78, fl: 350 };
 export const MISC_SHARE = 0.08;
 /** Константа Корна: 0,87 — обычный профиль, 0,95 — суперкритический. Крыло A320 — суперкритическое. */
 export const KORN_KAPPA = 0.935;
+export const NACELLE_Q = { pylon: 1.3, "close-coupled": 1.5 } as const;
 
 export interface DragComponent {
   id: "wing" | "fuselage" | "htail" | "vtail" | "nacelles";
@@ -87,8 +88,8 @@ export function dragBuildup(def: AircraftDefinition, mach = DRAG_REF.mach, fl = 
 
   const e = def.engine;
   const fn = e.nacelleLengthM / e.nacelleWidthM;
-  // Гондолы под крылом ближе диаметра — интерференция Q = 1,3 (Raymer: 1,0–1,5).
-  add("nacelles", "Гондолы", nacelleWettedAreaM2(def) * e.count, e.nacelleLengthM, 1 + 0.35 / fn, 1.3);
+  // Интерференция гондолы с крылом — по типу установки (Raymer, табл. 12.6).
+  add("nacelles", "Гондолы", nacelleWettedAreaM2(def) * e.count, e.nacelleLengthM, 1 + 0.35 / fn, NACELLE_Q[e.installation]);
 
   const sum = comps.reduce((s, c) => s + c.cd0, 0);
   return { components: comps, misc: sum * MISC_SHARE, cd0: sum * (1 + MISC_SHARE) };
@@ -106,7 +107,7 @@ export interface WaveParams {
 }
 
 export function waveParams(def: AircraftDefinition): WaveParams {
-  return { kappa: KORN_KAPPA, tc: wingMeanTc(def), cosSweep: Math.cos(rad(def.wing.sweepQuarterDeg)) };
+  return { kappa: def.wing.airfoil.kornKappa, tc: wingMeanTc(def), cosSweep: Math.cos(rad(def.wing.sweepQuarterDeg)) };
 }
 
 /** Число Маха расходимости (Корн) и критическое (Локк). */

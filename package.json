@@ -1,6 +1,6 @@
 {
   "name": "openaircraftcreator-core",
-  "version": "0.18.0",
+  "version": "0.21.0",
   "description": "Расчётное ядро OpenAircraftCreator: миссия, поляра, калибровка по диаграммам нагрузка–дальность",
   "type": "module",
   "private": true,
@@ -15,6 +15,7 @@
     "levers": "node scripts/levers-demo.ts",
     "constraints": "node scripts/constraints-demo.ts",
     "redesign": "node scripts/redesign-demo.ts",
+    "validate": "node scripts/validate-family.ts",
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit"
   },

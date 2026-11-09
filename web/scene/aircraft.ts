@@ -562,6 +562,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
     // Длина «голого» двигателя по AC: CFM56-5B 2,94 м (1,70 диаметра вентилятора), LEAP-1A 3,55 м (1,79).
     lengthM: e.fanDiameterM * (1.7 + (0.09 * Math.max(0, e.bypassRatio - 5.7)) / 5.3),
     ...e.architecture,
+    gearbox: e.cycle.gearbox,
   });
   for (const side of [1, -1] as const)
     for (const p of pieces) {
@@ -721,7 +722,9 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   };
   const strands = Math.max(2, Math.round(12 * (opts.harnessShare ?? 1)));
   const bundle = (pts: THREE.Vector3[], fit = true): THREE.BufferGeometry => {
-    const curve = new THREE.CatmullRomCurve3(fit ? pts.map((p) => inHull(p)) : pts, false, "centripetal");
+    // Поле внутри обшивки: опорные точки и каждая точка сглаженной трассы — с запасом на радиус пучка.
+    const keep = (p: THREE.Vector3) => (fit ? inHull(p, 0.32) : p);
+    const curve = new THREE.CatmullRomCurve3(pts.map(keep), false, "centripetal");
     const len = curve.getLength();
     const n = Math.max(8, Math.round(len / 0.25));
     const frames = curve.computeFrenetFrames(n, false);
@@ -736,8 +739,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
         // Лёгкая скрутка пучка — провода видны как отдельные жилы.
         const a = a0 + t * len * 0.8;
         pts2.push(
-          curve
-            .getPointAt(t)
+          keep(curve.getPointAt(t))
             .addScaledVector(frames.normals[i], Math.cos(a) * ring)
             .addScaledVector(frames.binormals[i], Math.sin(a) * ring),
         );
@@ -750,7 +752,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
       const c = new THREE.TorusGeometry(rb + 0.01, 0.006, 4, 12);
       const tan = curve.getTangentAt(t);
       c.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(v3(0, 0, 1), tan));
-      const p = curve.getPointAt(t);
+      const p = keep(curve.getPointAt(t));
       c.translate(p.x, p.y, p.z);
       out.push(c.toNonIndexed());
     }
@@ -761,7 +763,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   for (const side of [1, -1] as const) {
     const z = side * 1.15;
     // Над потолком салона: от кабины до хвоста, с ответвлением вверх в киль.
-    harness.push(bundle([v3(2.6, 0.9, side * 0.5), v3(4.5, 1.45, z * 0.9), v3(12, 1.55, z), v3(24, 1.55, z), v3(aftEnd, 1.3, z * 0.5)]));
+    harness.push(bundle([v3(2.6, 0.9, side * 0.5), v3(4.5, 1.3, z * 0.85), v3(12, 1.4, z * 0.9), v3(24, 1.4, z * 0.9), v3(aftEnd, 1.2, z * 0.5)]));
     // Под полом: от отсека авионики до хвостового отсека.
     harness.push(bundle([v3(3.2, -0.9, side * 0.4), v3(6, -0.85, z), v3(16, -0.85, z), v3(26, -0.85, z), v3(L - 6.5, -0.7, side * 0.5)]));
     // В крыло: из-под пола вдоль переднего лонжерона к пилону двигателя и дальше к законцовке.

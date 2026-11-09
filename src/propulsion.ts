@@ -1,38 +1,30 @@
-// Модель двигателя для рычагов: общий КПД = термический (ядро) × пропульсивный (вентилятор).
-//   TSFC = V / (η_th · η_p · LHV)  →  рычаги меняют TSFC относительно откалиброванной точки.
-//
-// Пропульсивный КПД: ядро отдаёт удельную работу w (Дж на кг воздуха через ядро); при двухконтурности B
-// её делит поток (1 + B):  V_j = √(V² + 2w/(1+B)),  η_p = 2V / (V + V_j).
-// Термический КПД: идеальный цикл Брайтона по степени сжатия × коэффициент прочих технологий ядра.
-//
-// Разделение выигрыша NEO (TSFC −16,5% по диаграммам AC при сопротивлении по составляющим — большая гондола
-// LEAP добавляет ≈5 каунтов) на «ядро» и «вентилятор» — допущение: ядру приписан только эффект роста степени
-// сжатия 32,6 → 40 по идеальному циклу (+3,3%), остальное — вентилятору. Отсюда w ≈ 753 кДж/кг
-// и η_p ≈ 0,61 (CEO) / 0,71 (NEO). При других оценках степени сжатия CFM56-5B (27–35,5) η_p CEO = 0,62–0,76.
+// Двигатель в расчёте: TSFC = TSFC_опорный × TSFC_цикл(двигатель) / TSFC_цикл(опорный).
+// TSFC_опорный (CFM56-5B на A320) подобран по диаграммам нагрузка–дальность; разница между двигателями —
+// из реального цикла (cycle.ts), где каждый параметр — физическая величина, за которой стоит инженерное решение.
 
 import { type EngineDef } from "./definition.ts";
+import { type CycleParams, type CycleResult, runCycle } from "./cycle.ts";
 
-/** Удельная работа ядра, Дж/кг; выведена из калибровки CEO/NEO при допущении выше. */
-export const CORE_SPECIFIC_WORK = 753_000;
-/** Крейсерская скорость точки калибровки: M 0,78 на FL350. */
-export const V_CRUISE_REF = 0.78 * 296.5;
-
-export function propulsiveEfficiency(bypassRatio: number, v = V_CRUISE_REF, w = CORE_SPECIFIC_WORK): number {
-  const vj = Math.sqrt(v * v + (2 * w) / (1 + bypassRatio));
-  return (2 * v) / (v + vj);
+export function cycleParamsOf(e: EngineDef): CycleParams {
+  return { bypassRatio: e.bypassRatio, overallPressureRatio: e.overallPressureRatio, ...e.cycle };
 }
 
-export function thermalEfficiency(opr: number, techFactor: number): number {
-  return (1 - Math.pow(opr, -0.4 / 1.4)) * techFactor;
-}
-
-export function overallEfficiency(e: EngineDef): number {
-  return propulsiveEfficiency(e.bypassRatio) * thermalEfficiency(e.overallPressureRatio, e.coreTechFactor);
+const cache = new Map<string, CycleResult>();
+/** Цикл двигателя в точке калибровки (M 0,78, FL350); кешируется — оценка вызывается тысячи раз. */
+export function engineCycle(e: EngineDef): CycleResult {
+  const p = cycleParamsOf(e);
+  const key = JSON.stringify(p);
+  let r = cache.get(key);
+  if (!r) {
+    r = runCycle(p);
+    cache.set(key, r);
+  }
+  return r;
 }
 
 /** Множитель TSFC нового двигателя относительно опорного (откалиброванного). */
 export function tsfcFactor(reference: EngineDef, engine: EngineDef): number {
-  return overallEfficiency(reference) / overallEfficiency(engine);
+  return engineCycle(engine).tsfc / engineCycle(reference).tsfc;
 }
 
 // ——— Эмпирика по реальным двигателям класса A320 (тяга ≈27 000 lbf) ———
@@ -45,7 +37,7 @@ export function fanDiameterForBpr(bpr: number): number {
   return 1.73 + ((1.98 - 1.73) / (11 - 5.7)) * (bpr - 5.7);
 }
 
-/** Сухая масса прямоприводного двигателя по линии CFM56 → LEAP. PW1100G (редукторный) легче этой линии. */
+/** Сухая масса прямоприводного двигателя по линии CFM56 → LEAP. */
 export function dryMassForBpr(bpr: number): number {
   return 2380 + ((2990 - 2380) / (11 - 5.7)) * (bpr - 5.7);
 }

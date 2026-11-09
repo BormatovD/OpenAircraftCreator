@@ -234,18 +234,80 @@ export const thrustRating = (pct: number): Lever => ({
   ],
 });
 
-/** Технологии ядра: новая степень сжатия и/или множитель прочих технологий. */
-export const coreTechnology = (opr: number, techFactor = 1): Lever => ({
-  id: "core-technology",
-  label: "Технологии ядра двигателя",
-  rationale: `Степень сжатия ${opr}, прочие технологии × ${techFactor}. Термический КПД — по идеальному циклу Брайтона.`,
+/** Профиль крыла: константа Корна — обычный 0,87, с нагруженной хвостовой частью ≈0,91, суперкритический 0,95. */
+export const airfoilKappa = (kappa: number): Lever => ({
+  id: "airfoil",
+  label: "Профиль крыла",
+  rationale: `κ = ${kappa} в уравнении Корна: чем выше, тем позже начинается волновое сопротивление (обычный 0,87, суперкритический 0,95).`,
   effects: [
     {
       kind: "definition",
-      apply: (d) => ({ ...d, engine: { ...d.engine, overallPressureRatio: opr, coreTechFactor: d.engine.coreTechFactor * techFactor } }),
+      apply: (d) => ({
+        ...d,
+        wing: { ...d.wing, airfoil: { kind: kappa >= 0.93 ? "supercritical" : kappa >= 0.9 ? "aft-loaded" : "conventional", kornKappa: kappa } },
+      }),
     },
   ],
 });
+
+/** Установка двигателя: на пилоне впереди крыла или вплотную под крылом (как у 737) — интерференция гондолы 1,3 / 1,5. */
+export const engineInstallation = (closeCoupled: boolean): Lever => ({
+  id: "installation",
+  label: closeCoupled ? "Гондола вплотную под крылом" : "Гондола на пилоне",
+  rationale: closeCoupled ? "Интерференция гондолы с крылом Q = 1,5 вместо 1,3 (Raymer, табл. 12.6) — так ставят двигатели на низкий 737." : "Пилон выносит гондолу вперёд от крыла: Q = 1,3.",
+  effects: [{ kind: "definition", apply: (d) => ({ ...d, engine: { ...d.engine, installation: closeCoupled ? "close-coupled" : "pylon" } }) }],
+});
+
+// ——— Двигатель: конкретные инженерные решения, каждое — параметр цикла (cycle.ts) ———
+const cycleLever = (id: string, label: string, rationale: string, patch: (c: AircraftDefinition["engine"]["cycle"]) => Partial<AircraftDefinition["engine"]["cycle"]>): Lever => ({
+  id,
+  label,
+  rationale,
+  effects: [{ kind: "definition", apply: (d) => ({ ...d, engine: { ...d.engine, cycle: { ...d.engine.cycle, ...patch(d.engine.cycle) } } }) }],
+});
+
+/** Степень сжатия: больше ступеней и/или выше напор на ступень. */
+export const pressureRatio = (opr: number): Lever => ({
+  id: "pressure-ratio",
+  label: "Степень сжатия",
+  rationale: `Суммарная степень сжатия ${opr}. Выше — выше тепловой КПД, но при той же температуре перед турбиной выигрыш затухает.`,
+  effects: [{ kind: "definition", apply: (d) => ({ ...d, engine: { ...d.engine, overallPressureRatio: opr } }) }],
+});
+
+/** Температура газа перед турбиной: монокристаллические лопатки, термобарьерные покрытия, керамика (CMC). */
+export const turbineTemperature = (k: number): Lever =>
+  cycleLever("t4", "Температура перед турбиной", `${k} К в крейсере. Позволяют материалы лопаток ТВД: монокристаллы, покрытия, CMC.`, () => ({ t4K: k }));
+
+/** Доля воздуха на охлаждение турбины: каналы охлаждения, покрытия, CMC вместо охлаждаемого металла. */
+export const coolingAir = (pct: number): Lever =>
+  cycleLever("cooling", "Воздух на охлаждение турбины", `${pct}% воздуха ядра идёт мимо камеры сгорания на охлаждение.`, () => ({ coolingFrac: pct / 100 }));
+
+/** КПД вентилятора: широкохордные лопатки без полок, 3D-профилирование, композиты. */
+export const fanEfficiency = (eff: number): Lever =>
+  cycleLever("fan-eff", "КПД вентилятора", `Политропный КПД ${eff}. Широкохордные лопатки без антивибрационных полок, 3D-профиль.`, () => ({ fanEff: eff }));
+
+/** КПД компрессоров: 3D-аэродинамика лопаток, моноколёса (блиски), меньшие зазоры. */
+export const compressorEfficiency = (eff: number): Lever =>
+  cycleLever("comp-eff", "КПД компрессоров", `Политропный КПД ${eff}. 3D-аэродинамика лопаток, блиски, активное управление зазорами.`, () => ({ compEff: eff }));
+
+/** КПД турбин: 3D-профили, уплотнения, управление зазорами. Задаёт КПД ТВД, ТНД сдвигается на ту же величину. */
+export const turbineEfficiency = (hpt: number): Lever =>
+  cycleLever("turb-eff", "КПД турбин", `Политропный КПД ТВД ${hpt}, ТНД — на ту же разницу. 3D-профили, уплотнения, управление зазорами.`, (c) => ({
+    hptEff: hpt,
+    lptEff: c.lptEff + (hpt - c.hptEff),
+  }));
+
+/**
+ * Редуктор вентилятора: ТНД вращается быстрее и работает с более высоким КПД (+0,015 — допущение), в редукторе
+ * теряется ≈0,5% мощности. Масса редуктора и сэкономленных ступеней ТНД в модели не учитывается — открытых данных нет.
+ */
+export const gearedFan = (on: boolean): Lever =>
+  cycleLever(
+    "gearbox",
+    on ? "Редуктор вентилятора" : "Прямой привод вентилятора",
+    on ? "ТНД быстроходная: КПД +0,015 (допущение), потери в редукторе 0,5%. Масса редуктора не учитывается." : "Вентилятор на одном валу с ТНД.",
+    (c) => (on === c.gearbox ? {} : { gearbox: on, lptEff: c.lptEff + (on ? 0.015 : -0.015) }),
+  );
 
 /**
  * Удлинение фюзеляжа: целые ряды кресел в цилиндрической части. Растут масса фюзеляжа (Raymer),

@@ -9,7 +9,7 @@ import { type AircraftDefinition } from "../src/definition.ts";
 import { DEFAULT_MISSION, type Evaluation, evaluate } from "../src/evaluate.ts";
 import { type MassNode, NODES } from "../src/mass/massTree.ts";
 import { designMissionOf, redesign } from "../src/redesign.ts";
-import { propulsiveEfficiency, thermalEfficiency, tsfcFactor, CORE_SPECIFIC_WORK, V_CRUISE_REF } from "../src/propulsion.ts";
+import { engineCycle, tsfcFactor } from "../src/propulsion.ts";
 import { renderMethod } from "./method.ts";
 import { engineDiagram } from "./engineDiagram.ts";
 import { coreRadiusFor, lptStagesFor } from "./scene/shapes.ts";
@@ -1001,12 +1001,14 @@ function engineExplainer(): string {
   const e = result.ev.definition.engine;
   const be = result.base.definition.engine;
   const B = e.bypassRatio;
-  const ep = propulsiveEfficiency(B);
-  const et = thermalEfficiency(e.overallPressureRatio, e.coreTechFactor);
-  const vj = Math.sqrt(V_CRUISE_REF ** 2 + (2 * CORE_SPECIFIC_WORK) / (1 + B));
+  const cy = engineCycle(e);
+  const ep = cy.etaPropulsive;
+  const et = cy.etaThermal;
   const dT = (tsfcFactor(be, e) - 1) * 100;
   const rc = coreRadiusFor(1, B);
-  const lpt = lptStagesFor(B);
+  // С редуктором ТНД быстроходная — три ступени, как у PW1100G.
+  const lpt = e.cycle.gearbox ? 3 : lptStagesFor(B);
+  const v0 = 0.78 * 296.5;
   const bypassShare = B / (1 + B);
   return `
   <div class="engine-explainer">
@@ -1025,7 +1027,8 @@ function engineExplainer(): string {
       <span class="hot" style="flex:${1 - bypassShare}">${nf((1 - bypassShare) * 100, 0)}%</span>
     </div>
     <p>Из каждых ${nf(1 + B, 1)} кг воздуха за вентилятором ${nf(B, 1)} кг идут в наружный контур и только 1 кг — в ядро, где горит топливо.
-    Работы ядра хватает, чтобы разогнать большой поток немного, а не маленький сильно: струя ${nf(vj)} м/с при полёте ${nf(V_CRUISE_REF)} м/с.</p>
+    Работы ядра хватает, чтобы разогнать большой поток немного, а не маленький сильно: в крейсере (${nf(v0)} м/с) струя наружного контура ${nf(cy.bypassJetMs)} м/с,
+    ядра — ${nf(cy.coreJetMs)} м/с; вентилятор сжимает воздух в ${nf(cy.fanPressureRatio, 2)} раза.</p>
     <ul class="spools">
       <li><i class="lp"></i>Вал НД: вентилятор, подпорный компрессор (${e.architecture.boosterStages} ст.) ← турбина НД (${lpt} ст.)</li>
       <li><i class="hp"></i>Вал ВД: компрессор ВД (${e.architecture.hpcStages} ст.) ← турбина ВД (${e.architecture.hptStages} ст.)</li>
@@ -1036,7 +1039,9 @@ function engineExplainer(): string {
       <dt>Вентилятор</dt><dd>${nf(e.fanDiameterM, 2)} м, ${e.architecture.fanBlades} лопаток</dd>
       <dt>Ядро на входе</dt><dd>${nf(rc * 100, 0)}% радиуса вентилятора</dd>
       <dt>Пропульсивный КПД η<sub>p</sub></dt><dd>${nf(ep, 3)}</dd>
-      <dt>Термический КПД η<sub>th</sub></dt><dd>${nf(et, 3)}</dd>
+      <dt>Тепловой КПД η<sub>th</sub></dt><dd>${nf(et, 3)}</dd>
+      <dt>Перед турбиной</dt><dd>${nf(e.cycle.t4K)} К, охлаждение ${nf(e.cycle.coolingFrac * 100, 0)}%</dd>
+      <dt>КПД вентилятора / компрессоров / турбин</dt><dd>${nf(e.cycle.fanEff, 3)} / ${nf(e.cycle.compEff, 3)} / ${nf(e.cycle.hptEff, 3)}–${nf(e.cycle.lptEff, 3)}</dd>${e.cycle.gearbox ? "<dt>Привод вентилятора</dt><dd>через редуктор</dd>" : ""}
       <dt>Расход TSFC к ${AIRCRAFT_LABEL[state.aircraftId]}</dt><dd>${Math.abs(dT) < 0.05 ? "как у базы" : `${dT > 0 ? "+" : "−"}${nf(Math.abs(dT), 1)}%`}</dd>
     </dl>
   </div>`;
