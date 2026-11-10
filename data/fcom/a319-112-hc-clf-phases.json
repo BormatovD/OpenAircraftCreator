@@ -1,0 +1,6447 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "filename": "A318_A319_A320_A321 ( PDFDrive ).pdf",
+    "sha256": "69933a031e24a984b98160802f11d23e83ea6060f63d6c3f0fb1a41db303cbc4",
+    "document": "Airbus / AEROGAL (GLG) Flight Crew Operating Manual, For A/C HC-CLF",
+    "issueDate": "2017-10-17",
+    "pdfPageCount": 3316,
+    "pdfPageNumbering": "1-based; not the printed section page number",
+    "tablePageDate": "2017-01-24",
+    "providedBy": "User-supplied PDF; the original manual is not included in this repository"
+  },
+  "applicability": {
+    "aircraftModel": "A319-112",
+    "registration": "HC-CLF",
+    "msn": 2078,
+    "engineModel": "CFM56-5B6/P",
+    "engineCount": 2,
+    "wingtip": "fence",
+    "evidence": [
+      {
+        "pdfPage": 23,
+        "pageCode": "PLP-AAT P 1/2",
+        "pageDate": "2017-01-24",
+        "meaning": "The sole aircraft allocated to this tailored FCOM is MSN2078 / HC-CLF / 319-112."
+      },
+      {
+        "pdfPage": 25,
+        "pageCode": "PLP-LOM P 1/20",
+        "pageDate": "2017-09-05",
+        "meaning": "J0071: wing tip incorporating a tip fence."
+      },
+      {
+        "pdfPage": 35,
+        "pageCode": "PLP-LOM P 11/20",
+        "pageDate": "2017-09-05",
+        "meaning": "P4230: introduction of CFM56-5B/P."
+      },
+      {
+        "pdfPage": 68,
+        "pageCode": "GEN P 20/48",
+        "pageDate": "2017-09-05",
+        "meaning": "AAT defines the fleet covered by this FCOM."
+      },
+      {
+        "pdfPage": 400,
+        "pageCode": "DSC-22_20-40-30 P 14/18",
+        "pageDate": "2017-01-24",
+        "meaning": "Engine equivalence list maps A319-112 to CFM56-5B6; it is not an expansion of numerical table applicability."
+      },
+      {
+        "pdfPages": [
+          3208,
+          3209
+        ],
+        "pageCode": "PER-CLB-CLT P 4/6-5/6",
+        "pageDate": "2017-01-24",
+        "meaning": "Embedded table footer explicitly identifies A319-112 CFM56-5B6/P."
+      }
+    ],
+    "notes": [
+      "Applicable to ALL means all aircraft in the allocation table of this tailored manual, not every aircraft family named on the cover.",
+      "These tables do not directly apply to A320/CFM56-5B4, sharklet variants, NEO or Boeing.",
+      "The numerical grid is not an aircraft operating envelope or a statement that every tabulated mass is permitted for HC-CLF."
+    ]
+  },
+  "climb": {
+    "boundary": "Brake release to the selected flight level; includes takeoff and initial climb.",
+    "massBasis": "Weight at brake release; use the same starting mass for differences of cumulative levels.",
+    "fuelBasis": "Aircraft total; do not multiply by engine count or add a separate takeoff allowance.",
+    "conditions": {
+      "thrust": "MAX CLIMB THRUST",
+      "airConditioning": "NORMAL",
+      "antiIce": "OFF",
+      "cgPercentMac": 33,
+      "speedProfile": "250 kt to FL100 from 1500 ft, acceleration to 300 kt, then 300 kt / M0.78"
+    },
+    "temperatureDeviationC": [
+      10,
+      20
+    ],
+    "units": {
+      "massKg": "kg",
+      "fl": "hundreds of feet",
+      "isaDeviationC": "degC above ISA",
+      "timeMin": "min",
+      "fuelKg": "kg, aircraft total",
+      "distanceNm": "NM",
+      "tasKt": "KT, value printed in the table"
+    },
+    "sourceTables": [
+      {
+        "isaDeviationC": 10,
+        "pdfPages": [
+          3205,
+          3206,
+          3207
+        ],
+        "pageCode": "PER-CLB-CLT P 1/6-3/6",
+        "contentId": "PER-CLB-CLT-00001987.0067001",
+        "contentDate": "2016-06-29",
+        "rows": 241,
+        "extraction": "Vector text assigned by cell coordinates; FL140 bottom line continues on PDF3206; visually checked against page images."
+      },
+      {
+        "isaDeviationC": 20,
+        "pdfPages": [
+          3208,
+          3209
+        ],
+        "pageCode": "PER-CLB-CLT P 4/6-5/6",
+        "contentId": "PER-CLB-CLT-00001989.0023001",
+        "contentDate": "2011-02-15",
+        "rows": 230,
+        "extraction": "Raster table transcribed and checked against independent OCR and page images."
+      }
+    ],
+    "correctionsFuelPct": [
+      {
+        "isaDeviationC": 10,
+        "massRangeKg": [
+          52000,
+          64000
+        ],
+        "pdfPages": [
+          3205,
+          3206
+        ],
+        "lowAirConditioning": -0.4,
+        "highAirConditioning": 2.2,
+        "engineAntiIceOn": 8.5,
+        "totalAntiIceOn": 16.5
+      },
+      {
+        "isaDeviationC": 10,
+        "massRangeKg": [
+          66000,
+          78000
+        ],
+        "pdfPages": [
+          3206,
+          3207
+        ],
+        "lowAirConditioning": -0.4,
+        "highAirConditioning": 2.5,
+        "engineAntiIceOn": 9.5,
+        "totalAntiIceOn": 18.5
+      },
+      {
+        "isaDeviationC": 20,
+        "massRangeKg": [
+          52000,
+          78000
+        ],
+        "pdfPages": [
+          3208,
+          3209
+        ],
+        "lowAirConditioning": -0.4,
+        "highAirConditioning": 0.4,
+        "engineAntiIceOn": 1.5,
+        "totalAntiIceOn": 2.5
+      }
+    ],
+    "notes": [
+      "There is no ISA0 climb table in this manual section. Do not extrapolate ISA+10/+20 to ISA0.",
+      "Missing cells near the ceiling remain absent: 11 at ISA+10 and 22 at ISA+20, including 78 t / FL330 at ISA+20.",
+      "A difference from the FL15 row represents climb above 1500 ft; the FL15 value includes takeoff and initial climb, not a pure ground-roll phase.",
+      "The TAS column is preserved as printed. It must not be assumed to be terminal cruise TAS without a source definition.",
+      "The correction percentages differ substantially between source tables of different content dates. No explanation is supplied here; no universal bleed factor is inferred or automatically applied."
+    ],
+    "rows": [
+      {
+        "isaDeviationC": 10,
+        "massKg": 52000,
+        "fl": 390,
+        "timeMin": 18,
+        "fuelKg": 1364,
+        "distanceNm": 121,
+        "tasKt": 395,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 54000,
+        "fl": 390,
+        "timeMin": 19,
+        "fuelKg": 1438,
+        "distanceNm": 128,
+        "tasKt": 396,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 56000,
+        "fl": 390,
+        "timeMin": 21,
+        "fuelKg": 1518,
+        "distanceNm": 136,
+        "tasKt": 397,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 58000,
+        "fl": 390,
+        "timeMin": 22,
+        "fuelKg": 1604,
+        "distanceNm": 145,
+        "tasKt": 398,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 60000,
+        "fl": 390,
+        "timeMin": 23,
+        "fuelKg": 1699,
+        "distanceNm": 156,
+        "tasKt": 400,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 62000,
+        "fl": 390,
+        "timeMin": 25,
+        "fuelKg": 1806,
+        "distanceNm": 167,
+        "tasKt": 401,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 64000,
+        "fl": 390,
+        "timeMin": 27,
+        "fuelKg": 1927,
+        "distanceNm": 182,
+        "tasKt": 403,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 52000,
+        "fl": 370,
+        "timeMin": 16,
+        "fuelKg": 1276,
+        "distanceNm": 106,
+        "tasKt": 388,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 54000,
+        "fl": 370,
+        "timeMin": 17,
+        "fuelKg": 1342,
+        "distanceNm": 112,
+        "tasKt": 388,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 56000,
+        "fl": 370,
+        "timeMin": 18,
+        "fuelKg": 1411,
+        "distanceNm": 118,
+        "tasKt": 389,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 58000,
+        "fl": 370,
+        "timeMin": 19,
+        "fuelKg": 1483,
+        "distanceNm": 125,
+        "tasKt": 390,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 60000,
+        "fl": 370,
+        "timeMin": 20,
+        "fuelKg": 1560,
+        "distanceNm": 132,
+        "tasKt": 391,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 62000,
+        "fl": 370,
+        "timeMin": 21,
+        "fuelKg": 1641,
+        "distanceNm": 140,
+        "tasKt": 392,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 64000,
+        "fl": 370,
+        "timeMin": 23,
+        "fuelKg": 1729,
+        "distanceNm": 148,
+        "tasKt": 393,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 52000,
+        "fl": 350,
+        "timeMin": 15,
+        "fuelKg": 1203,
+        "distanceNm": 95,
+        "tasKt": 381,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 54000,
+        "fl": 350,
+        "timeMin": 16,
+        "fuelKg": 1263,
+        "distanceNm": 100,
+        "tasKt": 381,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 56000,
+        "fl": 350,
+        "timeMin": 17,
+        "fuelKg": 1325,
+        "distanceNm": 105,
+        "tasKt": 382,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 58000,
+        "fl": 350,
+        "timeMin": 17,
+        "fuelKg": 1390,
+        "distanceNm": 111,
+        "tasKt": 383,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 60000,
+        "fl": 350,
+        "timeMin": 18,
+        "fuelKg": 1458,
+        "distanceNm": 117,
+        "tasKt": 384,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 62000,
+        "fl": 350,
+        "timeMin": 19,
+        "fuelKg": 1529,
+        "distanceNm": 123,
+        "tasKt": 384,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 64000,
+        "fl": 350,
+        "timeMin": 20,
+        "fuelKg": 1604,
+        "distanceNm": 130,
+        "tasKt": 385,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 52000,
+        "fl": 330,
+        "timeMin": 14,
+        "fuelKg": 1136,
+        "distanceNm": 86,
+        "tasKt": 374,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 54000,
+        "fl": 330,
+        "timeMin": 14,
+        "fuelKg": 1192,
+        "distanceNm": 90,
+        "tasKt": 374,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 56000,
+        "fl": 330,
+        "timeMin": 15,
+        "fuelKg": 1249,
+        "distanceNm": 95,
+        "tasKt": 375,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 58000,
+        "fl": 330,
+        "timeMin": 16,
+        "fuelKg": 1309,
+        "distanceNm": 99,
+        "tasKt": 375,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 60000,
+        "fl": 330,
+        "timeMin": 17,
+        "fuelKg": 1371,
+        "distanceNm": 104,
+        "tasKt": 376,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 62000,
+        "fl": 330,
+        "timeMin": 17,
+        "fuelKg": 1435,
+        "distanceNm": 110,
+        "tasKt": 377,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 64000,
+        "fl": 330,
+        "timeMin": 18,
+        "fuelKg": 1502,
+        "distanceNm": 115,
+        "tasKt": 377,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 52000,
+        "fl": 310,
+        "timeMin": 13,
+        "fuelKg": 1071,
+        "distanceNm": 77,
+        "tasKt": 365,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 54000,
+        "fl": 310,
+        "timeMin": 13,
+        "fuelKg": 1122,
+        "distanceNm": 81,
+        "tasKt": 366,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 56000,
+        "fl": 310,
+        "timeMin": 14,
+        "fuelKg": 1175,
+        "distanceNm": 85,
+        "tasKt": 367,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 58000,
+        "fl": 310,
+        "timeMin": 15,
+        "fuelKg": 1230,
+        "distanceNm": 89,
+        "tasKt": 367,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 60000,
+        "fl": 310,
+        "timeMin": 15,
+        "fuelKg": 1287,
+        "distanceNm": 93,
+        "tasKt": 368,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 62000,
+        "fl": 310,
+        "timeMin": 16,
+        "fuelKg": 1346,
+        "distanceNm": 98,
+        "tasKt": 368,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 64000,
+        "fl": 310,
+        "timeMin": 17,
+        "fuelKg": 1407,
+        "distanceNm": 103,
+        "tasKt": 369,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 52000,
+        "fl": 290,
+        "timeMin": 12,
+        "fuelKg": 1001,
+        "distanceNm": 68,
+        "tasKt": 355,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 54000,
+        "fl": 290,
+        "timeMin": 12,
+        "fuelKg": 1049,
+        "distanceNm": 72,
+        "tasKt": 356,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 56000,
+        "fl": 290,
+        "timeMin": 13,
+        "fuelKg": 1098,
+        "distanceNm": 75,
+        "tasKt": 357,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 58000,
+        "fl": 290,
+        "timeMin": 13,
+        "fuelKg": 1148,
+        "distanceNm": 79,
+        "tasKt": 357,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 60000,
+        "fl": 290,
+        "timeMin": 14,
+        "fuelKg": 1200,
+        "distanceNm": 82,
+        "tasKt": 357,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 62000,
+        "fl": 290,
+        "timeMin": 14,
+        "fuelKg": 1254,
+        "distanceNm": 86,
+        "tasKt": 358,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 64000,
+        "fl": 290,
+        "timeMin": 15,
+        "fuelKg": 1310,
+        "distanceNm": 90,
+        "tasKt": 358,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 52000,
+        "fl": 270,
+        "timeMin": 10,
+        "fuelKg": 917,
+        "distanceNm": 58,
+        "tasKt": 342,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 54000,
+        "fl": 270,
+        "timeMin": 11,
+        "fuelKg": 959,
+        "distanceNm": 61,
+        "tasKt": 343,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 56000,
+        "fl": 270,
+        "timeMin": 11,
+        "fuelKg": 1004,
+        "distanceNm": 64,
+        "tasKt": 343,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 58000,
+        "fl": 270,
+        "timeMin": 12,
+        "fuelKg": 1049,
+        "distanceNm": 67,
+        "tasKt": 344,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 60000,
+        "fl": 270,
+        "timeMin": 12,
+        "fuelKg": 1096,
+        "distanceNm": 70,
+        "tasKt": 344,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 62000,
+        "fl": 270,
+        "timeMin": 13,
+        "fuelKg": 1144,
+        "distanceNm": 73,
+        "tasKt": 344,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 64000,
+        "fl": 270,
+        "timeMin": 13,
+        "fuelKg": 1193,
+        "distanceNm": 77,
+        "tasKt": 345,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 52000,
+        "fl": 250,
+        "timeMin": 9,
+        "fuelKg": 840,
+        "distanceNm": 50,
+        "tasKt": 329,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 54000,
+        "fl": 250,
+        "timeMin": 10,
+        "fuelKg": 878,
+        "distanceNm": 52,
+        "tasKt": 330,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 56000,
+        "fl": 250,
+        "timeMin": 10,
+        "fuelKg": 918,
+        "distanceNm": 55,
+        "tasKt": 330,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 58000,
+        "fl": 250,
+        "timeMin": 10,
+        "fuelKg": 959,
+        "distanceNm": 57,
+        "tasKt": 331,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 60000,
+        "fl": 250,
+        "timeMin": 11,
+        "fuelKg": 1001,
+        "distanceNm": 60,
+        "tasKt": 331,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 62000,
+        "fl": 250,
+        "timeMin": 11,
+        "fuelKg": 1044,
+        "distanceNm": 63,
+        "tasKt": 331,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 64000,
+        "fl": 250,
+        "timeMin": 12,
+        "fuelKg": 1089,
+        "distanceNm": 65,
+        "tasKt": 331,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 52000,
+        "fl": 240,
+        "timeMin": 9,
+        "fuelKg": 803,
+        "distanceNm": 46,
+        "tasKt": 323,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 54000,
+        "fl": 240,
+        "timeMin": 9,
+        "fuelKg": 840,
+        "distanceNm": 49,
+        "tasKt": 323,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 56000,
+        "fl": 240,
+        "timeMin": 9,
+        "fuelKg": 878,
+        "distanceNm": 51,
+        "tasKt": 324,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 58000,
+        "fl": 240,
+        "timeMin": 10,
+        "fuelKg": 917,
+        "distanceNm": 53,
+        "tasKt": 324,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 60000,
+        "fl": 240,
+        "timeMin": 10,
+        "fuelKg": 957,
+        "distanceNm": 55,
+        "tasKt": 324,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 62000,
+        "fl": 240,
+        "timeMin": 11,
+        "fuelKg": 998,
+        "distanceNm": 58,
+        "tasKt": 325,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 64000,
+        "fl": 240,
+        "timeMin": 11,
+        "fuelKg": 1040,
+        "distanceNm": 60,
+        "tasKt": 325,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 52000,
+        "fl": 220,
+        "timeMin": 8,
+        "fuelKg": 734,
+        "distanceNm": 40,
+        "tasKt": 310,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 54000,
+        "fl": 220,
+        "timeMin": 8,
+        "fuelKg": 768,
+        "distanceNm": 42,
+        "tasKt": 311,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 56000,
+        "fl": 220,
+        "timeMin": 8,
+        "fuelKg": 802,
+        "distanceNm": 43,
+        "tasKt": 311,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 58000,
+        "fl": 220,
+        "timeMin": 9,
+        "fuelKg": 837,
+        "distanceNm": 45,
+        "tasKt": 311,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 60000,
+        "fl": 220,
+        "timeMin": 9,
+        "fuelKg": 873,
+        "distanceNm": 47,
+        "tasKt": 312,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 62000,
+        "fl": 220,
+        "timeMin": 10,
+        "fuelKg": 910,
+        "distanceNm": 49,
+        "tasKt": 312,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 64000,
+        "fl": 220,
+        "timeMin": 10,
+        "fuelKg": 949,
+        "distanceNm": 52,
+        "tasKt": 312,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 52000,
+        "fl": 200,
+        "timeMin": 7,
+        "fuelKg": 669,
+        "distanceNm": 34,
+        "tasKt": 298,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 54000,
+        "fl": 200,
+        "timeMin": 7,
+        "fuelKg": 700,
+        "distanceNm": 35,
+        "tasKt": 298,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 56000,
+        "fl": 200,
+        "timeMin": 7,
+        "fuelKg": 731,
+        "distanceNm": 37,
+        "tasKt": 298,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 58000,
+        "fl": 200,
+        "timeMin": 8,
+        "fuelKg": 763,
+        "distanceNm": 39,
+        "tasKt": 299,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 60000,
+        "fl": 200,
+        "timeMin": 8,
+        "fuelKg": 795,
+        "distanceNm": 40,
+        "tasKt": 299,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 62000,
+        "fl": 200,
+        "timeMin": 8,
+        "fuelKg": 829,
+        "distanceNm": 42,
+        "tasKt": 299,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 64000,
+        "fl": 200,
+        "timeMin": 9,
+        "fuelKg": 863,
+        "distanceNm": 44,
+        "tasKt": 299,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 52000,
+        "fl": 180,
+        "timeMin": 6,
+        "fuelKg": 608,
+        "distanceNm": 29,
+        "tasKt": 284,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 54000,
+        "fl": 180,
+        "timeMin": 6,
+        "fuelKg": 635,
+        "distanceNm": 30,
+        "tasKt": 285,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 56000,
+        "fl": 180,
+        "timeMin": 7,
+        "fuelKg": 663,
+        "distanceNm": 31,
+        "tasKt": 285,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 58000,
+        "fl": 180,
+        "timeMin": 7,
+        "fuelKg": 692,
+        "distanceNm": 33,
+        "tasKt": 286,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 60000,
+        "fl": 180,
+        "timeMin": 7,
+        "fuelKg": 721,
+        "distanceNm": 34,
+        "tasKt": 286,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 62000,
+        "fl": 180,
+        "timeMin": 7,
+        "fuelKg": 751,
+        "distanceNm": 36,
+        "tasKt": 286,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 64000,
+        "fl": 180,
+        "timeMin": 8,
+        "fuelKg": 782,
+        "distanceNm": 37,
+        "tasKt": 286,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 52000,
+        "fl": 160,
+        "timeMin": 5,
+        "fuelKg": 549,
+        "distanceNm": 24,
+        "tasKt": 271,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 54000,
+        "fl": 160,
+        "timeMin": 6,
+        "fuelKg": 573,
+        "distanceNm": 25,
+        "tasKt": 271,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 56000,
+        "fl": 160,
+        "timeMin": 6,
+        "fuelKg": 599,
+        "distanceNm": 27,
+        "tasKt": 272,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 58000,
+        "fl": 160,
+        "timeMin": 6,
+        "fuelKg": 624,
+        "distanceNm": 28,
+        "tasKt": 272,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 60000,
+        "fl": 160,
+        "timeMin": 6,
+        "fuelKg": 651,
+        "distanceNm": 29,
+        "tasKt": 272,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 62000,
+        "fl": 160,
+        "timeMin": 7,
+        "fuelKg": 678,
+        "distanceNm": 30,
+        "tasKt": 272,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 64000,
+        "fl": 160,
+        "timeMin": 7,
+        "fuelKg": 706,
+        "distanceNm": 31,
+        "tasKt": 273,
+        "pdfPage": 3205
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 52000,
+        "fl": 140,
+        "timeMin": 5,
+        "fuelKg": 492,
+        "distanceNm": 20,
+        "tasKt": 257,
+        "pdfPage": 3205,
+        "continuationPdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 54000,
+        "fl": 140,
+        "timeMin": 5,
+        "fuelKg": 514,
+        "distanceNm": 21,
+        "tasKt": 257,
+        "pdfPage": 3205,
+        "continuationPdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 56000,
+        "fl": 140,
+        "timeMin": 5,
+        "fuelKg": 537,
+        "distanceNm": 22,
+        "tasKt": 258,
+        "pdfPage": 3205,
+        "continuationPdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 58000,
+        "fl": 140,
+        "timeMin": 5,
+        "fuelKg": 560,
+        "distanceNm": 23,
+        "tasKt": 258,
+        "pdfPage": 3205,
+        "continuationPdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 60000,
+        "fl": 140,
+        "timeMin": 6,
+        "fuelKg": 584,
+        "distanceNm": 24,
+        "tasKt": 258,
+        "pdfPage": 3205,
+        "continuationPdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 62000,
+        "fl": 140,
+        "timeMin": 6,
+        "fuelKg": 608,
+        "distanceNm": 25,
+        "tasKt": 258,
+        "pdfPage": 3205,
+        "continuationPdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 64000,
+        "fl": 140,
+        "timeMin": 6,
+        "fuelKg": 633,
+        "distanceNm": 26,
+        "tasKt": 259,
+        "pdfPage": 3205,
+        "continuationPdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 52000,
+        "fl": 120,
+        "timeMin": 4,
+        "fuelKg": 438,
+        "distanceNm": 17,
+        "tasKt": 242,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 54000,
+        "fl": 120,
+        "timeMin": 4,
+        "fuelKg": 458,
+        "distanceNm": 18,
+        "tasKt": 242,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 56000,
+        "fl": 120,
+        "timeMin": 5,
+        "fuelKg": 478,
+        "distanceNm": 18,
+        "tasKt": 242,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 58000,
+        "fl": 120,
+        "timeMin": 5,
+        "fuelKg": 498,
+        "distanceNm": 19,
+        "tasKt": 243,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 60000,
+        "fl": 120,
+        "timeMin": 5,
+        "fuelKg": 520,
+        "distanceNm": 20,
+        "tasKt": 243,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 62000,
+        "fl": 120,
+        "timeMin": 5,
+        "fuelKg": 541,
+        "distanceNm": 21,
+        "tasKt": 243,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 64000,
+        "fl": 120,
+        "timeMin": 5,
+        "fuelKg": 563,
+        "distanceNm": 22,
+        "tasKt": 243,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 52000,
+        "fl": 100,
+        "timeMin": 3,
+        "fuelKg": 350,
+        "distanceNm": 12,
+        "tasKt": 214,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 54000,
+        "fl": 100,
+        "timeMin": 3,
+        "fuelKg": 366,
+        "distanceNm": 12,
+        "tasKt": 214,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 56000,
+        "fl": 100,
+        "timeMin": 4,
+        "fuelKg": 382,
+        "distanceNm": 13,
+        "tasKt": 215,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 58000,
+        "fl": 100,
+        "timeMin": 4,
+        "fuelKg": 398,
+        "distanceNm": 13,
+        "tasKt": 215,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 60000,
+        "fl": 100,
+        "timeMin": 4,
+        "fuelKg": 415,
+        "distanceNm": 14,
+        "tasKt": 216,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 62000,
+        "fl": 100,
+        "timeMin": 4,
+        "fuelKg": 433,
+        "distanceNm": 14,
+        "tasKt": 216,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 64000,
+        "fl": 100,
+        "timeMin": 4,
+        "fuelKg": 451,
+        "distanceNm": 15,
+        "tasKt": 216,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 52000,
+        "fl": 50,
+        "timeMin": 2,
+        "fuelKg": 228,
+        "distanceNm": 6,
+        "tasKt": 177,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 54000,
+        "fl": 50,
+        "timeMin": 2,
+        "fuelKg": 238,
+        "distanceNm": 6,
+        "tasKt": 177,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 56000,
+        "fl": 50,
+        "timeMin": 2,
+        "fuelKg": 248,
+        "distanceNm": 7,
+        "tasKt": 178,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 58000,
+        "fl": 50,
+        "timeMin": 2,
+        "fuelKg": 259,
+        "distanceNm": 7,
+        "tasKt": 178,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 60000,
+        "fl": 50,
+        "timeMin": 2,
+        "fuelKg": 270,
+        "distanceNm": 7,
+        "tasKt": 178,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 62000,
+        "fl": 50,
+        "timeMin": 3,
+        "fuelKg": 281,
+        "distanceNm": 8,
+        "tasKt": 179,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 64000,
+        "fl": 50,
+        "timeMin": 3,
+        "fuelKg": 293,
+        "distanceNm": 8,
+        "tasKt": 179,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 52000,
+        "fl": 15,
+        "timeMin": 1,
+        "fuelKg": 142,
+        "distanceNm": 3,
+        "tasKt": 128,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 54000,
+        "fl": 15,
+        "timeMin": 1,
+        "fuelKg": 148,
+        "distanceNm": 3,
+        "tasKt": 128,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 56000,
+        "fl": 15,
+        "timeMin": 1,
+        "fuelKg": 155,
+        "distanceNm": 3,
+        "tasKt": 129,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 58000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 161,
+        "distanceNm": 3,
+        "tasKt": 129,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 60000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 168,
+        "distanceNm": 3,
+        "tasKt": 130,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 62000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 175,
+        "distanceNm": 4,
+        "tasKt": 130,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 64000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 183,
+        "distanceNm": 4,
+        "tasKt": 130,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 66000,
+        "fl": 370,
+        "timeMin": 24,
+        "fuelKg": 1825,
+        "distanceNm": 158,
+        "tasKt": 395,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 68000,
+        "fl": 370,
+        "timeMin": 26,
+        "fuelKg": 1931,
+        "distanceNm": 169,
+        "tasKt": 396,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 70000,
+        "fl": 370,
+        "timeMin": 27,
+        "fuelKg": 2049,
+        "distanceNm": 182,
+        "tasKt": 398,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 66000,
+        "fl": 350,
+        "timeMin": 21,
+        "fuelKg": 1683,
+        "distanceNm": 137,
+        "tasKt": 386,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 68000,
+        "fl": 350,
+        "timeMin": 22,
+        "fuelKg": 1768,
+        "distanceNm": 144,
+        "tasKt": 387,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 70000,
+        "fl": 350,
+        "timeMin": 24,
+        "fuelKg": 1859,
+        "distanceNm": 153,
+        "tasKt": 389,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 72000,
+        "fl": 350,
+        "timeMin": 25,
+        "fuelKg": 1958,
+        "distanceNm": 162,
+        "tasKt": 390,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 74000,
+        "fl": 350,
+        "timeMin": 26,
+        "fuelKg": 2068,
+        "distanceNm": 173,
+        "tasKt": 392,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 76000,
+        "fl": 350,
+        "timeMin": 28,
+        "fuelKg": 2191,
+        "distanceNm": 185,
+        "tasKt": 394,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 78000,
+        "fl": 350,
+        "timeMin": 30,
+        "fuelKg": 2331,
+        "distanceNm": 200,
+        "tasKt": 397,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 66000,
+        "fl": 330,
+        "timeMin": 19,
+        "fuelKg": 1572,
+        "distanceNm": 121,
+        "tasKt": 378,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 68000,
+        "fl": 330,
+        "timeMin": 20,
+        "fuelKg": 1646,
+        "distanceNm": 127,
+        "tasKt": 379,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 70000,
+        "fl": 330,
+        "timeMin": 21,
+        "fuelKg": 1724,
+        "distanceNm": 134,
+        "tasKt": 380,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 72000,
+        "fl": 330,
+        "timeMin": 22,
+        "fuelKg": 1807,
+        "distanceNm": 141,
+        "tasKt": 381,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 74000,
+        "fl": 330,
+        "timeMin": 23,
+        "fuelKg": 1896,
+        "distanceNm": 149,
+        "tasKt": 383,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 76000,
+        "fl": 330,
+        "timeMin": 25,
+        "fuelKg": 1993,
+        "distanceNm": 157,
+        "tasKt": 384,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 78000,
+        "fl": 330,
+        "timeMin": 26,
+        "fuelKg": 2097,
+        "distanceNm": 167,
+        "tasKt": 386,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 66000,
+        "fl": 310,
+        "timeMin": 17,
+        "fuelKg": 1471,
+        "distanceNm": 107,
+        "tasKt": 369,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 68000,
+        "fl": 310,
+        "timeMin": 18,
+        "fuelKg": 1537,
+        "distanceNm": 113,
+        "tasKt": 370,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 70000,
+        "fl": 310,
+        "timeMin": 19,
+        "fuelKg": 1606,
+        "distanceNm": 118,
+        "tasKt": 371,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 72000,
+        "fl": 310,
+        "timeMin": 20,
+        "fuelKg": 1680,
+        "distanceNm": 124,
+        "tasKt": 372,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 74000,
+        "fl": 310,
+        "timeMin": 21,
+        "fuelKg": 1757,
+        "distanceNm": 130,
+        "tasKt": 373,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 76000,
+        "fl": 310,
+        "timeMin": 22,
+        "fuelKg": 1839,
+        "distanceNm": 137,
+        "tasKt": 374,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 78000,
+        "fl": 310,
+        "timeMin": 23,
+        "fuelKg": 1927,
+        "distanceNm": 144,
+        "tasKt": 376,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 66000,
+        "fl": 290,
+        "timeMin": 16,
+        "fuelKg": 1367,
+        "distanceNm": 94,
+        "tasKt": 359,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 68000,
+        "fl": 290,
+        "timeMin": 16,
+        "fuelKg": 1427,
+        "distanceNm": 99,
+        "tasKt": 360,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 70000,
+        "fl": 290,
+        "timeMin": 17,
+        "fuelKg": 1489,
+        "distanceNm": 103,
+        "tasKt": 360,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 72000,
+        "fl": 290,
+        "timeMin": 18,
+        "fuelKg": 1555,
+        "distanceNm": 108,
+        "tasKt": 361,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 74000,
+        "fl": 290,
+        "timeMin": 19,
+        "fuelKg": 1624,
+        "distanceNm": 113,
+        "tasKt": 362,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 76000,
+        "fl": 290,
+        "timeMin": 20,
+        "fuelKg": 1696,
+        "distanceNm": 119,
+        "tasKt": 363,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 78000,
+        "fl": 290,
+        "timeMin": 21,
+        "fuelKg": 1772,
+        "distanceNm": 125,
+        "tasKt": 364,
+        "pdfPage": 3206
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 66000,
+        "fl": 270,
+        "timeMin": 14,
+        "fuelKg": 1244,
+        "distanceNm": 80,
+        "tasKt": 345,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 68000,
+        "fl": 270,
+        "timeMin": 15,
+        "fuelKg": 1297,
+        "distanceNm": 84,
+        "tasKt": 346,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 70000,
+        "fl": 270,
+        "timeMin": 15,
+        "fuelKg": 1352,
+        "distanceNm": 87,
+        "tasKt": 347,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 72000,
+        "fl": 270,
+        "timeMin": 16,
+        "fuelKg": 1410,
+        "distanceNm": 91,
+        "tasKt": 347,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 74000,
+        "fl": 270,
+        "timeMin": 16,
+        "fuelKg": 1469,
+        "distanceNm": 95,
+        "tasKt": 348,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 76000,
+        "fl": 270,
+        "timeMin": 17,
+        "fuelKg": 1532,
+        "distanceNm": 100,
+        "tasKt": 349,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 78000,
+        "fl": 270,
+        "timeMin": 18,
+        "fuelKg": 1597,
+        "distanceNm": 104,
+        "tasKt": 350,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 66000,
+        "fl": 250,
+        "timeMin": 12,
+        "fuelKg": 1135,
+        "distanceNm": 68,
+        "tasKt": 332,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 68000,
+        "fl": 250,
+        "timeMin": 13,
+        "fuelKg": 1182,
+        "distanceNm": 71,
+        "tasKt": 333,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 70000,
+        "fl": 250,
+        "timeMin": 13,
+        "fuelKg": 1231,
+        "distanceNm": 74,
+        "tasKt": 333,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 72000,
+        "fl": 250,
+        "timeMin": 14,
+        "fuelKg": 1282,
+        "distanceNm": 77,
+        "tasKt": 334,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 74000,
+        "fl": 250,
+        "timeMin": 14,
+        "fuelKg": 1334,
+        "distanceNm": 81,
+        "tasKt": 335,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 76000,
+        "fl": 250,
+        "timeMin": 15,
+        "fuelKg": 1389,
+        "distanceNm": 84,
+        "tasKt": 335,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 78000,
+        "fl": 250,
+        "timeMin": 16,
+        "fuelKg": 1447,
+        "distanceNm": 88,
+        "tasKt": 336,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 66000,
+        "fl": 240,
+        "timeMin": 12,
+        "fuelKg": 1084,
+        "distanceNm": 63,
+        "tasKt": 325,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 68000,
+        "fl": 240,
+        "timeMin": 12,
+        "fuelKg": 1128,
+        "distanceNm": 66,
+        "tasKt": 326,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 70000,
+        "fl": 240,
+        "timeMin": 13,
+        "fuelKg": 1175,
+        "distanceNm": 68,
+        "tasKt": 327,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 72000,
+        "fl": 240,
+        "timeMin": 13,
+        "fuelKg": 1222,
+        "distanceNm": 71,
+        "tasKt": 327,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 74000,
+        "fl": 240,
+        "timeMin": 14,
+        "fuelKg": 1272,
+        "distanceNm": 74,
+        "tasKt": 328,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 76000,
+        "fl": 240,
+        "timeMin": 14,
+        "fuelKg": 1324,
+        "distanceNm": 77,
+        "tasKt": 329,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 78000,
+        "fl": 240,
+        "timeMin": 15,
+        "fuelKg": 1378,
+        "distanceNm": 81,
+        "tasKt": 330,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 66000,
+        "fl": 220,
+        "timeMin": 10,
+        "fuelKg": 988,
+        "distanceNm": 54,
+        "tasKt": 313,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 68000,
+        "fl": 220,
+        "timeMin": 11,
+        "fuelKg": 1028,
+        "distanceNm": 56,
+        "tasKt": 313,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 70000,
+        "fl": 220,
+        "timeMin": 11,
+        "fuelKg": 1069,
+        "distanceNm": 58,
+        "tasKt": 314,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 72000,
+        "fl": 220,
+        "timeMin": 12,
+        "fuelKg": 1112,
+        "distanceNm": 61,
+        "tasKt": 314,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 74000,
+        "fl": 220,
+        "timeMin": 12,
+        "fuelKg": 1157,
+        "distanceNm": 63,
+        "tasKt": 315,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 76000,
+        "fl": 220,
+        "timeMin": 12,
+        "fuelKg": 1203,
+        "distanceNm": 66,
+        "tasKt": 316,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 78000,
+        "fl": 220,
+        "timeMin": 13,
+        "fuelKg": 1251,
+        "distanceNm": 68,
+        "tasKt": 317,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 66000,
+        "fl": 200,
+        "timeMin": 9,
+        "fuelKg": 898,
+        "distanceNm": 46,
+        "tasKt": 300,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 68000,
+        "fl": 200,
+        "timeMin": 10,
+        "fuelKg": 934,
+        "distanceNm": 48,
+        "tasKt": 300,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 70000,
+        "fl": 200,
+        "timeMin": 10,
+        "fuelKg": 972,
+        "distanceNm": 50,
+        "tasKt": 301,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 72000,
+        "fl": 200,
+        "timeMin": 10,
+        "fuelKg": 1010,
+        "distanceNm": 52,
+        "tasKt": 302,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 74000,
+        "fl": 200,
+        "timeMin": 11,
+        "fuelKg": 1050,
+        "distanceNm": 54,
+        "tasKt": 302,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 76000,
+        "fl": 200,
+        "timeMin": 11,
+        "fuelKg": 1091,
+        "distanceNm": 56,
+        "tasKt": 303,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 78000,
+        "fl": 200,
+        "timeMin": 11,
+        "fuelKg": 1134,
+        "distanceNm": 58,
+        "tasKt": 304,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 66000,
+        "fl": 180,
+        "timeMin": 8,
+        "fuelKg": 814,
+        "distanceNm": 39,
+        "tasKt": 287,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 68000,
+        "fl": 180,
+        "timeMin": 8,
+        "fuelKg": 846,
+        "distanceNm": 40,
+        "tasKt": 287,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 70000,
+        "fl": 180,
+        "timeMin": 9,
+        "fuelKg": 880,
+        "distanceNm": 42,
+        "tasKt": 288,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 72000,
+        "fl": 180,
+        "timeMin": 9,
+        "fuelKg": 914,
+        "distanceNm": 44,
+        "tasKt": 288,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 74000,
+        "fl": 180,
+        "timeMin": 9,
+        "fuelKg": 950,
+        "distanceNm": 45,
+        "tasKt": 289,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 76000,
+        "fl": 180,
+        "timeMin": 10,
+        "fuelKg": 987,
+        "distanceNm": 47,
+        "tasKt": 290,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 78000,
+        "fl": 180,
+        "timeMin": 10,
+        "fuelKg": 1025,
+        "distanceNm": 49,
+        "tasKt": 291,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 66000,
+        "fl": 160,
+        "timeMin": 7,
+        "fuelKg": 734,
+        "distanceNm": 33,
+        "tasKt": 273,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 68000,
+        "fl": 160,
+        "timeMin": 7,
+        "fuelKg": 763,
+        "distanceNm": 34,
+        "tasKt": 274,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 70000,
+        "fl": 160,
+        "timeMin": 8,
+        "fuelKg": 793,
+        "distanceNm": 35,
+        "tasKt": 274,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 72000,
+        "fl": 160,
+        "timeMin": 8,
+        "fuelKg": 824,
+        "distanceNm": 37,
+        "tasKt": 275,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 74000,
+        "fl": 160,
+        "timeMin": 8,
+        "fuelKg": 856,
+        "distanceNm": 38,
+        "tasKt": 276,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 76000,
+        "fl": 160,
+        "timeMin": 9,
+        "fuelKg": 889,
+        "distanceNm": 40,
+        "tasKt": 277,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 78000,
+        "fl": 160,
+        "timeMin": 9,
+        "fuelKg": 923,
+        "distanceNm": 41,
+        "tasKt": 277,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 66000,
+        "fl": 140,
+        "timeMin": 6,
+        "fuelKg": 659,
+        "distanceNm": 27,
+        "tasKt": 259,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 68000,
+        "fl": 140,
+        "timeMin": 7,
+        "fuelKg": 685,
+        "distanceNm": 28,
+        "tasKt": 260,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 70000,
+        "fl": 140,
+        "timeMin": 7,
+        "fuelKg": 712,
+        "distanceNm": 29,
+        "tasKt": 260,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 72000,
+        "fl": 140,
+        "timeMin": 7,
+        "fuelKg": 739,
+        "distanceNm": 31,
+        "tasKt": 261,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 74000,
+        "fl": 140,
+        "timeMin": 7,
+        "fuelKg": 767,
+        "distanceNm": 32,
+        "tasKt": 262,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 76000,
+        "fl": 140,
+        "timeMin": 8,
+        "fuelKg": 797,
+        "distanceNm": 33,
+        "tasKt": 263,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 78000,
+        "fl": 140,
+        "timeMin": 8,
+        "fuelKg": 827,
+        "distanceNm": 34,
+        "tasKt": 264,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 66000,
+        "fl": 120,
+        "timeMin": 6,
+        "fuelKg": 586,
+        "distanceNm": 23,
+        "tasKt": 244,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 68000,
+        "fl": 120,
+        "timeMin": 6,
+        "fuelKg": 609,
+        "distanceNm": 23,
+        "tasKt": 245,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 70000,
+        "fl": 120,
+        "timeMin": 6,
+        "fuelKg": 633,
+        "distanceNm": 24,
+        "tasKt": 245,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 72000,
+        "fl": 120,
+        "timeMin": 6,
+        "fuelKg": 658,
+        "distanceNm": 25,
+        "tasKt": 246,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 74000,
+        "fl": 120,
+        "timeMin": 6,
+        "fuelKg": 683,
+        "distanceNm": 26,
+        "tasKt": 247,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 76000,
+        "fl": 120,
+        "timeMin": 7,
+        "fuelKg": 709,
+        "distanceNm": 27,
+        "tasKt": 248,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 78000,
+        "fl": 120,
+        "timeMin": 7,
+        "fuelKg": 736,
+        "distanceNm": 28,
+        "tasKt": 249,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 66000,
+        "fl": 100,
+        "timeMin": 4,
+        "fuelKg": 469,
+        "distanceNm": 16,
+        "tasKt": 217,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 68000,
+        "fl": 100,
+        "timeMin": 5,
+        "fuelKg": 487,
+        "distanceNm": 16,
+        "tasKt": 218,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 70000,
+        "fl": 100,
+        "timeMin": 5,
+        "fuelKg": 507,
+        "distanceNm": 17,
+        "tasKt": 218,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 72000,
+        "fl": 100,
+        "timeMin": 5,
+        "fuelKg": 526,
+        "distanceNm": 18,
+        "tasKt": 219,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 74000,
+        "fl": 100,
+        "timeMin": 5,
+        "fuelKg": 546,
+        "distanceNm": 18,
+        "tasKt": 220,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 76000,
+        "fl": 100,
+        "timeMin": 5,
+        "fuelKg": 567,
+        "distanceNm": 19,
+        "tasKt": 221,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 78000,
+        "fl": 100,
+        "timeMin": 5,
+        "fuelKg": 589,
+        "distanceNm": 20,
+        "tasKt": 222,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 66000,
+        "fl": 50,
+        "timeMin": 3,
+        "fuelKg": 304,
+        "distanceNm": 8,
+        "tasKt": 180,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 68000,
+        "fl": 50,
+        "timeMin": 3,
+        "fuelKg": 316,
+        "distanceNm": 9,
+        "tasKt": 181,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 70000,
+        "fl": 50,
+        "timeMin": 3,
+        "fuelKg": 328,
+        "distanceNm": 9,
+        "tasKt": 182,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 72000,
+        "fl": 50,
+        "timeMin": 3,
+        "fuelKg": 341,
+        "distanceNm": 9,
+        "tasKt": 183,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 74000,
+        "fl": 50,
+        "timeMin": 3,
+        "fuelKg": 354,
+        "distanceNm": 10,
+        "tasKt": 184,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 76000,
+        "fl": 50,
+        "timeMin": 3,
+        "fuelKg": 367,
+        "distanceNm": 10,
+        "tasKt": 185,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 78000,
+        "fl": 50,
+        "timeMin": 3,
+        "fuelKg": 380,
+        "distanceNm": 10,
+        "tasKt": 187,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 66000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 190,
+        "distanceNm": 4,
+        "tasKt": 131,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 68000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 198,
+        "distanceNm": 4,
+        "tasKt": 132,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 70000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 205,
+        "distanceNm": 4,
+        "tasKt": 133,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 72000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 213,
+        "distanceNm": 4,
+        "tasKt": 134,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 74000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 221,
+        "distanceNm": 4,
+        "tasKt": 136,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 76000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 229,
+        "distanceNm": 5,
+        "tasKt": 137,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 10,
+        "massKg": 78000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 237,
+        "distanceNm": 5,
+        "tasKt": 139,
+        "pdfPage": 3207
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 52000,
+        "fl": 390,
+        "timeMin": 24,
+        "fuelKg": 1637,
+        "distanceNm": 167,
+        "tasKt": 410,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 54000,
+        "fl": 390,
+        "timeMin": 26,
+        "fuelKg": 1739,
+        "distanceNm": 179,
+        "tasKt": 411,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 56000,
+        "fl": 390,
+        "timeMin": 28,
+        "fuelKg": 1852,
+        "distanceNm": 193,
+        "tasKt": 413,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 52000,
+        "fl": 370,
+        "timeMin": 21,
+        "fuelKg": 1513,
+        "distanceNm": 144,
+        "tasKt": 402,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 54000,
+        "fl": 370,
+        "timeMin": 23,
+        "fuelKg": 1598,
+        "distanceNm": 153,
+        "tasKt": 403,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 56000,
+        "fl": 370,
+        "timeMin": 24,
+        "fuelKg": 1689,
+        "distanceNm": 162,
+        "tasKt": 404,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 58000,
+        "fl": 370,
+        "timeMin": 26,
+        "fuelKg": 1786,
+        "distanceNm": 173,
+        "tasKt": 405,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 60000,
+        "fl": 370,
+        "timeMin": 27,
+        "fuelKg": 1891,
+        "distanceNm": 184,
+        "tasKt": 406,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 62000,
+        "fl": 370,
+        "timeMin": 29,
+        "fuelKg": 2007,
+        "distanceNm": 197,
+        "tasKt": 408,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 64000,
+        "fl": 370,
+        "timeMin": 31,
+        "fuelKg": 2136,
+        "distanceNm": 212,
+        "tasKt": 410,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 52000,
+        "fl": 350,
+        "timeMin": 19,
+        "fuelKg": 1419,
+        "distanceNm": 128,
+        "tasKt": 395,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 54000,
+        "fl": 350,
+        "timeMin": 21,
+        "fuelKg": 1495,
+        "distanceNm": 136,
+        "tasKt": 396,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 56000,
+        "fl": 350,
+        "timeMin": 22,
+        "fuelKg": 1575,
+        "distanceNm": 143,
+        "tasKt": 397,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 58000,
+        "fl": 350,
+        "timeMin": 23,
+        "fuelKg": 1660,
+        "distanceNm": 152,
+        "tasKt": 398,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 60000,
+        "fl": 350,
+        "timeMin": 24,
+        "fuelKg": 1750,
+        "distanceNm": 161,
+        "tasKt": 399,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 62000,
+        "fl": 350,
+        "timeMin": 26,
+        "fuelKg": 1846,
+        "distanceNm": 171,
+        "tasKt": 400,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 64000,
+        "fl": 350,
+        "timeMin": 27,
+        "fuelKg": 1950,
+        "distanceNm": 181,
+        "tasKt": 401,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 52000,
+        "fl": 330,
+        "timeMin": 18,
+        "fuelKg": 1332,
+        "distanceNm": 115,
+        "tasKt": 388,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 54000,
+        "fl": 330,
+        "timeMin": 19,
+        "fuelKg": 1402,
+        "distanceNm": 121,
+        "tasKt": 388,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 56000,
+        "fl": 330,
+        "timeMin": 20,
+        "fuelKg": 1475,
+        "distanceNm": 128,
+        "tasKt": 389,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 58000,
+        "fl": 330,
+        "timeMin": 21,
+        "fuelKg": 1552,
+        "distanceNm": 135,
+        "tasKt": 390,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 60000,
+        "fl": 330,
+        "timeMin": 22,
+        "fuelKg": 1632,
+        "distanceNm": 143,
+        "tasKt": 391,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 62000,
+        "fl": 330,
+        "timeMin": 23,
+        "fuelKg": 1717,
+        "distanceNm": 151,
+        "tasKt": 392,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 64000,
+        "fl": 330,
+        "timeMin": 24,
+        "fuelKg": 1807,
+        "distanceNm": 159,
+        "tasKt": 393,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 52000,
+        "fl": 310,
+        "timeMin": 16,
+        "fuelKg": 1247,
+        "distanceNm": 102,
+        "tasKt": 379,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 54000,
+        "fl": 310,
+        "timeMin": 17,
+        "fuelKg": 1311,
+        "distanceNm": 108,
+        "tasKt": 380,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 56000,
+        "fl": 310,
+        "timeMin": 18,
+        "fuelKg": 1377,
+        "distanceNm": 114,
+        "tasKt": 381,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 58000,
+        "fl": 310,
+        "timeMin": 19,
+        "fuelKg": 1446,
+        "distanceNm": 120,
+        "tasKt": 381,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 60000,
+        "fl": 310,
+        "timeMin": 20,
+        "fuelKg": 1519,
+        "distanceNm": 126,
+        "tasKt": 382,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 62000,
+        "fl": 310,
+        "timeMin": 21,
+        "fuelKg": 1595,
+        "distanceNm": 133,
+        "tasKt": 383,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 64000,
+        "fl": 310,
+        "timeMin": 22,
+        "fuelKg": 1675,
+        "distanceNm": 140,
+        "tasKt": 384,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 52000,
+        "fl": 290,
+        "timeMin": 15,
+        "fuelKg": 1154,
+        "distanceNm": 90,
+        "tasKt": 368,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 54000,
+        "fl": 290,
+        "timeMin": 15,
+        "fuelKg": 1212,
+        "distanceNm": 94,
+        "tasKt": 369,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 56000,
+        "fl": 290,
+        "timeMin": 16,
+        "fuelKg": 1272,
+        "distanceNm": 99,
+        "tasKt": 369,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 58000,
+        "fl": 290,
+        "timeMin": 17,
+        "fuelKg": 1335,
+        "distanceNm": 104,
+        "tasKt": 370,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 60000,
+        "fl": 290,
+        "timeMin": 18,
+        "fuelKg": 1399,
+        "distanceNm": 110,
+        "tasKt": 371,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 62000,
+        "fl": 290,
+        "timeMin": 19,
+        "fuelKg": 1467,
+        "distanceNm": 115,
+        "tasKt": 371,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 64000,
+        "fl": 290,
+        "timeMin": 20,
+        "fuelKg": 1538,
+        "distanceNm": 121,
+        "tasKt": 372,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 52000,
+        "fl": 270,
+        "timeMin": 13,
+        "fuelKg": 1045,
+        "distanceNm": 75,
+        "tasKt": 354,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 54000,
+        "fl": 270,
+        "timeMin": 13,
+        "fuelKg": 1096,
+        "distanceNm": 79,
+        "tasKt": 354,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 56000,
+        "fl": 270,
+        "timeMin": 14,
+        "fuelKg": 1149,
+        "distanceNm": 83,
+        "tasKt": 355,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 58000,
+        "fl": 270,
+        "timeMin": 15,
+        "fuelKg": 1204,
+        "distanceNm": 87,
+        "tasKt": 355,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 60000,
+        "fl": 270,
+        "timeMin": 15,
+        "fuelKg": 1261,
+        "distanceNm": 92,
+        "tasKt": 356,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 62000,
+        "fl": 270,
+        "timeMin": 16,
+        "fuelKg": 1319,
+        "distanceNm": 96,
+        "tasKt": 356,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 64000,
+        "fl": 270,
+        "timeMin": 17,
+        "fuelKg": 1380,
+        "distanceNm": 101,
+        "tasKt": 357,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 52000,
+        "fl": 250,
+        "timeMin": 11,
+        "fuelKg": 949,
+        "distanceNm": 64,
+        "tasKt": 340,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 54000,
+        "fl": 250,
+        "timeMin": 12,
+        "fuelKg": 994,
+        "distanceNm": 67,
+        "tasKt": 340,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 56000,
+        "fl": 250,
+        "timeMin": 12,
+        "fuelKg": 1041,
+        "distanceNm": 70,
+        "tasKt": 341,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 58000,
+        "fl": 250,
+        "timeMin": 13,
+        "fuelKg": 1090,
+        "distanceNm": 74,
+        "tasKt": 341,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 60000,
+        "fl": 250,
+        "timeMin": 14,
+        "fuelKg": 1140,
+        "distanceNm": 77,
+        "tasKt": 342,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 62000,
+        "fl": 250,
+        "timeMin": 14,
+        "fuelKg": 1192,
+        "distanceNm": 81,
+        "tasKt": 342,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 64000,
+        "fl": 250,
+        "timeMin": 15,
+        "fuelKg": 1246,
+        "distanceNm": 85,
+        "tasKt": 343,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 52000,
+        "fl": 240,
+        "timeMin": 11,
+        "fuelKg": 904,
+        "distanceNm": 59,
+        "tasKt": 333,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 54000,
+        "fl": 240,
+        "timeMin": 11,
+        "fuelKg": 947,
+        "distanceNm": 62,
+        "tasKt": 334,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 56000,
+        "fl": 240,
+        "timeMin": 12,
+        "fuelKg": 992,
+        "distanceNm": 65,
+        "tasKt": 334,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 58000,
+        "fl": 240,
+        "timeMin": 12,
+        "fuelKg": 1038,
+        "distanceNm": 68,
+        "tasKt": 334,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 60000,
+        "fl": 240,
+        "timeMin": 13,
+        "fuelKg": 1085,
+        "distanceNm": 71,
+        "tasKt": 335,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 62000,
+        "fl": 240,
+        "timeMin": 13,
+        "fuelKg": 1134,
+        "distanceNm": 74,
+        "tasKt": 335,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 64000,
+        "fl": 240,
+        "timeMin": 14,
+        "fuelKg": 1185,
+        "distanceNm": 78,
+        "tasKt": 336,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 52000,
+        "fl": 220,
+        "timeMin": 9,
+        "fuelKg": 821,
+        "distanceNm": 50,
+        "tasKt": 320,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 54000,
+        "fl": 220,
+        "timeMin": 10,
+        "fuelKg": 859,
+        "distanceNm": 52,
+        "tasKt": 320,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 56000,
+        "fl": 220,
+        "timeMin": 10,
+        "fuelKg": 899,
+        "distanceNm": 55,
+        "tasKt": 321,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 58000,
+        "fl": 220,
+        "timeMin": 11,
+        "fuelKg": 940,
+        "distanceNm": 57,
+        "tasKt": 321,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 60000,
+        "fl": 220,
+        "timeMin": 11,
+        "fuelKg": 982,
+        "distanceNm": 60,
+        "tasKt": 321,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 62000,
+        "fl": 220,
+        "timeMin": 12,
+        "fuelKg": 1026,
+        "distanceNm": 63,
+        "tasKt": 322,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 64000,
+        "fl": 220,
+        "timeMin": 12,
+        "fuelKg": 1071,
+        "distanceNm": 65,
+        "tasKt": 322,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 52000,
+        "fl": 200,
+        "timeMin": 8,
+        "fuelKg": 742,
+        "distanceNm": 42,
+        "tasKt": 306,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 54000,
+        "fl": 200,
+        "timeMin": 9,
+        "fuelKg": 777,
+        "distanceNm": 44,
+        "tasKt": 306,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 56000,
+        "fl": 200,
+        "timeMin": 9,
+        "fuelKg": 813,
+        "distanceNm": 46,
+        "tasKt": 307,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 58000,
+        "fl": 200,
+        "timeMin": 9,
+        "fuelKg": 849,
+        "distanceNm": 48,
+        "tasKt": 307,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 60000,
+        "fl": 200,
+        "timeMin": 10,
+        "fuelKg": 887,
+        "distanceNm": 50,
+        "tasKt": 307,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 62000,
+        "fl": 200,
+        "timeMin": 10,
+        "fuelKg": 926,
+        "distanceNm": 53,
+        "tasKt": 308,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 64000,
+        "fl": 200,
+        "timeMin": 11,
+        "fuelKg": 966,
+        "distanceNm": 55,
+        "tasKt": 308,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 52000,
+        "fl": 180,
+        "timeMin": 7,
+        "fuelKg": 669,
+        "distanceNm": 35,
+        "tasKt": 292,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 54000,
+        "fl": 180,
+        "timeMin": 8,
+        "fuelKg": 700,
+        "distanceNm": 37,
+        "tasKt": 292,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 56000,
+        "fl": 180,
+        "timeMin": 8,
+        "fuelKg": 732,
+        "distanceNm": 39,
+        "tasKt": 293,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 58000,
+        "fl": 180,
+        "timeMin": 8,
+        "fuelKg": 765,
+        "distanceNm": 40,
+        "tasKt": 293,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 60000,
+        "fl": 180,
+        "timeMin": 9,
+        "fuelKg": 798,
+        "distanceNm": 42,
+        "tasKt": 293,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 62000,
+        "fl": 180,
+        "timeMin": 9,
+        "fuelKg": 833,
+        "distanceNm": 44,
+        "tasKt": 293,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 64000,
+        "fl": 180,
+        "timeMin": 9,
+        "fuelKg": 869,
+        "distanceNm": 46,
+        "tasKt": 294,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 52000,
+        "fl": 160,
+        "timeMin": 6,
+        "fuelKg": 601,
+        "distanceNm": 29,
+        "tasKt": 277,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 54000,
+        "fl": 160,
+        "timeMin": 7,
+        "fuelKg": 629,
+        "distanceNm": 31,
+        "tasKt": 278,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 56000,
+        "fl": 160,
+        "timeMin": 7,
+        "fuelKg": 657,
+        "distanceNm": 32,
+        "tasKt": 278,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 58000,
+        "fl": 160,
+        "timeMin": 7,
+        "fuelKg": 686,
+        "distanceNm": 34,
+        "tasKt": 278,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 60000,
+        "fl": 160,
+        "timeMin": 8,
+        "fuelKg": 716,
+        "distanceNm": 35,
+        "tasKt": 279,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 62000,
+        "fl": 160,
+        "timeMin": 8,
+        "fuelKg": 747,
+        "distanceNm": 37,
+        "tasKt": 279,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 64000,
+        "fl": 160,
+        "timeMin": 8,
+        "fuelKg": 779,
+        "distanceNm": 38,
+        "tasKt": 279,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 52000,
+        "fl": 140,
+        "timeMin": 6,
+        "fuelKg": 536,
+        "distanceNm": 24,
+        "tasKt": 262,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 54000,
+        "fl": 140,
+        "timeMin": 6,
+        "fuelKg": 561,
+        "distanceNm": 26,
+        "tasKt": 263,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 56000,
+        "fl": 140,
+        "timeMin": 6,
+        "fuelKg": 586,
+        "distanceNm": 27,
+        "tasKt": 263,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 58000,
+        "fl": 140,
+        "timeMin": 6,
+        "fuelKg": 612,
+        "distanceNm": 28,
+        "tasKt": 263,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 60000,
+        "fl": 140,
+        "timeMin": 7,
+        "fuelKg": 639,
+        "distanceNm": 29,
+        "tasKt": 264,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 62000,
+        "fl": 140,
+        "timeMin": 7,
+        "fuelKg": 666,
+        "distanceNm": 30,
+        "tasKt": 264,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 64000,
+        "fl": 140,
+        "timeMin": 7,
+        "fuelKg": 694,
+        "distanceNm": 32,
+        "tasKt": 264,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 52000,
+        "fl": 120,
+        "timeMin": 5,
+        "fuelKg": 474,
+        "distanceNm": 20,
+        "tasKt": 246,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 54000,
+        "fl": 120,
+        "timeMin": 5,
+        "fuelKg": 496,
+        "distanceNm": 21,
+        "tasKt": 246,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 56000,
+        "fl": 120,
+        "timeMin": 5,
+        "fuelKg": 518,
+        "distanceNm": 22,
+        "tasKt": 247,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 58000,
+        "fl": 120,
+        "timeMin": 6,
+        "fuelKg": 541,
+        "distanceNm": 23,
+        "tasKt": 247,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 60000,
+        "fl": 120,
+        "timeMin": 6,
+        "fuelKg": 565,
+        "distanceNm": 24,
+        "tasKt": 247,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 62000,
+        "fl": 120,
+        "timeMin": 6,
+        "fuelKg": 589,
+        "distanceNm": 25,
+        "tasKt": 248,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 64000,
+        "fl": 120,
+        "timeMin": 6,
+        "fuelKg": 614,
+        "distanceNm": 26,
+        "tasKt": 248,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 52000,
+        "fl": 100,
+        "timeMin": 4,
+        "fuelKg": 376,
+        "distanceNm": 14,
+        "tasKt": 216,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 54000,
+        "fl": 100,
+        "timeMin": 4,
+        "fuelKg": 393,
+        "distanceNm": 14,
+        "tasKt": 217,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 56000,
+        "fl": 100,
+        "timeMin": 4,
+        "fuelKg": 411,
+        "distanceNm": 15,
+        "tasKt": 217,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 58000,
+        "fl": 100,
+        "timeMin": 4,
+        "fuelKg": 429,
+        "distanceNm": 16,
+        "tasKt": 218,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 60000,
+        "fl": 100,
+        "timeMin": 4,
+        "fuelKg": 448,
+        "distanceNm": 16,
+        "tasKt": 218,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 62000,
+        "fl": 100,
+        "timeMin": 5,
+        "fuelKg": 467,
+        "distanceNm": 17,
+        "tasKt": 218,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 64000,
+        "fl": 100,
+        "timeMin": 5,
+        "fuelKg": 487,
+        "distanceNm": 18,
+        "tasKt": 219,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 52000,
+        "fl": 50,
+        "timeMin": 2,
+        "fuelKg": 243,
+        "distanceNm": 7,
+        "tasKt": 176,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 54000,
+        "fl": 50,
+        "timeMin": 3,
+        "fuelKg": 254,
+        "distanceNm": 7,
+        "tasKt": 177,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 56000,
+        "fl": 50,
+        "timeMin": 3,
+        "fuelKg": 266,
+        "distanceNm": 8,
+        "tasKt": 177,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 58000,
+        "fl": 50,
+        "timeMin": 3,
+        "fuelKg": 277,
+        "distanceNm": 8,
+        "tasKt": 178,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 60000,
+        "fl": 50,
+        "timeMin": 3,
+        "fuelKg": 289,
+        "distanceNm": 8,
+        "tasKt": 178,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 62000,
+        "fl": 50,
+        "timeMin": 3,
+        "fuelKg": 302,
+        "distanceNm": 9,
+        "tasKt": 178,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 64000,
+        "fl": 50,
+        "timeMin": 3,
+        "fuelKg": 314,
+        "distanceNm": 9,
+        "tasKt": 179,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 52000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 150,
+        "distanceNm": 3,
+        "tasKt": 123,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 54000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 157,
+        "distanceNm": 3,
+        "tasKt": 124,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 56000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 164,
+        "distanceNm": 3,
+        "tasKt": 124,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 58000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 172,
+        "distanceNm": 4,
+        "tasKt": 124,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 60000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 179,
+        "distanceNm": 4,
+        "tasKt": 125,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 62000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 187,
+        "distanceNm": 4,
+        "tasKt": 125,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 64000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 195,
+        "distanceNm": 4,
+        "tasKt": 126,
+        "pdfPage": 3208
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 66000,
+        "fl": 350,
+        "timeMin": 29,
+        "fuelKg": 2062,
+        "distanceNm": 193,
+        "tasKt": 402,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 68000,
+        "fl": 350,
+        "timeMin": 31,
+        "fuelKg": 2186,
+        "distanceNm": 207,
+        "tasKt": 404,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 70000,
+        "fl": 350,
+        "timeMin": 33,
+        "fuelKg": 2326,
+        "distanceNm": 222,
+        "tasKt": 406,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 72000,
+        "fl": 350,
+        "timeMin": 35,
+        "fuelKg": 2487,
+        "distanceNm": 241,
+        "tasKt": 408,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 66000,
+        "fl": 330,
+        "timeMin": 26,
+        "fuelKg": 1903,
+        "distanceNm": 169,
+        "tasKt": 394,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 68000,
+        "fl": 330,
+        "timeMin": 27,
+        "fuelKg": 2006,
+        "distanceNm": 179,
+        "tasKt": 395,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 70000,
+        "fl": 330,
+        "timeMin": 29,
+        "fuelKg": 2117,
+        "distanceNm": 190,
+        "tasKt": 397,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 72000,
+        "fl": 330,
+        "timeMin": 31,
+        "fuelKg": 2241,
+        "distanceNm": 203,
+        "tasKt": 398,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 74000,
+        "fl": 330,
+        "timeMin": 33,
+        "fuelKg": 2378,
+        "distanceNm": 217,
+        "tasKt": 400,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 76000,
+        "fl": 330,
+        "timeMin": 35,
+        "fuelKg": 2534,
+        "distanceNm": 234,
+        "tasKt": 402,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 66000,
+        "fl": 310,
+        "timeMin": 23,
+        "fuelKg": 1760,
+        "distanceNm": 148,
+        "tasKt": 385,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 68000,
+        "fl": 310,
+        "timeMin": 24,
+        "fuelKg": 1849,
+        "distanceNm": 156,
+        "tasKt": 386,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 70000,
+        "fl": 310,
+        "timeMin": 26,
+        "fuelKg": 1945,
+        "distanceNm": 165,
+        "tasKt": 387,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 72000,
+        "fl": 310,
+        "timeMin": 27,
+        "fuelKg": 2048,
+        "distanceNm": 174,
+        "tasKt": 388,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 74000,
+        "fl": 310,
+        "timeMin": 29,
+        "fuelKg": 2161,
+        "distanceNm": 185,
+        "tasKt": 390,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 76000,
+        "fl": 310,
+        "timeMin": 30,
+        "fuelKg": 2283,
+        "distanceNm": 197,
+        "tasKt": 391,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 78000,
+        "fl": 310,
+        "timeMin": 32,
+        "fuelKg": 2418,
+        "distanceNm": 211,
+        "tasKt": 393,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 66000,
+        "fl": 290,
+        "timeMin": 20,
+        "fuelKg": 1612,
+        "distanceNm": 127,
+        "tasKt": 373,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 68000,
+        "fl": 290,
+        "timeMin": 21,
+        "fuelKg": 1690,
+        "distanceNm": 134,
+        "tasKt": 374,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 70000,
+        "fl": 290,
+        "timeMin": 23,
+        "fuelKg": 1773,
+        "distanceNm": 141,
+        "tasKt": 375,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 72000,
+        "fl": 290,
+        "timeMin": 24,
+        "fuelKg": 1861,
+        "distanceNm": 149,
+        "tasKt": 376,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 74000,
+        "fl": 290,
+        "timeMin": 25,
+        "fuelKg": 1956,
+        "distanceNm": 157,
+        "tasKt": 377,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 76000,
+        "fl": 290,
+        "timeMin": 26,
+        "fuelKg": 2057,
+        "distanceNm": 166,
+        "tasKt": 378,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 78000,
+        "fl": 290,
+        "timeMin": 28,
+        "fuelKg": 2166,
+        "distanceNm": 176,
+        "tasKt": 379,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 66000,
+        "fl": 270,
+        "timeMin": 18,
+        "fuelKg": 1444,
+        "distanceNm": 106,
+        "tasKt": 358,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 68000,
+        "fl": 270,
+        "timeMin": 19,
+        "fuelKg": 1511,
+        "distanceNm": 111,
+        "tasKt": 358,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 70000,
+        "fl": 270,
+        "timeMin": 19,
+        "fuelKg": 1581,
+        "distanceNm": 116,
+        "tasKt": 359,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 72000,
+        "fl": 270,
+        "timeMin": 20,
+        "fuelKg": 1655,
+        "distanceNm": 122,
+        "tasKt": 360,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 74000,
+        "fl": 270,
+        "timeMin": 21,
+        "fuelKg": 1733,
+        "distanceNm": 128,
+        "tasKt": 361,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 76000,
+        "fl": 270,
+        "timeMin": 22,
+        "fuelKg": 1817,
+        "distanceNm": 135,
+        "tasKt": 362,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 78000,
+        "fl": 270,
+        "timeMin": 23,
+        "fuelKg": 1905,
+        "distanceNm": 142,
+        "tasKt": 363,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 66000,
+        "fl": 250,
+        "timeMin": 15,
+        "fuelKg": 1302,
+        "distanceNm": 88,
+        "tasKt": 343,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 68000,
+        "fl": 250,
+        "timeMin": 16,
+        "fuelKg": 1360,
+        "distanceNm": 93,
+        "tasKt": 344,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 70000,
+        "fl": 250,
+        "timeMin": 17,
+        "fuelKg": 1421,
+        "distanceNm": 97,
+        "tasKt": 344,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 72000,
+        "fl": 250,
+        "timeMin": 18,
+        "fuelKg": 1485,
+        "distanceNm": 101,
+        "tasKt": 345,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 74000,
+        "fl": 250,
+        "timeMin": 18,
+        "fuelKg": 1552,
+        "distanceNm": 106,
+        "tasKt": 346,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 76000,
+        "fl": 250,
+        "timeMin": 19,
+        "fuelKg": 1623,
+        "distanceNm": 111,
+        "tasKt": 347,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 78000,
+        "fl": 250,
+        "timeMin": 20,
+        "fuelKg": 1697,
+        "distanceNm": 117,
+        "tasKt": 347,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 66000,
+        "fl": 240,
+        "timeMin": 14,
+        "fuelKg": 1237,
+        "distanceNm": 81,
+        "tasKt": 336,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 68000,
+        "fl": 240,
+        "timeMin": 15,
+        "fuelKg": 1292,
+        "distanceNm": 85,
+        "tasKt": 337,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 70000,
+        "fl": 240,
+        "timeMin": 16,
+        "fuelKg": 1349,
+        "distanceNm": 89,
+        "tasKt": 337,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 72000,
+        "fl": 240,
+        "timeMin": 16,
+        "fuelKg": 1409,
+        "distanceNm": 93,
+        "tasKt": 338,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 74000,
+        "fl": 240,
+        "timeMin": 17,
+        "fuelKg": 1471,
+        "distanceNm": 97,
+        "tasKt": 339,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 76000,
+        "fl": 240,
+        "timeMin": 18,
+        "fuelKg": 1537,
+        "distanceNm": 102,
+        "tasKt": 339,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 78000,
+        "fl": 240,
+        "timeMin": 19,
+        "fuelKg": 1606,
+        "distanceNm": 107,
+        "tasKt": 340,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 66000,
+        "fl": 220,
+        "timeMin": 13,
+        "fuelKg": 1117,
+        "distanceNm": 68,
+        "tasKt": 322,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 68000,
+        "fl": 220,
+        "timeMin": 13,
+        "fuelKg": 1166,
+        "distanceNm": 71,
+        "tasKt": 323,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 70000,
+        "fl": 220,
+        "timeMin": 14,
+        "fuelKg": 1216,
+        "distanceNm": 75,
+        "tasKt": 323,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 72000,
+        "fl": 220,
+        "timeMin": 14,
+        "fuelKg": 1269,
+        "distanceNm": 78,
+        "tasKt": 324,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 74000,
+        "fl": 220,
+        "timeMin": 15,
+        "fuelKg": 1323,
+        "distanceNm": 81,
+        "tasKt": 325,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 76000,
+        "fl": 220,
+        "timeMin": 16,
+        "fuelKg": 1381,
+        "distanceNm": 85,
+        "tasKt": 325,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 78000,
+        "fl": 220,
+        "timeMin": 16,
+        "fuelKg": 1441,
+        "distanceNm": 89,
+        "tasKt": 326,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 66000,
+        "fl": 200,
+        "timeMin": 11,
+        "fuelKg": 1007,
+        "distanceNm": 57,
+        "tasKt": 308,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 68000,
+        "fl": 200,
+        "timeMin": 12,
+        "fuelKg": 1050,
+        "distanceNm": 60,
+        "tasKt": 309,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 70000,
+        "fl": 200,
+        "timeMin": 12,
+        "fuelKg": 1094,
+        "distanceNm": 62,
+        "tasKt": 309,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 72000,
+        "fl": 200,
+        "timeMin": 13,
+        "fuelKg": 1141,
+        "distanceNm": 65,
+        "tasKt": 310,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 74000,
+        "fl": 200,
+        "timeMin": 13,
+        "fuelKg": 1189,
+        "distanceNm": 68,
+        "tasKt": 310,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 76000,
+        "fl": 200,
+        "timeMin": 14,
+        "fuelKg": 1239,
+        "distanceNm": 71,
+        "tasKt": 311,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 78000,
+        "fl": 200,
+        "timeMin": 14,
+        "fuelKg": 1291,
+        "distanceNm": 74,
+        "tasKt": 312,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 66000,
+        "fl": 180,
+        "timeMin": 10,
+        "fuelKg": 905,
+        "distanceNm": 48,
+        "tasKt": 294,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 68000,
+        "fl": 180,
+        "timeMin": 10,
+        "fuelKg": 943,
+        "distanceNm": 50,
+        "tasKt": 295,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 70000,
+        "fl": 180,
+        "timeMin": 11,
+        "fuelKg": 983,
+        "distanceNm": 52,
+        "tasKt": 295,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 72000,
+        "fl": 180,
+        "timeMin": 11,
+        "fuelKg": 1024,
+        "distanceNm": 54,
+        "tasKt": 296,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 74000,
+        "fl": 180,
+        "timeMin": 11,
+        "fuelKg": 1066,
+        "distanceNm": 57,
+        "tasKt": 296,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 76000,
+        "fl": 180,
+        "timeMin": 12,
+        "fuelKg": 1110,
+        "distanceNm": 59,
+        "tasKt": 297,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 78000,
+        "fl": 180,
+        "timeMin": 12,
+        "fuelKg": 1156,
+        "distanceNm": 62,
+        "tasKt": 297,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 66000,
+        "fl": 160,
+        "timeMin": 9,
+        "fuelKg": 811,
+        "distanceNm": 40,
+        "tasKt": 280,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 68000,
+        "fl": 160,
+        "timeMin": 9,
+        "fuelKg": 845,
+        "distanceNm": 42,
+        "tasKt": 280,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 70000,
+        "fl": 160,
+        "timeMin": 9,
+        "fuelKg": 880,
+        "distanceNm": 43,
+        "tasKt": 281,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 72000,
+        "fl": 160,
+        "timeMin": 10,
+        "fuelKg": 916,
+        "distanceNm": 45,
+        "tasKt": 281,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 74000,
+        "fl": 160,
+        "timeMin": 10,
+        "fuelKg": 954,
+        "distanceNm": 47,
+        "tasKt": 282,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 76000,
+        "fl": 160,
+        "timeMin": 10,
+        "fuelKg": 993,
+        "distanceNm": 49,
+        "tasKt": 282,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 78000,
+        "fl": 160,
+        "timeMin": 11,
+        "fuelKg": 1033,
+        "distanceNm": 51,
+        "tasKt": 283,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 66000,
+        "fl": 140,
+        "timeMin": 7,
+        "fuelKg": 723,
+        "distanceNm": 33,
+        "tasKt": 265,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 68000,
+        "fl": 140,
+        "timeMin": 8,
+        "fuelKg": 753,
+        "distanceNm": 34,
+        "tasKt": 265,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 70000,
+        "fl": 140,
+        "timeMin": 8,
+        "fuelKg": 784,
+        "distanceNm": 36,
+        "tasKt": 265,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 72000,
+        "fl": 140,
+        "timeMin": 8,
+        "fuelKg": 816,
+        "distanceNm": 37,
+        "tasKt": 266,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 74000,
+        "fl": 140,
+        "timeMin": 9,
+        "fuelKg": 850,
+        "distanceNm": 39,
+        "tasKt": 266,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 76000,
+        "fl": 140,
+        "timeMin": 9,
+        "fuelKg": 884,
+        "distanceNm": 41,
+        "tasKt": 267,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 78000,
+        "fl": 140,
+        "timeMin": 9,
+        "fuelKg": 920,
+        "distanceNm": 42,
+        "tasKt": 268,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 66000,
+        "fl": 120,
+        "timeMin": 7,
+        "fuelKg": 640,
+        "distanceNm": 27,
+        "tasKt": 248,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 68000,
+        "fl": 120,
+        "timeMin": 7,
+        "fuelKg": 667,
+        "distanceNm": 28,
+        "tasKt": 249,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 70000,
+        "fl": 120,
+        "timeMin": 7,
+        "fuelKg": 694,
+        "distanceNm": 29,
+        "tasKt": 249,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 72000,
+        "fl": 120,
+        "timeMin": 7,
+        "fuelKg": 722,
+        "distanceNm": 31,
+        "tasKt": 250,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 74000,
+        "fl": 120,
+        "timeMin": 8,
+        "fuelKg": 752,
+        "distanceNm": 32,
+        "tasKt": 250,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 76000,
+        "fl": 120,
+        "timeMin": 8,
+        "fuelKg": 782,
+        "distanceNm": 33,
+        "tasKt": 251,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 78000,
+        "fl": 120,
+        "timeMin": 8,
+        "fuelKg": 814,
+        "distanceNm": 35,
+        "tasKt": 252,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 66000,
+        "fl": 100,
+        "timeMin": 5,
+        "fuelKg": 508,
+        "distanceNm": 19,
+        "tasKt": 219,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 68000,
+        "fl": 100,
+        "timeMin": 5,
+        "fuelKg": 529,
+        "distanceNm": 19,
+        "tasKt": 220,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 70000,
+        "fl": 100,
+        "timeMin": 5,
+        "fuelKg": 551,
+        "distanceNm": 20,
+        "tasKt": 220,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 72000,
+        "fl": 100,
+        "timeMin": 6,
+        "fuelKg": 573,
+        "distanceNm": 21,
+        "tasKt": 221,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 74000,
+        "fl": 100,
+        "timeMin": 6,
+        "fuelKg": 596,
+        "distanceNm": 22,
+        "tasKt": 222,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 76000,
+        "fl": 100,
+        "timeMin": 6,
+        "fuelKg": 621,
+        "distanceNm": 23,
+        "tasKt": 222,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 78000,
+        "fl": 100,
+        "timeMin": 6,
+        "fuelKg": 646,
+        "distanceNm": 24,
+        "tasKt": 223,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 66000,
+        "fl": 50,
+        "timeMin": 3,
+        "fuelKg": 327,
+        "distanceNm": 10,
+        "tasKt": 180,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 68000,
+        "fl": 50,
+        "timeMin": 3,
+        "fuelKg": 341,
+        "distanceNm": 10,
+        "tasKt": 180,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 70000,
+        "fl": 50,
+        "timeMin": 3,
+        "fuelKg": 355,
+        "distanceNm": 10,
+        "tasKt": 181,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 72000,
+        "fl": 50,
+        "timeMin": 4,
+        "fuelKg": 369,
+        "distanceNm": 11,
+        "tasKt": 182,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 74000,
+        "fl": 50,
+        "timeMin": 4,
+        "fuelKg": 384,
+        "distanceNm": 11,
+        "tasKt": 182,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 76000,
+        "fl": 50,
+        "timeMin": 4,
+        "fuelKg": 399,
+        "distanceNm": 12,
+        "tasKt": 183,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 78000,
+        "fl": 50,
+        "timeMin": 4,
+        "fuelKg": 414,
+        "distanceNm": 12,
+        "tasKt": 184,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 66000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 203,
+        "distanceNm": 4,
+        "tasKt": 127,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 68000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 211,
+        "distanceNm": 4,
+        "tasKt": 127,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 70000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 220,
+        "distanceNm": 5,
+        "tasKt": 128,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 72000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 229,
+        "distanceNm": 5,
+        "tasKt": 129,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 74000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 238,
+        "distanceNm": 5,
+        "tasKt": 130,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 76000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 247,
+        "distanceNm": 5,
+        "tasKt": 131,
+        "pdfPage": 3209
+      },
+      {
+        "isaDeviationC": 20,
+        "massKg": 78000,
+        "fl": 15,
+        "timeMin": 2,
+        "fuelKg": 257,
+        "distanceNm": 5,
+        "tasKt": 132,
+        "pdfPage": 3209
+      }
+    ]
+  },
+  "descent": {
+    "referenceIsaDeviationC": 0,
+    "massBasis": "Source labels WEIGHT without a more precise mass convention; treating it as top-of-descent mass requires an explicit modelling assumption.",
+    "metadata": {
+      "sourceFilename": "A318_A319_A320_A321 ( PDFDrive ).pdf",
+      "sourceSha256": "69933a031e24a984b98160802f11d23e83ea6060f63d6c3f0fb1a41db303cbc4",
+      "document": "Airbus / AEROGAL (GLG) FCOM, tailored For A/C HC-CLF",
+      "aircraft": {
+        "model": "A319-112",
+        "msn": 2078,
+        "registration": "HC-CLF",
+        "allocationPdfPage": 23,
+        "allocationSourcePageCode": "PLP-AAT P 1/2",
+        "allocationPageDate": "2017-01-24"
+      },
+      "engineCount": 2,
+      "pageDate": "2017-01-24",
+      "applicabilityText": "Applicable to: ALL",
+      "applicabilityScope": "ALL refers to the aircraft allocation of this tailored manual, not every aircraft in the cover family title.",
+      "extractionMethod": "Manual transcription from embedded table image; all rows checked against independent OCR after removing grid lines for OCR only. Original images preserved separately.",
+      "pdfPages": [
+        3245,
+        3247
+      ],
+      "sourcePageCodes": [
+        "PER-DES-GEN P 1/2",
+        "PER-DES-STD P 1/2"
+      ],
+      "contentIds": [
+        "PER-DES-GEN-00002131.0001001 / 09 DEC 09",
+        "PER-DES-STD-00002133.0039001 / 07 MAR 11"
+      ],
+      "title": "DESCENT - M.78/300KT/250KT",
+      "conditions": {
+        "thrust": "IDLE THRUST, except the explicit N1=68.2 at 45t / FL390",
+        "speedProfile": "M .78 / 300 kt / 250 kt",
+        "airConditioning": "NORMAL",
+        "antiIce": "OFF",
+        "temperature": "ISA",
+        "cgPercentMac": 33.0,
+        "maximumCabinDescentRateFtMin": 350,
+        "endAltitudeFt": 1500
+      },
+      "units": {
+        "massKg": "kg (source WEIGHT 1000KG)",
+        "fl": "hundreds of feet",
+        "timeMin": "min",
+        "fuelKg": "kg, aircraft total phase fuel",
+        "distanceNm": "NM",
+        "n1Pct": "percent, null when source says IDLE",
+        "n1Symbol": "literal IDLE or null for numeric N1",
+        "iasKt": "KT"
+      },
+      "notes": [
+        "Descent ends at 1500 ft; approach and landing are separate phases.",
+        "FUEL (KG) is a phase quantity, not FF/ENG. It is not multiplied by the engine count.",
+        "350 ft/min is the maximum CABIN rate of descent, not the aircraft vertical speed.",
+        "No indicative qualifier for N1 is printed on this source table or PER-DES-GEN; IDLE text is preserved separately, never converted to zero N1.",
+        "FL15 source values .0 / 0 / 0 are true zeros. No missing numerical cells; no interpolation or extrapolation included."
+      ],
+      "correctionsPct": {
+        "lowAirConditioning": {
+          "time": null,
+          "fuel": null,
+          "distance": null,
+          "sourceText": "- (no numerical correction provided)"
+        },
+        "engineAntiIceOn": {
+          "time": 6,
+          "fuel": 30,
+          "distance": 5
+        },
+        "totalAntiIceOn": {
+          "time": 10,
+          "fuel": 50,
+          "distance": 7
+        },
+        "perDegreeCAboveIsa": {
+          "time": 0.3,
+          "fuel": 0.5,
+          "distance": 0.5
+        }
+      }
+    },
+    "rows": [
+      {
+        "massKg": 45000,
+        "fl": 390,
+        "timeMin": 14.7,
+        "fuelKg": 156,
+        "distanceNm": 91,
+        "n1Pct": 68.2,
+        "n1Symbol": null,
+        "iasKt": 241,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 65000,
+        "fl": 390,
+        "timeMin": 17.6,
+        "fuelKg": 167,
+        "distanceNm": 107,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 241,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 45000,
+        "fl": 370,
+        "timeMin": 13.2,
+        "fuelKg": 127,
+        "distanceNm": 79,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 252,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 65000,
+        "fl": 370,
+        "timeMin": 16.9,
+        "fuelKg": 162,
+        "distanceNm": 102,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 252,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 45000,
+        "fl": 350,
+        "timeMin": 12.6,
+        "fuelKg": 124,
+        "distanceNm": 75,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 264,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 65000,
+        "fl": 350,
+        "timeMin": 16.2,
+        "fuelKg": 158,
+        "distanceNm": 97,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 264,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 45000,
+        "fl": 330,
+        "timeMin": 12.1,
+        "fuelKg": 120,
+        "distanceNm": 71,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 277,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 65000,
+        "fl": 330,
+        "timeMin": 15.6,
+        "fuelKg": 155,
+        "distanceNm": 92,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 277,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 45000,
+        "fl": 310,
+        "timeMin": 11.7,
+        "fuelKg": 118,
+        "distanceNm": 68,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 289,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 65000,
+        "fl": 310,
+        "timeMin": 15.0,
+        "fuelKg": 151,
+        "distanceNm": 87,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 289,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 45000,
+        "fl": 290,
+        "timeMin": 11.2,
+        "fuelKg": 115,
+        "distanceNm": 64,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 65000,
+        "fl": 290,
+        "timeMin": 14.4,
+        "fuelKg": 147,
+        "distanceNm": 83,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 45000,
+        "fl": 270,
+        "timeMin": 10.6,
+        "fuelKg": 111,
+        "distanceNm": 60,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 65000,
+        "fl": 270,
+        "timeMin": 13.6,
+        "fuelKg": 142,
+        "distanceNm": 77,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 45000,
+        "fl": 250,
+        "timeMin": 10.0,
+        "fuelKg": 107,
+        "distanceNm": 56,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 65000,
+        "fl": 250,
+        "timeMin": 12.8,
+        "fuelKg": 137,
+        "distanceNm": 71,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 45000,
+        "fl": 240,
+        "timeMin": 9.8,
+        "fuelKg": 106,
+        "distanceNm": 54,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 65000,
+        "fl": 240,
+        "timeMin": 12.4,
+        "fuelKg": 135,
+        "distanceNm": 69,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 45000,
+        "fl": 220,
+        "timeMin": 9.1,
+        "fuelKg": 101,
+        "distanceNm": 49,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 65000,
+        "fl": 220,
+        "timeMin": 11.6,
+        "fuelKg": 129,
+        "distanceNm": 63,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 45000,
+        "fl": 200,
+        "timeMin": 8.5,
+        "fuelKg": 94,
+        "distanceNm": 45,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 65000,
+        "fl": 200,
+        "timeMin": 10.7,
+        "fuelKg": 120,
+        "distanceNm": 57,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 45000,
+        "fl": 180,
+        "timeMin": 7.8,
+        "fuelKg": 87,
+        "distanceNm": 40,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 65000,
+        "fl": 180,
+        "timeMin": 9.8,
+        "fuelKg": 110,
+        "distanceNm": 51,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 45000,
+        "fl": 160,
+        "timeMin": 7.1,
+        "fuelKg": 78,
+        "distanceNm": 36,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 65000,
+        "fl": 160,
+        "timeMin": 8.9,
+        "fuelKg": 98,
+        "distanceNm": 45,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 45000,
+        "fl": 140,
+        "timeMin": 6.3,
+        "fuelKg": 67,
+        "distanceNm": 31,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 65000,
+        "fl": 140,
+        "timeMin": 7.9,
+        "fuelKg": 84,
+        "distanceNm": 39,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 45000,
+        "fl": 120,
+        "timeMin": 5.6,
+        "fuelKg": 56,
+        "distanceNm": 27,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 65000,
+        "fl": 120,
+        "timeMin": 6.9,
+        "fuelKg": 70,
+        "distanceNm": 33,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 45000,
+        "fl": 100,
+        "timeMin": 4.9,
+        "fuelKg": 47,
+        "distanceNm": 23,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 65000,
+        "fl": 100,
+        "timeMin": 6.0,
+        "fuelKg": 58,
+        "distanceNm": 28,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 300,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 45000,
+        "fl": 50,
+        "timeMin": 1.7,
+        "fuelKg": 14,
+        "distanceNm": 7,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 250,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 65000,
+        "fl": 50,
+        "timeMin": 2.1,
+        "fuelKg": 18,
+        "distanceNm": 9,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 250,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 45000,
+        "fl": 15,
+        "timeMin": 0.0,
+        "fuelKg": 0,
+        "distanceNm": 0,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 250,
+        "pdfPage": 3247
+      },
+      {
+        "massKg": 65000,
+        "fl": 15,
+        "timeMin": 0.0,
+        "fuelKg": 0,
+        "distanceNm": 0,
+        "n1Pct": null,
+        "n1Symbol": "IDLE",
+        "iasKt": 250,
+        "pdfPage": 3247
+      }
+    ]
+  },
+  "holding": {
+    "referenceIsaDeviationC": 0,
+    "engineCount": 2,
+    "massBasis": "Tabulated aircraft weight for instantaneous flow; planning guidance uses weight at landing at the alternate.",
+    "metadata": {
+      "sourceFilename": "A318_A319_A320_A321 ( PDFDrive ).pdf",
+      "sourceSha256": "69933a031e24a984b98160802f11d23e83ea6060f63d6c3f0fb1a41db303cbc4",
+      "document": "Airbus / AEROGAL (GLG) FCOM, tailored For A/C HC-CLF",
+      "aircraft": {
+        "model": "A319-112",
+        "msn": 2078,
+        "registration": "HC-CLF",
+        "allocationPdfPage": 23,
+        "allocationSourcePageCode": "PLP-AAT P 1/2",
+        "allocationPageDate": "2017-01-24"
+      },
+      "engineCount": 2,
+      "pageDate": "2017-01-24",
+      "applicabilityText": "Applicable to: ALL",
+      "applicabilityScope": "ALL refers to the aircraft allocation of this tailored manual, not every aircraft in the cover family title.",
+      "extractionMethod": "Manual transcription from embedded table image; all rows checked against independent OCR after removing grid lines for OCR only. Original images preserved separately.",
+      "pdfPages": [
+        3237,
+        3239
+      ],
+      "sourcePageCodes": [
+        "PER-HLD-GEN P 1/2",
+        "PER-HLD-HLD P 1/2"
+      ],
+      "contentIds": [
+        "PER-HLD-GEN-00002129.0001001 / 01 DEC 14",
+        "PER-HLD-HLD-00002146.0025001 / 16 FEB 11"
+      ],
+      "title": "RACE TRACK HOLDING PATTERN - GREEN DOT SPEED",
+      "conditions": {
+        "thrustLimit": "MAX. CRUISE THRUST LIMITS",
+        "configuration": "CLEAN CONFIGURATION / CONF 0",
+        "speed": "GREEN DOT SPEED",
+        "airConditioning": "NORMAL",
+        "antiIce": "OFF",
+        "temperature": "ISA",
+        "cgPercentMac": 33.0,
+        "pattern": "RACE TRACK"
+      },
+      "units": {
+        "massKg": "kg (source WEIGHT 1000KG)",
+        "fl": "hundreds of feet",
+        "n1Pct": "percent",
+        "fuelFlowPerEngineKgH": "kg/h/engine"
+      },
+      "notes": [
+        "General text says total fuel flow; the numerical table unambiguously labels FF (KG/H/ENG). Use two engines for aircraft total fuel flow.",
+        "ISA +/-15 degrees applicability is not stated on PER-HLD-GEN or this table. Only ISA and a correction per degree ABOVE ISA are stated.",
+        "No missing numerical cells in the 17 x 8 grid. No interpolation or extrapolation included."
+      ],
+      "correctionsFuelFlowPct": {
+        "lowAirConditioning": -0.3,
+        "engineAntiIceOn": 5,
+        "totalAntiIceOn": 9,
+        "perDegreeCAboveIsa": 0.3,
+        "straightLine": -5
+      }
+    },
+    "rows": [
+      {
+        "massKg": 44000,
+        "fl": 15,
+        "n1Pct": 44.7,
+        "fuelFlowPerEngineKgH": 854,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 44000,
+        "fl": 50,
+        "n1Pct": 46.8,
+        "fuelFlowPerEngineKgH": 836,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 44000,
+        "fl": 100,
+        "n1Pct": 50.2,
+        "fuelFlowPerEngineKgH": 806,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 44000,
+        "fl": 140,
+        "n1Pct": 52.9,
+        "fuelFlowPerEngineKgH": 781,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 44000,
+        "fl": 180,
+        "n1Pct": 56.3,
+        "fuelFlowPerEngineKgH": 760,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 44000,
+        "fl": 200,
+        "n1Pct": 57.8,
+        "fuelFlowPerEngineKgH": 753,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 44000,
+        "fl": 220,
+        "n1Pct": 59.5,
+        "fuelFlowPerEngineKgH": 750,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 44000,
+        "fl": 250,
+        "n1Pct": 62.2,
+        "fuelFlowPerEngineKgH": 749,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 46000,
+        "fl": 15,
+        "n1Pct": 45.6,
+        "fuelFlowPerEngineKgH": 888,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 46000,
+        "fl": 50,
+        "n1Pct": 47.8,
+        "fuelFlowPerEngineKgH": 871,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 46000,
+        "fl": 100,
+        "n1Pct": 51.1,
+        "fuelFlowPerEngineKgH": 837,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 46000,
+        "fl": 140,
+        "n1Pct": 54.0,
+        "fuelFlowPerEngineKgH": 811,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 46000,
+        "fl": 180,
+        "n1Pct": 57.4,
+        "fuelFlowPerEngineKgH": 792,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 46000,
+        "fl": 200,
+        "n1Pct": 58.9,
+        "fuelFlowPerEngineKgH": 787,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 46000,
+        "fl": 220,
+        "n1Pct": 60.6,
+        "fuelFlowPerEngineKgH": 785,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 46000,
+        "fl": 250,
+        "n1Pct": 63.5,
+        "fuelFlowPerEngineKgH": 783,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 48000,
+        "fl": 15,
+        "n1Pct": 46.5,
+        "fuelFlowPerEngineKgH": 923,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 48000,
+        "fl": 50,
+        "n1Pct": 48.8,
+        "fuelFlowPerEngineKgH": 906,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 48000,
+        "fl": 100,
+        "n1Pct": 52.0,
+        "fuelFlowPerEngineKgH": 868,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 48000,
+        "fl": 140,
+        "n1Pct": 55.1,
+        "fuelFlowPerEngineKgH": 842,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 48000,
+        "fl": 180,
+        "n1Pct": 58.4,
+        "fuelFlowPerEngineKgH": 826,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 48000,
+        "fl": 200,
+        "n1Pct": 59.9,
+        "fuelFlowPerEngineKgH": 821,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 48000,
+        "fl": 220,
+        "n1Pct": 61.7,
+        "fuelFlowPerEngineKgH": 819,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 48000,
+        "fl": 250,
+        "n1Pct": 64.7,
+        "fuelFlowPerEngineKgH": 816,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 50000,
+        "fl": 15,
+        "n1Pct": 47.3,
+        "fuelFlowPerEngineKgH": 959,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 50000,
+        "fl": 50,
+        "n1Pct": 49.8,
+        "fuelFlowPerEngineKgH": 938,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 50000,
+        "fl": 100,
+        "n1Pct": 52.9,
+        "fuelFlowPerEngineKgH": 898,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 50000,
+        "fl": 140,
+        "n1Pct": 56.1,
+        "fuelFlowPerEngineKgH": 874,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 50000,
+        "fl": 180,
+        "n1Pct": 59.3,
+        "fuelFlowPerEngineKgH": 859,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 50000,
+        "fl": 200,
+        "n1Pct": 60.9,
+        "fuelFlowPerEngineKgH": 856,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 50000,
+        "fl": 220,
+        "n1Pct": 62.8,
+        "fuelFlowPerEngineKgH": 853,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 50000,
+        "fl": 250,
+        "n1Pct": 65.7,
+        "fuelFlowPerEngineKgH": 848,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 52000,
+        "fl": 15,
+        "n1Pct": 48.2,
+        "fuelFlowPerEngineKgH": 994,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 52000,
+        "fl": 50,
+        "n1Pct": 50.5,
+        "fuelFlowPerEngineKgH": 968,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 52000,
+        "fl": 100,
+        "n1Pct": 53.9,
+        "fuelFlowPerEngineKgH": 929,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 52000,
+        "fl": 140,
+        "n1Pct": 57.3,
+        "fuelFlowPerEngineKgH": 906,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 52000,
+        "fl": 180,
+        "n1Pct": 60.3,
+        "fuelFlowPerEngineKgH": 894,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 52000,
+        "fl": 200,
+        "n1Pct": 61.9,
+        "fuelFlowPerEngineKgH": 890,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 52000,
+        "fl": 220,
+        "n1Pct": 63.9,
+        "fuelFlowPerEngineKgH": 887,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 52000,
+        "fl": 250,
+        "n1Pct": 66.6,
+        "fuelFlowPerEngineKgH": 880,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 54000,
+        "fl": 15,
+        "n1Pct": 49.1,
+        "fuelFlowPerEngineKgH": 1030,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 54000,
+        "fl": 50,
+        "n1Pct": 51.3,
+        "fuelFlowPerEngineKgH": 1000,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 54000,
+        "fl": 100,
+        "n1Pct": 54.8,
+        "fuelFlowPerEngineKgH": 960,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 54000,
+        "fl": 140,
+        "n1Pct": 58.2,
+        "fuelFlowPerEngineKgH": 939,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 54000,
+        "fl": 180,
+        "n1Pct": 61.2,
+        "fuelFlowPerEngineKgH": 929,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 54000,
+        "fl": 200,
+        "n1Pct": 63.0,
+        "fuelFlowPerEngineKgH": 923,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 54000,
+        "fl": 220,
+        "n1Pct": 65.0,
+        "fuelFlowPerEngineKgH": 921,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 54000,
+        "fl": 250,
+        "n1Pct": 67.5,
+        "fuelFlowPerEngineKgH": 912,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 56000,
+        "fl": 15,
+        "n1Pct": 50.0,
+        "fuelFlowPerEngineKgH": 1063,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 56000,
+        "fl": 50,
+        "n1Pct": 52.1,
+        "fuelFlowPerEngineKgH": 1031,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 56000,
+        "fl": 100,
+        "n1Pct": 55.8,
+        "fuelFlowPerEngineKgH": 992,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 56000,
+        "fl": 140,
+        "n1Pct": 59.0,
+        "fuelFlowPerEngineKgH": 972,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 56000,
+        "fl": 180,
+        "n1Pct": 62.2,
+        "fuelFlowPerEngineKgH": 961,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 56000,
+        "fl": 200,
+        "n1Pct": 64.0,
+        "fuelFlowPerEngineKgH": 957,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 56000,
+        "fl": 220,
+        "n1Pct": 66.0,
+        "fuelFlowPerEngineKgH": 952,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 56000,
+        "fl": 250,
+        "n1Pct": 68.5,
+        "fuelFlowPerEngineKgH": 944,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 58000,
+        "fl": 15,
+        "n1Pct": 50.8,
+        "fuelFlowPerEngineKgH": 1094,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 58000,
+        "fl": 50,
+        "n1Pct": 52.9,
+        "fuelFlowPerEngineKgH": 1061,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 58000,
+        "fl": 100,
+        "n1Pct": 56.7,
+        "fuelFlowPerEngineKgH": 1024,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 58000,
+        "fl": 140,
+        "n1Pct": 59.9,
+        "fuelFlowPerEngineKgH": 1006,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 58000,
+        "fl": 180,
+        "n1Pct": 63.1,
+        "fuelFlowPerEngineKgH": 995,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 58000,
+        "fl": 200,
+        "n1Pct": 65.0,
+        "fuelFlowPerEngineKgH": 992,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 58000,
+        "fl": 220,
+        "n1Pct": 66.8,
+        "fuelFlowPerEngineKgH": 984,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 58000,
+        "fl": 250,
+        "n1Pct": 69.4,
+        "fuelFlowPerEngineKgH": 976,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 60000,
+        "fl": 15,
+        "n1Pct": 51.5,
+        "fuelFlowPerEngineKgH": 1125,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 60000,
+        "fl": 50,
+        "n1Pct": 53.7,
+        "fuelFlowPerEngineKgH": 1091,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 60000,
+        "fl": 100,
+        "n1Pct": 57.7,
+        "fuelFlowPerEngineKgH": 1057,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 60000,
+        "fl": 140,
+        "n1Pct": 60.7,
+        "fuelFlowPerEngineKgH": 1041,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 60000,
+        "fl": 180,
+        "n1Pct": 64.1,
+        "fuelFlowPerEngineKgH": 1029,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 60000,
+        "fl": 200,
+        "n1Pct": 66.0,
+        "fuelFlowPerEngineKgH": 1023,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 60000,
+        "fl": 220,
+        "n1Pct": 67.7,
+        "fuelFlowPerEngineKgH": 1016,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 60000,
+        "fl": 250,
+        "n1Pct": 70.2,
+        "fuelFlowPerEngineKgH": 1008,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 62000,
+        "fl": 15,
+        "n1Pct": 52.2,
+        "fuelFlowPerEngineKgH": 1155,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 62000,
+        "fl": 50,
+        "n1Pct": 54.5,
+        "fuelFlowPerEngineKgH": 1122,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 62000,
+        "fl": 100,
+        "n1Pct": 58.7,
+        "fuelFlowPerEngineKgH": 1090,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 62000,
+        "fl": 140,
+        "n1Pct": 61.5,
+        "fuelFlowPerEngineKgH": 1075,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 62000,
+        "fl": 180,
+        "n1Pct": 65.0,
+        "fuelFlowPerEngineKgH": 1063,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 62000,
+        "fl": 200,
+        "n1Pct": 66.9,
+        "fuelFlowPerEngineKgH": 1055,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 62000,
+        "fl": 220,
+        "n1Pct": 68.5,
+        "fuelFlowPerEngineKgH": 1048,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 62000,
+        "fl": 250,
+        "n1Pct": 71.0,
+        "fuelFlowPerEngineKgH": 1041,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 64000,
+        "fl": 15,
+        "n1Pct": 52.9,
+        "fuelFlowPerEngineKgH": 1186,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 64000,
+        "fl": 50,
+        "n1Pct": 55.3,
+        "fuelFlowPerEngineKgH": 1154,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 64000,
+        "fl": 100,
+        "n1Pct": 59.4,
+        "fuelFlowPerEngineKgH": 1123,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 64000,
+        "fl": 140,
+        "n1Pct": 62.4,
+        "fuelFlowPerEngineKgH": 1108,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 64000,
+        "fl": 180,
+        "n1Pct": 66.0,
+        "fuelFlowPerEngineKgH": 1095,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 64000,
+        "fl": 200,
+        "n1Pct": 67.6,
+        "fuelFlowPerEngineKgH": 1087,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 64000,
+        "fl": 220,
+        "n1Pct": 69.3,
+        "fuelFlowPerEngineKgH": 1081,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 64000,
+        "fl": 250,
+        "n1Pct": 71.8,
+        "fuelFlowPerEngineKgH": 1075,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 66000,
+        "fl": 15,
+        "n1Pct": 53.6,
+        "fuelFlowPerEngineKgH": 1217,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 66000,
+        "fl": 50,
+        "n1Pct": 56.1,
+        "fuelFlowPerEngineKgH": 1186,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 66000,
+        "fl": 100,
+        "n1Pct": 60.1,
+        "fuelFlowPerEngineKgH": 1157,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 66000,
+        "fl": 140,
+        "n1Pct": 63.2,
+        "fuelFlowPerEngineKgH": 1141,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 66000,
+        "fl": 180,
+        "n1Pct": 66.9,
+        "fuelFlowPerEngineKgH": 1125,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 66000,
+        "fl": 200,
+        "n1Pct": 68.4,
+        "fuelFlowPerEngineKgH": 1119,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 66000,
+        "fl": 220,
+        "n1Pct": 70.1,
+        "fuelFlowPerEngineKgH": 1113,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 66000,
+        "fl": 250,
+        "n1Pct": 72.7,
+        "fuelFlowPerEngineKgH": 1109,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 68000,
+        "fl": 15,
+        "n1Pct": 54.3,
+        "fuelFlowPerEngineKgH": 1247,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 68000,
+        "fl": 50,
+        "n1Pct": 56.9,
+        "fuelFlowPerEngineKgH": 1218,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 68000,
+        "fl": 100,
+        "n1Pct": 60.8,
+        "fuelFlowPerEngineKgH": 1191,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 68000,
+        "fl": 140,
+        "n1Pct": 64.0,
+        "fuelFlowPerEngineKgH": 1173,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 68000,
+        "fl": 180,
+        "n1Pct": 67.6,
+        "fuelFlowPerEngineKgH": 1158,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 68000,
+        "fl": 200,
+        "n1Pct": 69.2,
+        "fuelFlowPerEngineKgH": 1151,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 68000,
+        "fl": 220,
+        "n1Pct": 70.9,
+        "fuelFlowPerEngineKgH": 1146,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 68000,
+        "fl": 250,
+        "n1Pct": 73.5,
+        "fuelFlowPerEngineKgH": 1144,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 70000,
+        "fl": 15,
+        "n1Pct": 55.0,
+        "fuelFlowPerEngineKgH": 1279,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 70000,
+        "fl": 50,
+        "n1Pct": 57.7,
+        "fuelFlowPerEngineKgH": 1251,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 70000,
+        "fl": 100,
+        "n1Pct": 61.6,
+        "fuelFlowPerEngineKgH": 1225,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 70000,
+        "fl": 140,
+        "n1Pct": 64.9,
+        "fuelFlowPerEngineKgH": 1208,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 70000,
+        "fl": 180,
+        "n1Pct": 68.4,
+        "fuelFlowPerEngineKgH": 1190,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 70000,
+        "fl": 200,
+        "n1Pct": 69.9,
+        "fuelFlowPerEngineKgH": 1184,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 70000,
+        "fl": 220,
+        "n1Pct": 71.6,
+        "fuelFlowPerEngineKgH": 1179,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 70000,
+        "fl": 250,
+        "n1Pct": 74.3,
+        "fuelFlowPerEngineKgH": 1180,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 72000,
+        "fl": 15,
+        "n1Pct": 55.7,
+        "fuelFlowPerEngineKgH": 1311,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 72000,
+        "fl": 50,
+        "n1Pct": 58.6,
+        "fuelFlowPerEngineKgH": 1285,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 72000,
+        "fl": 100,
+        "n1Pct": 62.3,
+        "fuelFlowPerEngineKgH": 1259,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 72000,
+        "fl": 140,
+        "n1Pct": 65.7,
+        "fuelFlowPerEngineKgH": 1241,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 72000,
+        "fl": 180,
+        "n1Pct": 69.1,
+        "fuelFlowPerEngineKgH": 1223,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 72000,
+        "fl": 200,
+        "n1Pct": 70.7,
+        "fuelFlowPerEngineKgH": 1216,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 72000,
+        "fl": 220,
+        "n1Pct": 72.3,
+        "fuelFlowPerEngineKgH": 1212,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 72000,
+        "fl": 250,
+        "n1Pct": 75.1,
+        "fuelFlowPerEngineKgH": 1217,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 74000,
+        "fl": 15,
+        "n1Pct": 56.5,
+        "fuelFlowPerEngineKgH": 1344,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 74000,
+        "fl": 50,
+        "n1Pct": 59.4,
+        "fuelFlowPerEngineKgH": 1319,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 74000,
+        "fl": 100,
+        "n1Pct": 63.1,
+        "fuelFlowPerEngineKgH": 1292,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 74000,
+        "fl": 140,
+        "n1Pct": 66.6,
+        "fuelFlowPerEngineKgH": 1272,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 74000,
+        "fl": 180,
+        "n1Pct": 69.8,
+        "fuelFlowPerEngineKgH": 1255,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 74000,
+        "fl": 200,
+        "n1Pct": 71.4,
+        "fuelFlowPerEngineKgH": 1249,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 74000,
+        "fl": 220,
+        "n1Pct": 73.1,
+        "fuelFlowPerEngineKgH": 1247,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 74000,
+        "fl": 250,
+        "n1Pct": 75.9,
+        "fuelFlowPerEngineKgH": 1256,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 76000,
+        "fl": 15,
+        "n1Pct": 57.2,
+        "fuelFlowPerEngineKgH": 1377,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 76000,
+        "fl": 50,
+        "n1Pct": 60.2,
+        "fuelFlowPerEngineKgH": 1352,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 76000,
+        "fl": 100,
+        "n1Pct": 63.8,
+        "fuelFlowPerEngineKgH": 1325,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 76000,
+        "fl": 140,
+        "n1Pct": 67.4,
+        "fuelFlowPerEngineKgH": 1303,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 76000,
+        "fl": 180,
+        "n1Pct": 70.5,
+        "fuelFlowPerEngineKgH": 1288,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 76000,
+        "fl": 200,
+        "n1Pct": 72.1,
+        "fuelFlowPerEngineKgH": 1283,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 76000,
+        "fl": 220,
+        "n1Pct": 73.8,
+        "fuelFlowPerEngineKgH": 1282,
+        "pdfPage": 3239
+      },
+      {
+        "massKg": 76000,
+        "fl": 250,
+        "n1Pct": 76.6,
+        "fuelFlowPerEngineKgH": 1295,
+        "pdfPage": 3239
+      }
+    ]
+  },
+  "planningAllowances": {
+    "pdfPages": [
+      3169,
+      3170,
+      3173,
+      3195
+    ],
+    "pageCodes": [
+      "PER-FPL-GEN-MFR P 1/2-2/2",
+      "PER-FPL-FLP-QFP-10 P 1/2",
+      "PER-FPL-FLP-ALN-20 P 1/4"
+    ],
+    "taxi": {
+      "fuelFlowKgMin": 10,
+      "referenceDurationMin": 12,
+      "referenceFuelKg": 120
+    },
+    "approachAndLandingIfr": {
+      "fuelKg": 110,
+      "durationMin": 6,
+      "printedFuelFlowKgMin": 17
+    },
+    "alternateGoAround": {
+      "fuelKg": 80
+    },
+    "alternateApproachAndLandingVfr": {
+      "fuelKg": 60,
+      "durationMin": 4
+    },
+    "conservativeHolding": {
+      "fuelKg": 1150,
+      "durationMin": 30,
+      "heightAboveAlternateFt": 1500,
+      "configuration": "CLEAN / GREEN DOT"
+    },
+    "apuGround": {
+      "approximateFuelFlowKgH": 130,
+      "packs": "ON",
+      "generatorLoadKva": 90,
+      "pdfPage": 3170
+    },
+    "notes": [
+      "These are source planning allowances for the stated profile, not universal constants for other aircraft.",
+      "Printed rounded fuel quantities and printed flow times duration are not forced to be arithmetically identical.",
+      "Alternate planning starts with a go-around, not brake release. The main-trip cumulative climb table does not by itself define alternate fuel.",
+      "The worked example on PDF3178 is explicitly for A320-232 and not the actual aircraft; its example tables are excluded from this dataset."
+    ]
+  },
+  "useStatus": {
+    "purpose": "Source-specific reference and diagnostic lookup, not an automatic mission-model replacement.",
+    "automaticallyAppliedToMission": false,
+    "a320CalibrationChanged": false,
+    "interpolation": "Linear between available neighbouring nodes in mass/FL/temperature; no extrapolation and no filling missing corners. Source corrections are metadata only."
+  }
+}

@@ -1,0 +1,152 @@
+{
+  "kind": "source-specific phase diagnostics, not matched-condition accuracy validation",
+  "source": {
+    "filename": "A318_A319_A320_A321 ( PDFDrive ).pdf",
+    "sha256": "69933a031e24a984b98160802f11d23e83ea6060f63d6c3f0fb1a41db303cbc4",
+    "document": "Airbus / AEROGAL (GLG) Flight Crew Operating Manual, For A/C HC-CLF",
+    "issueDate": "2017-10-17",
+    "pdfPageCount": 3316,
+    "pdfPageNumbering": "1-based; not the printed section page number",
+    "tablePageDate": "2017-01-24",
+    "providedBy": "User-supplied PDF; the original manual is not included in this repository"
+  },
+  "applicability": {
+    "aircraftModel": "A319-112",
+    "registration": "HC-CLF",
+    "msn": 2078,
+    "engineModel": "CFM56-5B6/P",
+    "engineCount": 2,
+    "wingtip": "fence",
+    "evidence": [
+      {
+        "pdfPage": 23,
+        "pageCode": "PLP-AAT P 1/2",
+        "pageDate": "2017-01-24",
+        "meaning": "The sole aircraft allocated to this tailored FCOM is MSN2078 / HC-CLF / 319-112."
+      },
+      {
+        "pdfPage": 25,
+        "pageCode": "PLP-LOM P 1/20",
+        "pageDate": "2017-09-05",
+        "meaning": "J0071: wing tip incorporating a tip fence."
+      },
+      {
+        "pdfPage": 35,
+        "pageCode": "PLP-LOM P 11/20",
+        "pageDate": "2017-09-05",
+        "meaning": "P4230: introduction of CFM56-5B/P."
+      },
+      {
+        "pdfPage": 68,
+        "pageCode": "GEN P 20/48",
+        "pageDate": "2017-09-05",
+        "meaning": "AAT defines the fleet covered by this FCOM."
+      },
+      {
+        "pdfPage": 400,
+        "pageCode": "DSC-22_20-40-30 P 14/18",
+        "pageDate": "2017-01-24",
+        "meaning": "Engine equivalence list maps A319-112 to CFM56-5B6; it is not an expansion of numerical table applicability."
+      },
+      {
+        "pdfPages": [
+          3208,
+          3209
+        ],
+        "pageCode": "PER-CLB-CLT P 4/6-5/6",
+        "pageDate": "2017-01-24",
+        "meaning": "Embedded table footer explicitly identifies A319-112 CFM56-5B6/P."
+      }
+    ],
+    "notes": [
+      "Applicable to ALL means all aircraft in the allocation table of this tailored manual, not every aircraft family named on the cover.",
+      "These tables do not directly apply to A320/CFM56-5B4, sharklet variants, NEO or Boeing.",
+      "The numerical grid is not an aircraft operating envelope or a statement that every tabulated mass is permitted for HC-CLF."
+    ]
+  },
+  "sourceCellCounts": {
+    "climb": 471,
+    "holding": 136,
+    "descent": 36,
+    "total": 643
+  },
+  "currentModel": {
+    "aircraftId": "a319ceo",
+    "engineDefinition": "CFM56-5B",
+    "engineSpecificPStandardModelled": false,
+    "calibrationAnchor": "A320ceo, TSFC 0.586 lb/(lbf h), unchanged",
+    "phaseTablesAutomaticallyApplied": false
+  },
+  "climb": {
+    "source": {
+      "massKg": 60000,
+      "fl": 350,
+      "isaDeviationC": 10,
+      "timeMin": 18,
+      "fuelKg": 1458,
+      "distanceNm": 117,
+      "tasKt": 384
+    },
+    "sourceBrakeReleaseTo1500Ft": {
+      "massKg": 60000,
+      "fl": 15,
+      "isaDeviationC": 10,
+      "timeMin": 2,
+      "fuelKg": 168,
+      "distanceNm": 3,
+      "tasKt": 130
+    },
+    "sourceClimbAbove1500FtFuelKg": 1290,
+    "currentModel": {
+      "isaDeviationC": 0,
+      "fuelFromBrakeReleaseKg": 1294.1743842654403,
+      "takeoffAllowanceKg": 90,
+      "climbDistanceNm": 102.59179265658747
+    },
+    "matchedConditions": false,
+    "reason": "FCOM uses ISA+10; current mission atmosphere is ISA0. No ISA0 climb table or temperature extrapolation is provided. The model also lacks the exact CFM56-5B6/P installation standard.",
+    "isa0LookupAvailable": false
+  },
+  "descent": {
+    "source": {
+      "massKg": 60000,
+      "fl": 350,
+      "isaDeviationC": 0,
+      "timeMin": 15.299999999999999,
+      "fuelKg": 149.5,
+      "distanceNm": 91.5,
+      "n1Pct": null
+    },
+    "sourceEndAltitudeFt": 1500,
+    "ifrApproachAndLandingFuelKg": 110,
+    "sourceDescentPlusIfrApproachFuelKg": 259.5,
+    "currentModelFixedDescentFuelKg": 300,
+    "matchedConditions": false,
+    "reason": "Source explicitly ends at 1500 ft and separates approach/landing. The old fixed model allowance has no equally explicit phase boundary. Source mass convention is WEIGHT and needs a stated assumption before mission integration."
+  },
+  "holding": {
+    "source": {
+      "massKg": 60000,
+      "fl": 15,
+      "isaDeviationC": 0,
+      "n1Pct": 51.5,
+      "fuelFlowPerEngineKgH": 1125
+    },
+    "sourceEngineCount": 2,
+    "sourceRaceTrackFlowKgH": 2250,
+    "sourceStraightLineFlowKgH": 2137.5,
+    "source30MinAtConstantMassKg": 1125,
+    "currentModelInstantaneousFlowKgH": 1551.389375325866,
+    "diagnosticGapVsRaceTrackPct": -31.049361096628182,
+    "diagnosticGapVsSourceStraightLinePct": -27.42038010171387,
+    "matchedConditions": false,
+    "reason": "FCOM uses green-dot race-track at FL15 with installed-engine conditions; the current model uses max L/D and a fixed holding TSFC ratio without an altitude-dependent holding engine model. Straight-line correction only removes the documented pattern difference."
+  },
+  "conclusions": [
+    "The climb total includes takeoff; adding the existing 90 kg on top would double-count fuel.",
+    "Holding flow is per engine; descent fuel is aircraft total. Engine count must not be applied to both indiscriminately.",
+    "Descent to 1500 ft and IFR approach/landing are different phases.",
+    "The source tables do not replace A320, NEO or Boeing phases or justify a new universal TSFC correction.",
+    "Exact source-node reproduction checks data handling, not independent accuracy of a mission model using those same tables."
+  ]
+}

@@ -17,6 +17,7 @@
     "redesign": "node scripts/redesign-demo.ts",
     "validate": "node scripts/validate-family.ts",
     "validate:fcom": "node scripts/validate-fcom.ts",
+    "inspect:fcom-phases": "node scripts/inspect-fcom-phases.ts",
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
