@@ -16,7 +16,7 @@ export type Effect =
   | { kind: "massDelta"; node: string; kg: number }
   | { kind: "aero"; cd0Factor?: number; cd0Delta?: number; oswaldDelta?: number; dragFactor?: number }
   | { kind: "engine"; tsfcFactor: number }
-  | { kind: "mission"; cruiseMach?: number };
+  | { kind: "mission"; cruiseMach?: number; cruiseSpeedMode?: "fixedMach" | "lrc" };
 
 export interface Lever {
   id: string;
@@ -47,9 +47,12 @@ export function collectAero(levers: Lever[]): AeroModifiers {
 }
 
 /** Правки допущений миссии (крейсерское число Маха). */
-export function collectMission(levers: Lever[]): { cruiseMach?: number } {
-  const out: { cruiseMach?: number } = {};
-  for (const l of levers) for (const e of l.effects) if (e.kind === "mission" && e.cruiseMach !== undefined) out.cruiseMach = e.cruiseMach;
+export function collectMission(levers: Lever[]): { cruiseMach?: number; cruiseSpeedMode?: "fixedMach" | "lrc" } {
+  const out: { cruiseMach?: number; cruiseSpeedMode?: "fixedMach" | "lrc" } = {};
+  for (const l of levers) for (const e of l.effects) if (e.kind === "mission") {
+    if (e.cruiseMach !== undefined) out.cruiseMach = e.cruiseMach;
+    if (e.cruiseSpeedMode !== undefined) out.cruiseSpeedMode = e.cruiseSpeedMode;
+  }
   return out;
 }
 
@@ -370,5 +373,14 @@ export const cruiseMach = (mach: number): Lever => ({
   id: "cruise-mach",
   label: "Крейсерское число Маха",
   rationale: `M ${mach}. TSFC от числа Маха не зависит (допущение); растут волновое сопротивление и скоростной напор.`,
-  effects: [{ kind: "mission", cruiseMach: mach }],
+  effects: [{ kind: "mission", cruiseMach: mach, cruiseSpeedMode: "fixedMach" }],
+});
+
+/** Табличная программа скорости базового типа; геометрические рычаги не меняют исходную таблицу. */
+export const longRangeCruise = (on: boolean): Lever => ({
+  id: "long-range-cruise",
+  label: on ? "LRC по таблице" : "Постоянный Мах",
+  rationale: on ? "Скорость базового типа по массе и высоте; расход считает модель двигателя и аэродинамики."
+    : "Крейсер на заданном постоянном числе Маха.",
+  effects: [{ kind: "mission", cruiseSpeedMode: on ? "lrc" : "fixedMach" }],
 });

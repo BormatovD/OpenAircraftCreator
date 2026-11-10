@@ -113,5 +113,7 @@ export const B757_OEW_KG = { rb211: Math.round(132280 * LB), pw2037: Math.round(
 export const B757_ASSUMPTIONS: MissionAssumptions = {
   ...B737_ASSUMPTIONS,
   cruiseMach: 0.8,
+  cruiseSpeedMode: "fixedMach",
+  lrcTable: undefined,
   stepFLs: [350, 390],
 };

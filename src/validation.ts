@@ -20,6 +20,10 @@ import { type AircraftDefinition } from "./definition.ts";
 import { type EvalContext, aeroFor, assumptionsFor, engineStateFor } from "./evaluate.ts";
 import { computeMasses } from "./mass/massTree.ts";
 import { rangeForFuel } from "./mission.ts";
+import { tsfcAtMach } from "./mission.ts";
+import { type LrcTable } from "./cruise.ts";
+import { aeroAtFl, clForWeight, liftToDrag } from "./aero.ts";
+import { G0, flightLevelToM, isa } from "./atmosphere.ts";
 import { type AircraftData, type CornerComparison, chartOewKg, compareAircraft, maxAbsErrorPct, rmsErrorPct } from "./payloadRange.ts";
 
 const DENSITY = 0.785;
@@ -120,11 +124,21 @@ export function boeingCases(): BoeingCase[] {
 
 export interface BoeingResult {
   c: BoeingCase;
-  points: (BoeingPoint & { modelNm: number; errorPct: number })[];
+  points: (BoeingPoint & {
+    modelNm: number;
+    errorPct: number;
+    lrcFallback: boolean;
+    flightLevelLimited: boolean;
+    reserveShortfallKg: number;
+  })[];
   rmsPct: number;
   maxAbsPct: number;
   biasPct: number;
   oewModelKg: number;
+  /** Эти точки остаются в полном отчёте, но отмечены как оценки вне подтверждённого профиля. */
+  lrcFallbackPoints: number;
+  flightLevelLimitedPoints: number;
+  reserveShortfallPoints: number;
 }
 
 function boeingErrors(c: BoeingCase, ctx: EvalContext, k = 1) {
@@ -132,8 +146,14 @@ function boeingErrors(c: BoeingCase, ctx: EvalContext, k = 1) {
   const e0 = engineStateFor(c.def, ctx, [], c.as);
   const engine = { ...e0, tsfcCruise: e0.tsfcCruise * k };
   return c.points.map((p) => {
-    const modelNm = rangeForFuel(aero, engine, c.as, p.towKg, p.towKg - p.zfwKg).rangeNm;
-    return { ...p, modelNm, errorPct: ((modelNm - p.rangeNm) / p.rangeNm) * 100 };
+    const result = rangeForFuel(aero, engine, c.as, p.towKg, p.towKg - p.zfwKg);
+    const modelNm = result.rangeNm;
+    return {
+      ...p, modelNm, errorPct: ((modelNm - p.rangeNm) / p.rangeNm) * 100,
+      lrcFallback: result.trip.lrcFallback || result.reserves.lrcFallback,
+      flightLevelLimited: result.trip.flightLevelLimited || result.reserves.flightLevelLimited,
+      reserveShortfallKg: result.reserveShortfallKg,
+    };
   });
 }
 
@@ -149,6 +169,9 @@ export function validateBoeing(ctx: EvalContext, c: BoeingCase): BoeingResult {
     maxAbsPct: Math.max(...errs.map(Math.abs)),
     biasPct: errs.reduce((s, v) => s + v, 0) / errs.length,
     oewModelKg: computeMasses(c.def, ctx.calibration).oewKg,
+    lrcFallbackPoints: points.filter((p) => p.lrcFallback).length,
+    flightLevelLimitedPoints: points.filter((p) => p.flightLevelLimited).length,
+    reserveShortfallPoints: points.filter((p) => p.reserveShortfallKg > 0.5).length,
   };
 }
 
@@ -210,4 +233,35 @@ export function errorSplit(ctx: EvalContext, c: BoeingCase): ErrorSplit {
   }
   const avg = (f: (l: ErrorSplit["lines"][number]) => number) => lines.reduce((s, l) => s + f(l), 0) / lines.length;
   return { cruisePct: avg((l) => l.cruisePct), fixedKg: avg((l) => l.fixedKg), fixedChartKg: chartA / lines.length, lines };
+}
+
+// Независимая проверка расхода: табличный Мах задаёт режим, FF/ENG остаётся только эталоном.
+export function validateCruiseTable(ctx: EvalContext, def: AircraftDefinition, as: MissionAssumptions, table: LrcTable) {
+  const aero = aeroFor(def, ctx.aero, []);
+  const engine = engineStateFor(def, ctx, [], as);
+  const rows = Object.entries(table.rows).flatMap(([tonnes, cells]) => cells.flatMap((cell, i) => {
+    if (!cell?.length) return [];
+    const massKg = Number(tonnes) * 1000;
+    const fl = table.altitudesFt[i] / 100;
+    const mach = cell[1];
+    const referenceKgH = cell[3];
+    const atm = isa(flightLevelToM(fl));
+    const a = aeroAtFl(aero, fl);
+    const cl = clForWeight(a, massKg * G0, atm.densityKgM3, mach * atm.speedOfSoundMs);
+    const ld = liftToDrag(a, cl, mach);
+    const modelKgH = tsfcAtMach(engine, mach) * massKg * G0 / ld * 3600 / def.engine.count;
+    return [{ massKg, fl, mach, referenceKgH, modelKgH, errorPct: (modelKgH / referenceKgH - 1) * 100 }];
+  }));
+  if (!rows.length) throw new RangeError("Нет точек расхода для проверки");
+  const errors = rows.map((r) => r.errorPct);
+  const biasPct = errors.reduce((s, e) => s + e, 0) / errors.length;
+  return {
+    source: table._source,
+    rows,
+    biasPct,
+    rmsPct: rms(errors),
+    sdPct: rms(errors.map((e) => e - biasPct)),
+    minPct: Math.min(...errors),
+    maxPct: Math.max(...errors),
+  };
 }

@@ -1,69 +1,85 @@
 {
   "_about": "Сгенерировано scripts/validate-family.ts (npm run validate) — не править вручную.",
   "b737-300": {
-    "blindRmsPct": 9.14228727008183,
-    "blindBiasPct": 7.802748106915069,
+    "blindRmsPct": 7.367207689362231,
+    "blindBiasPct": 5.414131158434413,
     "points": 78,
-    "oewModelKg": 32495.065370391552,
-    "residualFactor": 1.0477876643432067,
-    "fittedRmsPct": 5.6664740972732695,
-    "fittedMaxAbsPct": 16.63673715536811,
-    "cruisePct": -13.154498768449162,
-    "fixedKg": 364.5699680926656,
-    "fixedChartKg": 3560.621324354658
+    "oewModelKg": 32519.57777666001,
+    "residualFactor": 1.0318146316835142,
+    "fittedRmsPct": 5.597784990486109,
+    "fittedMaxAbsPct": 16.621140072905384,
+    "cruisePct": -11.46265002166313,
+    "fixedKg": 380.39184155052993,
+    "fixedChartKg": 3560.621324354658,
+    "cruiseSpeedMode": "lrc",
+    "lrcFallbackPoints": 17,
+    "flightLevelLimitedPoints": 2,
+    "reserveShortfallPoints": 0
   },
   "b737-8": {
-    "blindRmsPct": 8.020265142477404,
-    "blindBiasPct": -1.9335354051885252,
+    "blindRmsPct": 8.814387302466583,
+    "blindBiasPct": -2.972728204687757,
     "points": 142,
     "oewModelKg": 44204.896579595166,
-    "residualFactor": 0.9792481684142295,
-    "fittedRmsPct": 7.413021977426379,
-    "fittedMaxAbsPct": 25.995163505948142,
-    "cruisePct": -9.659845070017461,
-    "fixedKg": 696.0832488081143,
-    "fixedChartKg": 3293.6868704071194
+    "residualFactor": 0.9718387985910703,
+    "fittedRmsPct": 7.763965617468589,
+    "fittedMaxAbsPct": 26.992965906108225,
+    "cruisePct": -9.4673548648467,
+    "fixedKg": 740.1702525333047,
+    "fixedChartKg": 3293.6868704071194,
+    "cruiseSpeedMode": "lrc",
+    "lrcFallbackPoints": 0,
+    "flightLevelLimitedPoints": 0,
+    "reserveShortfallPoints": 0
   },
   "b757-200-rb": {
-    "blindRmsPct": 4.166821696808561,
-    "blindBiasPct": -3.7080188824253435,
+    "blindRmsPct": 5.337706049624473,
+    "blindBiasPct": -4.967111367905221,
     "points": 98,
     "oewModelKg": 55988.156027069694,
-    "residualFactor": 0.9725017434306749,
-    "fittedRmsPct": 1.6933676763394399,
-    "fittedMaxAbsPct": 7.495871594534037,
-    "cruisePct": 0.6177071303610406,
-    "fixedKg": 466.6545700910135,
-    "fixedChartKg": 6629.112436705451
+    "residualFactor": 0.9632928111831774,
+    "fittedRmsPct": 1.4508337223855952,
+    "fittedMaxAbsPct": 6.500046832786683,
+    "cruisePct": 1.771790116813711,
+    "fixedKg": 455.5716372944901,
+    "fixedChartKg": 6629.112436705451,
+    "cruiseSpeedMode": "fixedMach",
+    "lrcFallbackPoints": 0,
+    "flightLevelLimitedPoints": 6,
+    "reserveShortfallPoints": 0
   },
   "b757-200-pw": {
-    "blindRmsPct": 5.963867107482983,
-    "blindBiasPct": -4.7883772220386165,
+    "blindRmsPct": 6.94909238131716,
+    "blindBiasPct": -5.994860392136088,
     "points": 103,
     "oewModelKg": 56065.26345423934,
-    "residualFactor": 0.9629007641682757,
-    "fittedRmsPct": 3.118879658099383,
-    "fittedMaxAbsPct": 12.22056375427194,
-    "cruisePct": -0.2638809669686034,
-    "fixedKg": 691.8071059039751,
-    "fixedChartKg": 6120.526536693225
+    "residualFactor": 0.9539627297454816,
+    "fittedRmsPct": 2.794270532515876,
+    "fittedMaxAbsPct": 11.601717348373336,
+    "cruisePct": 0.8226521803738993,
+    "fixedKg": 682.8992158516623,
+    "fixedChartKg": 6120.526536693225,
+    "cruiseSpeedMode": "fixedMach",
+    "lrcFallbackPoints": 0,
+    "flightLevelLimitedPoints": 15,
+    "reserveShortfallPoints": 0
   },
   "b737Steps": [
     [
       "как у A320: суперкритический профиль, гондола на пилоне, резерв — ожидание",
-      22.59604799304943
+      19.214187654832678
     ],
     [
       "+ резервы ATA: 45 мин крейсера, а не ожидания",
-      16.604208269899367
+      12.792823651734949
     ],
     [
       "+ обычный профиль крыла (κ 0,87)",
-      9.026065700787832
+      6.609091914147535
     ],
     [
       "+ гондола вплотную под крылом (Q 1,5)",
-      7.802748106915069
+      5.414131158434413
     ]
   ]
 }

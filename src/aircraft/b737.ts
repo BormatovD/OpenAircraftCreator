@@ -6,6 +6,7 @@
 import { type AircraftDefinition } from "../definition.ts";
 import { DEFAULT_ASSUMPTIONS, type MissionAssumptions } from "../mission.ts";
 import { A320CEO } from "./a320.ts";
+import lrcTable from "../../data/fcom/b737-300-lrc.json" with { type: "json" };
 
 const LB = 0.45359237;
 const LBF = 4.44822;
@@ -45,12 +46,15 @@ export const B737_300: AircraftDefinition = {
   engine: {
     name: "CFM56-3B2",
     count: 2,
-    dryMassKg: 1940, // CFM56-3B1: 4 276 lb (справочная таблица CFM56, вторичный источник)
+    // CFM International, «CFM56 Engine Family», стр. 2, колонка CFM56-3B2:
+    // https://walter.bislins.ch/aviatik/media/cfm-technical-data.pdf (копия фирменной таблицы).
+    dryMassKg: 4301 * LB, // basic dry weight, 4 301 lb
     fanDiameterM: 1.52, // 60 in
-    bypassRatio: 6.0, // CFM56-3B1 (там же)
-    overallPressureRatio: 27.5, // CFM56-3B1 (там же)
+    bypassRatio: 4.9, // взлёт, SLS; перенос этого BPR в крейсерский цикл — допущение
+    overallPressureRatio: 28.8, // максимальный набор, FL350 / M 0,80 / ISA, без установки на самолёт
     // CFM56-3 (1984): узкохордный вентилятор с полками, КВД 9 ст. от F101, ТВД 1 ст. — холоднее и больше охлаждения,
-    // чем у CFM56-5B. Числа — допущения в диапазонах литературы для двигателя начала 1980-х (Mattingly, табл. 4.4).
+    // чем у CFM56-5B. Температура, охлаждение и КПД ниже — допущения в диапазонах литературы для двигателя
+    // начала 1980-х (Mattingly, табл. 4.4), не значения из таблицы CFM или FCOM.
     cycle: { t4K: 1450, coolingFrac: 0.18, fanEff: 0.86, compEff: 0.87, hptEff: 0.87, lptEff: 0.88, gearbox: false },
     nacelleLengthM: 3.6, // допущение
     nacelleWidthM: 2.05, // допущение («сплюснутый» воздухозаборник)
@@ -87,12 +91,14 @@ export const B737_300_OEW_KG = Math.round(72540 * LB);
 
 /**
  * Миссия графиков Boeing: «domestic reserves», крейсер на режиме максимальной дальности на FL310/350.
- * Правила резервов в документе не расписаны — принято: без 5% на непредвиденное, запасной 200 nm, 45 мин ожидания.
- * Число Маха LRC ≈0,745 для 737-300 — допущение.
+ * Правила резервов в документе не расписаны — принято: без 5% на непредвиденное, запасной 200 nm, 45 мин крейсера.
+ * Мах — таблица Boeing PI.11.2 для 737-300/CFM56-3_22K; M0,745 только явно помеченный fallback вне её области.
  */
 export const B737_ASSUMPTIONS: MissionAssumptions = {
   ...DEFAULT_ASSUMPTIONS,
   cruiseMach: 0.745,
+  cruiseSpeedMode: "lrc",
+  lrcTable,
   // Примечание к графику 3.2.6: «LRC at 31,000/35,000 feet» — только два эшелона, не оптимальный.
   stepFLs: [310, 350],
   contingencyFraction: 0,

@@ -1,0 +1,1237 @@
+{
+  "_about": "Сгенерировано scripts/validate-fcom.ts (npm run validate:fcom). FF — кг/ч на двигатель; отрицательная ошибка означает, что модель экономичнее таблицы. В расчёт миссии табличный FF не подставляется.",
+  "results": [
+    {
+      "id": "b737-300",
+      "name": "Boeing 737-300, CFM56-3",
+      "source": "Boeing 737 Operations Manual / Quick Reference Handbook, D6-27370-400E-TBCE, 737-300/CFM56-3_22K (KG, FAA), Performance Inflight PI.11.2 «Long Range Cruise Control», дата страницы 07.06.2002. Публичная копия страницы 44: https://www.easymanua.ls/boeing/737/manual?p=44 ; пояснения PI.16.6: https://www.easymanua.ls/boeing/737/manual?p=80 . Ячейка: [%N1, Mach, KIAS, FF/ENG кг/ч]. Перенесено из текстового слоя страницы и сверено с её отображением. Строка 62 т заканчивается на FL350: ячейка FL370 в источнике пустая.",
+      "rows": [
+        {
+          "massKg": 34000,
+          "fl": 210,
+          "mach": 0.553,
+          "referenceKgH": 912,
+          "modelKgH": 737.6721594186486,
+          "errorPct": -19.11489480058678
+        },
+        {
+          "massKg": 34000,
+          "fl": 230,
+          "mach": 0.573,
+          "referenceKgH": 898,
+          "modelKgH": 737.506963752476,
+          "errorPct": -17.87227575139465
+        },
+        {
+          "massKg": 34000,
+          "fl": 250,
+          "mach": 0.593,
+          "referenceKgH": 884,
+          "modelKgH": 735.9443846106661,
+          "errorPct": -16.748372781598853
+        },
+        {
+          "massKg": 34000,
+          "fl": 270,
+          "mach": 0.615,
+          "referenceKgH": 866,
+          "modelKgH": 735.7602390863384,
+          "errorPct": -15.039233361854688
+        },
+        {
+          "massKg": 34000,
+          "fl": 290,
+          "mach": 0.637,
+          "referenceKgH": 852,
+          "modelKgH": 734.1652425417586,
+          "errorPct": -13.8303705936903
+        },
+        {
+          "massKg": 34000,
+          "fl": 310,
+          "mach": 0.659,
+          "referenceKgH": 840,
+          "modelKgH": 731.5402565299728,
+          "errorPct": -12.911874222622288
+        },
+        {
+          "massKg": 34000,
+          "fl": 330,
+          "mach": 0.682,
+          "referenceKgH": 829,
+          "modelKgH": 729.1087899496179,
+          "errorPct": -12.049603142386268
+        },
+        {
+          "massKg": 34000,
+          "fl": 350,
+          "mach": 0.705,
+          "referenceKgH": 818,
+          "modelKgH": 728.2595420775119,
+          "errorPct": -10.970716127443525
+        },
+        {
+          "massKg": 34000,
+          "fl": 370,
+          "mach": 0.725,
+          "referenceKgH": 809,
+          "modelKgH": 731.9821727200066,
+          "errorPct": -9.520126981457777
+        },
+        {
+          "massKg": 38000,
+          "fl": 210,
+          "mach": 0.579,
+          "referenceKgH": 994,
+          "modelKgH": 816.4669327604946,
+          "errorPct": -17.86046954119772
+        },
+        {
+          "massKg": 38000,
+          "fl": 230,
+          "mach": 0.599,
+          "referenceKgH": 981,
+          "modelKgH": 815.1476655966987,
+          "errorPct": -16.906456106350788
+        },
+        {
+          "massKg": 38000,
+          "fl": 250,
+          "mach": 0.621,
+          "referenceKgH": 964,
+          "modelKgH": 814.9769123084118,
+          "errorPct": -15.458826524023673
+        },
+        {
+          "massKg": 38000,
+          "fl": 270,
+          "mach": 0.643,
+          "referenceKgH": 948,
+          "modelKgH": 813.6599432088656,
+          "errorPct": -14.170892066575359
+        },
+        {
+          "massKg": 38000,
+          "fl": 290,
+          "mach": 0.664,
+          "referenceKgH": 934,
+          "modelKgH": 809.8774568229308,
+          "errorPct": -13.289351517887503
+        },
+        {
+          "massKg": 38000,
+          "fl": 310,
+          "mach": 0.686,
+          "referenceKgH": 921,
+          "modelKgH": 806.7371576681156,
+          "errorPct": -12.406388961116654
+        },
+        {
+          "massKg": 38000,
+          "fl": 330,
+          "mach": 0.709,
+          "referenceKgH": 910,
+          "modelKgH": 807.3821849955438,
+          "errorPct": -11.276682967522667
+        },
+        {
+          "massKg": 38000,
+          "fl": 350,
+          "mach": 0.728,
+          "referenceKgH": 894,
+          "modelKgH": 811.8288100610132,
+          "errorPct": -9.191408270580181
+        },
+        {
+          "massKg": 38000,
+          "fl": 370,
+          "mach": 0.742,
+          "referenceKgH": 878,
+          "modelKgH": 821.4973875700097,
+          "errorPct": -6.435377269930564
+        },
+        {
+          "massKg": 42000,
+          "fl": 210,
+          "mach": 0.603,
+          "referenceKgH": 1077,
+          "modelKgH": 894.1249240357407,
+          "errorPct": -16.980044193524535
+        },
+        {
+          "massKg": 42000,
+          "fl": 230,
+          "mach": 0.624,
+          "referenceKgH": 1062,
+          "modelKgH": 893.0742802561645,
+          "errorPct": -15.906376623713324
+        },
+        {
+          "massKg": 42000,
+          "fl": 250,
+          "mach": 0.646,
+          "referenceKgH": 1046,
+          "modelKgH": 891.8358555949651,
+          "errorPct": -14.738445927823607
+        },
+        {
+          "massKg": 42000,
+          "fl": 270,
+          "mach": 0.667,
+          "referenceKgH": 1029,
+          "modelKgH": 888.3388998387014,
+          "errorPct": -13.669689034139799
+        },
+        {
+          "massKg": 42000,
+          "fl": 290,
+          "mach": 0.688,
+          "referenceKgH": 1015,
+          "modelKgH": 884.2951101986678,
+          "errorPct": -12.877329044466235
+        },
+        {
+          "massKg": 42000,
+          "fl": 310,
+          "mach": 0.71,
+          "referenceKgH": 1003,
+          "modelKgH": 884.8516732109672,
+          "errorPct": -11.779494196314333
+        },
+        {
+          "massKg": 42000,
+          "fl": 330,
+          "mach": 0.729,
+          "referenceKgH": 985,
+          "modelKgH": 891.1600787319705,
+          "errorPct": -9.52689556020604
+        },
+        {
+          "massKg": 42000,
+          "fl": 350,
+          "mach": 0.743,
+          "referenceKgH": 963,
+          "modelKgH": 902.3797652061712,
+          "errorPct": -6.294936115662386
+        },
+        {
+          "massKg": 42000,
+          "fl": 370,
+          "mach": 0.745,
+          "referenceKgH": 936,
+          "modelKgH": 897.8481093686457,
+          "errorPct": -4.076056691384
+        },
+        {
+          "massKg": 46000,
+          "fl": 210,
+          "mach": 0.625,
+          "referenceKgH": 1160,
+          "modelKgH": 970.3492259554156,
+          "errorPct": -16.349204659015893
+        },
+        {
+          "massKg": 46000,
+          "fl": 230,
+          "mach": 0.647,
+          "referenceKgH": 1144,
+          "modelKgH": 969.706258321007,
+          "errorPct": -15.23546692998191
+        },
+        {
+          "massKg": 46000,
+          "fl": 250,
+          "mach": 0.668,
+          "referenceKgH": 1128,
+          "modelKgH": 966.2115806743102,
+          "errorPct": -14.342944975681714
+        },
+        {
+          "massKg": 46000,
+          "fl": 270,
+          "mach": 0.689,
+          "referenceKgH": 1112,
+          "modelKgH": 962.6175464573436,
+          "errorPct": -13.433673879735286
+        },
+        {
+          "massKg": 46000,
+          "fl": 290,
+          "mach": 0.71,
+          "referenceKgH": 1098,
+          "modelKgH": 962.4833443533443,
+          "errorPct": -12.342136215542421
+        },
+        {
+          "massKg": 46000,
+          "fl": 310,
+          "mach": 0.729,
+          "referenceKgH": 1079,
+          "modelKgH": 969.9474973680661,
+          "errorPct": -10.106812106759389
+        },
+        {
+          "massKg": 46000,
+          "fl": 330,
+          "mach": 0.742,
+          "referenceKgH": 1055,
+          "modelKgH": 980.0987644982898,
+          "errorPct": -7.099643175517556
+        },
+        {
+          "massKg": 46000,
+          "fl": 350,
+          "mach": 0.745,
+          "referenceKgH": 1021,
+          "modelKgH": 976.9658020903333,
+          "errorPct": -4.312849942180863
+        },
+        {
+          "massKg": 46000,
+          "fl": 370,
+          "mach": 0.745,
+          "referenceKgH": 997,
+          "modelKgH": 976.2523972035998,
+          "errorPct": -2.081003289508543
+        },
+        {
+          "massKg": 50000,
+          "fl": 210,
+          "mach": 0.646,
+          "referenceKgH": 1244,
+          "modelKgH": 1046.3683545023089,
+          "errorPct": -15.886788223287063
+        },
+        {
+          "massKg": 50000,
+          "fl": 230,
+          "mach": 0.667,
+          "referenceKgH": 1227,
+          "modelKgH": 1043.4351460001365,
+          "errorPct": -14.960460798684883
+        },
+        {
+          "massKg": 50000,
+          "fl": 250,
+          "mach": 0.688,
+          "referenceKgH": 1210,
+          "modelKgH": 1039.8367734809044,
+          "errorPct": -14.063076571826084
+        },
+        {
+          "massKg": 50000,
+          "fl": 270,
+          "mach": 0.709,
+          "referenceKgH": 1195,
+          "modelKgH": 1040.0983596812682,
+          "errorPct": -12.962480361400154
+        },
+        {
+          "massKg": 50000,
+          "fl": 290,
+          "mach": 0.728,
+          "referenceKgH": 1175,
+          "modelKgH": 1047.7824041782615,
+          "errorPct": -10.827029431637325
+        },
+        {
+          "massKg": 50000,
+          "fl": 310,
+          "mach": 0.741,
+          "referenceKgH": 1150,
+          "modelKgH": 1058.1423296512964,
+          "errorPct": -7.987623508582919
+        },
+        {
+          "massKg": 50000,
+          "fl": 330,
+          "mach": 0.745,
+          "referenceKgH": 1114,
+          "modelKgH": 1057.048533801029,
+          "errorPct": -5.112339874234384
+        },
+        {
+          "massKg": 50000,
+          "fl": 350,
+          "mach": 0.745,
+          "referenceKgH": 1081,
+          "modelKgH": 1054.515037823799,
+          "errorPct": -2.4500427545051773
+        },
+        {
+          "massKg": 50000,
+          "fl": 370,
+          "mach": 0.745,
+          "referenceKgH": 1073,
+          "modelKgH": 1063.6706023020467,
+          "errorPct": -0.8694685645809219
+        },
+        {
+          "massKg": 54000,
+          "fl": 210,
+          "mach": 0.665,
+          "referenceKgH": 1328,
+          "modelKgH": 1120.5524507199968,
+          "errorPct": -15.621050397590597
+        },
+        {
+          "massKg": 54000,
+          "fl": 230,
+          "mach": 0.685,
+          "referenceKgH": 1311,
+          "modelKgH": 1115.9352099726375,
+          "errorPct": -14.879083907502865
+        },
+        {
+          "massKg": 54000,
+          "fl": 250,
+          "mach": 0.707,
+          "referenceKgH": 1295,
+          "modelKgH": 1117.2070517655625,
+          "errorPct": -13.729185191848458
+        },
+        {
+          "massKg": 54000,
+          "fl": 270,
+          "mach": 0.725,
+          "referenceKgH": 1274,
+          "modelKgH": 1122.4214399990226,
+          "errorPct": -11.897846153922876
+        },
+        {
+          "massKg": 54000,
+          "fl": 290,
+          "mach": 0.74,
+          "referenceKgH": 1248,
+          "modelKgH": 1136.6711509399677,
+          "errorPct": -8.920580854169257
+        },
+        {
+          "massKg": 54000,
+          "fl": 310,
+          "mach": 0.745,
+          "referenceKgH": 1211,
+          "modelKgH": 1137.3964572975603,
+          "errorPct": -6.077914343719215
+        },
+        {
+          "massKg": 54000,
+          "fl": 330,
+          "mach": 0.745,
+          "referenceKgH": 1174,
+          "modelKgH": 1133.2447746846658,
+          "errorPct": -3.4714842687678216
+        },
+        {
+          "massKg": 54000,
+          "fl": 350,
+          "mach": 0.745,
+          "referenceKgH": 1154,
+          "modelKgH": 1140.1993344036352,
+          "errorPct": -1.195898231920689
+        },
+        {
+          "massKg": 54000,
+          "fl": 370,
+          "mach": 0.745,
+          "referenceKgH": 1169,
+          "modelKgH": 1160.53822082174,
+          "errorPct": -0.7238476628109503
+        },
+        {
+          "massKg": 58000,
+          "fl": 210,
+          "mach": 0.682,
+          "referenceKgH": 1413,
+          "modelKgH": 1193.0638959251191,
+          "errorPct": -15.56518783261719
+        },
+        {
+          "massKg": 58000,
+          "fl": 230,
+          "mach": 0.703,
+          "referenceKgH": 1396,
+          "modelKgH": 1192.5000990240715,
+          "errorPct": -14.577356803433272
+        },
+        {
+          "massKg": 58000,
+          "fl": 250,
+          "mach": 0.722,
+          "referenceKgH": 1376,
+          "modelKgH": 1197.7419685109835,
+          "errorPct": -12.954798800073874
+        },
+        {
+          "massKg": 58000,
+          "fl": 270,
+          "mach": 0.737,
+          "referenceKgH": 1348,
+          "modelKgH": 1210.2548786637767,
+          "errorPct": -10.21848081129253
+        },
+        {
+          "massKg": 58000,
+          "fl": 290,
+          "mach": 0.744,
+          "referenceKgH": 1313,
+          "modelKgH": 1214.9995970083967,
+          "errorPct": -7.463853997837266
+        },
+        {
+          "massKg": 58000,
+          "fl": 310,
+          "mach": 0.745,
+          "referenceKgH": 1271,
+          "modelKgH": 1211.878860776826,
+          "errorPct": -4.651545178849248
+        },
+        {
+          "massKg": 58000,
+          "fl": 330,
+          "mach": 0.745,
+          "referenceKgH": 1244,
+          "modelKgH": 1216.7763256086373,
+          "errorPct": -2.1883982629712806
+        },
+        {
+          "massKg": 58000,
+          "fl": 350,
+          "mach": 0.745,
+          "referenceKgH": 1244,
+          "modelKgH": 1234.3740556939138,
+          "errorPct": -0.7737897352159351
+        },
+        {
+          "massKg": 58000,
+          "fl": 370,
+          "mach": 0.742,
+          "referenceKgH": 1293,
+          "modelKgH": 1257.6108039623732,
+          "errorPct": -2.7369834522526504
+        },
+        {
+          "massKg": 62000,
+          "fl": 210,
+          "mach": 0.698,
+          "referenceKgH": 1499,
+          "modelKgH": 1267.0787513479481,
+          "errorPct": -15.471731064179572
+        },
+        {
+          "massKg": 62000,
+          "fl": 230,
+          "mach": 0.718,
+          "referenceKgH": 1479,
+          "modelKgH": 1272.3029733773046,
+          "errorPct": -13.975458189499346
+        },
+        {
+          "massKg": 62000,
+          "fl": 250,
+          "mach": 0.734,
+          "referenceKgH": 1452,
+          "modelKgH": 1284.3243886649336,
+          "errorPct": -11.547907116740108
+        },
+        {
+          "massKg": 62000,
+          "fl": 270,
+          "mach": 0.744,
+          "referenceKgH": 1419,
+          "modelKgH": 1296.6061910829608,
+          "errorPct": -8.625356512828697
+        },
+        {
+          "massKg": 62000,
+          "fl": 290,
+          "mach": 0.745,
+          "referenceKgH": 1372,
+          "modelKgH": 1290.7774637620987,
+          "errorPct": -5.920009929876191
+        },
+        {
+          "massKg": 62000,
+          "fl": 310,
+          "mach": 0.745,
+          "referenceKgH": 1337,
+          "modelKgH": 1292.9748362123491,
+          "errorPct": -3.2928319960845776
+        },
+        {
+          "massKg": 62000,
+          "fl": 330,
+          "mach": 0.745,
+          "referenceKgH": 1329,
+          "modelKgH": 1307.9331422335329,
+          "errorPct": -1.585166122382775
+        },
+        {
+          "massKg": 62000,
+          "fl": 350,
+          "mach": 0.744,
+          "referenceKgH": 1356,
+          "modelKgH": 1333.907318730562,
+          "errorPct": -1.629253780931994
+        }
+      ],
+      "biasPct": -10.43691034137234,
+      "rmsPct": 11.650371726234846,
+      "sdPct": 5.177070975523463,
+      "minPct": -19.11489480058678,
+      "maxPct": -0.7238476628109503
+    },
+    {
+      "id": "b737-8",
+      "name": "Boeing 737-8, LEAP-1B",
+      "source": "Boeing 737 MAX FCOM (737-8 LEAP-1B27, KG), Performance Inflight PI.11.2 «Long Range Cruise Control», ред. 26.10.2021; archive.org/details/b-737-max-8-fcom. Ячейка: [%N1, Mach, KIAS, FF/ENG кг/ч]. Оцифровано из текстового слоя PDF.",
+      "rows": [
+        {
+          "massKg": 40000,
+          "fl": 250,
+          "mach": 0.527,
+          "referenceKgH": 669,
+          "modelKgH": 602.6690773624188,
+          "errorPct": -9.91493611921992
+        },
+        {
+          "massKg": 40000,
+          "fl": 270,
+          "mach": 0.55,
+          "referenceKgH": 661,
+          "modelKgH": 606.1456328469357,
+          "errorPct": -8.298693971719262
+        },
+        {
+          "massKg": 40000,
+          "fl": 290,
+          "mach": 0.576,
+          "referenceKgH": 665,
+          "modelKgH": 611.0558334204202,
+          "errorPct": -8.111904748808996
+        },
+        {
+          "massKg": 40000,
+          "fl": 310,
+          "mach": 0.6,
+          "referenceKgH": 657,
+          "modelKgH": 612.860433477666,
+          "errorPct": -6.7183510688484045
+        },
+        {
+          "massKg": 40000,
+          "fl": 330,
+          "mach": 0.622,
+          "referenceKgH": 659,
+          "modelKgH": 611.8286820007133,
+          "errorPct": -7.158014870908447
+        },
+        {
+          "massKg": 40000,
+          "fl": 350,
+          "mach": 0.647,
+          "referenceKgH": 654,
+          "modelKgH": 612.3034817747653,
+          "errorPct": -6.375614407528252
+        },
+        {
+          "massKg": 40000,
+          "fl": 370,
+          "mach": 0.676,
+          "referenceKgH": 663,
+          "modelKgH": 615.4681881916531,
+          "errorPct": -7.169202384366047
+        },
+        {
+          "massKg": 40000,
+          "fl": 390,
+          "mach": 0.706,
+          "referenceKgH": 670,
+          "modelKgH": 619.2632696710609,
+          "errorPct": -7.572646317752096
+        },
+        {
+          "massKg": 40000,
+          "fl": 410,
+          "mach": 0.734,
+          "referenceKgH": 679,
+          "modelKgH": 620.8417600017631,
+          "errorPct": -8.5652783502558
+        },
+        {
+          "massKg": 45000,
+          "fl": 250,
+          "mach": 0.558,
+          "referenceKgH": 727,
+          "modelKgH": 676.9941870417363,
+          "errorPct": -6.87837867376393
+        },
+        {
+          "massKg": 45000,
+          "fl": 270,
+          "mach": 0.584,
+          "referenceKgH": 734,
+          "modelKgH": 682.559371467613,
+          "errorPct": -7.008260018036372
+        },
+        {
+          "massKg": 45000,
+          "fl": 290,
+          "mach": 0.607,
+          "referenceKgH": 722,
+          "modelKgH": 683.5912486956147,
+          "errorPct": -5.319771648806826
+        },
+        {
+          "massKg": 45000,
+          "fl": 310,
+          "mach": 0.628,
+          "referenceKgH": 717,
+          "modelKgH": 681.7399696612342,
+          "errorPct": -4.917716923119353
+        },
+        {
+          "massKg": 45000,
+          "fl": 330,
+          "mach": 0.654,
+          "referenceKgH": 715,
+          "modelKgH": 683.3380805716456,
+          "errorPct": -4.428240479490119
+        },
+        {
+          "massKg": 45000,
+          "fl": 350,
+          "mach": 0.683,
+          "referenceKgH": 725,
+          "modelKgH": 686.1679351938106,
+          "errorPct": -5.356146869819223
+        },
+        {
+          "massKg": 45000,
+          "fl": 370,
+          "mach": 0.712,
+          "referenceKgH": 731,
+          "modelKgH": 688.4709006304255,
+          "errorPct": -5.8179342502837965
+        },
+        {
+          "massKg": 45000,
+          "fl": 390,
+          "mach": 0.74,
+          "referenceKgH": 739,
+          "modelKgH": 690.1132535745679,
+          "errorPct": -6.615256620491483
+        },
+        {
+          "massKg": 45000,
+          "fl": 410,
+          "mach": 0.767,
+          "referenceKgH": 747,
+          "modelKgH": 692.1266825055282,
+          "errorPct": -7.345825635136793
+        },
+        {
+          "massKg": 50000,
+          "fl": 250,
+          "mach": 0.589,
+          "referenceKgH": 804,
+          "modelKgH": 753.1118176581851,
+          "errorPct": -6.3293759131610505
+        },
+        {
+          "massKg": 50000,
+          "fl": 270,
+          "mach": 0.61,
+          "referenceKgH": 796,
+          "modelKgH": 752.5138265617786,
+          "errorPct": -5.463087115354448
+        },
+        {
+          "massKg": 50000,
+          "fl": 290,
+          "mach": 0.632,
+          "referenceKgH": 783,
+          "modelKgH": 751.7592634816093,
+          "errorPct": -3.9898769499860376
+        },
+        {
+          "massKg": 50000,
+          "fl": 310,
+          "mach": 0.658,
+          "referenceKgH": 785,
+          "modelKgH": 753.77582076259,
+          "errorPct": -3.9776024506254726
+        },
+        {
+          "massKg": 50000,
+          "fl": 330,
+          "mach": 0.686,
+          "referenceKgH": 783,
+          "modelKgH": 756.2589194442709,
+          "errorPct": -3.41520824466528
+        },
+        {
+          "massKg": 50000,
+          "fl": 350,
+          "mach": 0.715,
+          "referenceKgH": 794,
+          "modelKgH": 758.2141812582918,
+          "errorPct": -4.507030068225215
+        },
+        {
+          "massKg": 50000,
+          "fl": 370,
+          "mach": 0.742,
+          "referenceKgH": 797,
+          "modelKgH": 758.2245428488505,
+          "errorPct": -4.865176555978601
+        },
+        {
+          "massKg": 50000,
+          "fl": 390,
+          "mach": 0.77,
+          "referenceKgH": 808,
+          "modelKgH": 761.7935694876119,
+          "errorPct": -5.718617637671796
+        },
+        {
+          "massKg": 50000,
+          "fl": 410,
+          "mach": 0.792,
+          "referenceKgH": 803,
+          "modelKgH": 769.0892582307364,
+          "errorPct": -4.22300644698177
+        },
+        {
+          "massKg": 55000,
+          "fl": 250,
+          "mach": 0.612,
+          "referenceKgH": 872,
+          "modelKgH": 821.9019985290754,
+          "errorPct": -5.745183654922547
+        },
+        {
+          "massKg": 55000,
+          "fl": 270,
+          "mach": 0.633,
+          "referenceKgH": 861,
+          "modelKgH": 820.5596563090355,
+          "errorPct": -4.696904029148019
+        },
+        {
+          "massKg": 55000,
+          "fl": 290,
+          "mach": 0.659,
+          "referenceKgH": 858,
+          "modelKgH": 823.0631383113143,
+          "errorPct": -4.071895301711614
+        },
+        {
+          "massKg": 55000,
+          "fl": 310,
+          "mach": 0.687,
+          "referenceKgH": 859,
+          "modelKgH": 826.1597145155253,
+          "errorPct": -3.8230832927211633
+        },
+        {
+          "massKg": 55000,
+          "fl": 330,
+          "mach": 0.715,
+          "referenceKgH": 858,
+          "modelKgH": 827.7922179226681,
+          "errorPct": -3.5207205218335536
+        },
+        {
+          "massKg": 55000,
+          "fl": 350,
+          "mach": 0.742,
+          "referenceKgH": 861,
+          "modelKgH": 827.3077022796615,
+          "errorPct": -3.9131588525364136
+        },
+        {
+          "massKg": 55000,
+          "fl": 370,
+          "mach": 0.77,
+          "referenceKgH": 864,
+          "modelKgH": 830.1959047295262,
+          "errorPct": -3.912511026675203
+        },
+        {
+          "massKg": 55000,
+          "fl": 390,
+          "mach": 0.792,
+          "referenceKgH": 870,
+          "modelKgH": 838.3377587667397,
+          "errorPct": -3.639338072788534
+        },
+        {
+          "massKg": 55000,
+          "fl": 410,
+          "mach": 0.797,
+          "referenceKgH": 868,
+          "modelKgH": 834.3553624397964,
+          "errorPct": -3.8761103179958067
+        },
+        {
+          "massKg": 60000,
+          "fl": 250,
+          "mach": 0.633,
+          "referenceKgH": 939,
+          "modelKgH": 889.5228629965749,
+          "errorPct": -5.269130671291277
+        },
+        {
+          "massKg": 60000,
+          "fl": 270,
+          "mach": 0.658,
+          "referenceKgH": 935,
+          "modelKgH": 891.7642270991178,
+          "errorPct": -4.624146834318954
+        },
+        {
+          "massKg": 60000,
+          "fl": 290,
+          "mach": 0.686,
+          "referenceKgH": 935,
+          "modelKgH": 895.510169944133,
+          "errorPct": -4.223511235921595
+        },
+        {
+          "massKg": 60000,
+          "fl": 310,
+          "mach": 0.714,
+          "referenceKgH": 933,
+          "modelKgH": 897.7727966806402,
+          "errorPct": -3.775691674100723
+        },
+        {
+          "massKg": 60000,
+          "fl": 330,
+          "mach": 0.74,
+          "referenceKgH": 930,
+          "modelKgH": 896.805706817755,
+          "errorPct": -3.569278836800538
+        },
+        {
+          "massKg": 60000,
+          "fl": 350,
+          "mach": 0.767,
+          "referenceKgH": 928,
+          "modelKgH": 897.9051042499643,
+          "errorPct": -3.242984455822806
+        },
+        {
+          "massKg": 60000,
+          "fl": 370,
+          "mach": 0.791,
+          "referenceKgH": 935,
+          "modelKgH": 906.9450015888007,
+          "errorPct": -3.0005345894330793
+        },
+        {
+          "massKg": 60000,
+          "fl": 390,
+          "mach": 0.797,
+          "referenceKgH": 933,
+          "modelKgH": 903.8394802158879,
+          "errorPct": -3.1254576403121237
+        },
+        {
+          "massKg": 60000,
+          "fl": 410,
+          "mach": 0.795,
+          "referenceKgH": 936,
+          "modelKgH": 896.2751649011045,
+          "errorPct": -4.244106313984563
+        },
+        {
+          "massKg": 65000,
+          "fl": 250,
+          "mach": 0.656,
+          "referenceKgH": 1013,
+          "modelKgH": 960.3582954804982,
+          "errorPct": -5.196614463919225
+        },
+        {
+          "massKg": 65000,
+          "fl": 270,
+          "mach": 0.683,
+          "referenceKgH": 1012,
+          "modelKgH": 964.0139880330324,
+          "errorPct": -4.7417007872497585
+        },
+        {
+          "massKg": 65000,
+          "fl": 290,
+          "mach": 0.71,
+          "referenceKgH": 1010,
+          "modelKgH": 965.9056864816654,
+          "errorPct": -4.3657736156766935
+        },
+        {
+          "massKg": 65000,
+          "fl": 310,
+          "mach": 0.737,
+          "referenceKgH": 1006,
+          "modelKgH": 966.4678852780962,
+          "errorPct": -3.9296336701693635
+        },
+        {
+          "massKg": 65000,
+          "fl": 330,
+          "mach": 0.763,
+          "referenceKgH": 1002,
+          "modelKgH": 966.4947953179626,
+          "errorPct": -3.543433601001733
+        },
+        {
+          "massKg": 65000,
+          "fl": 350,
+          "mach": 0.788,
+          "referenceKgH": 1004,
+          "modelKgH": 974.5245846469325,
+          "errorPct": -2.935798341939
+        },
+        {
+          "massKg": 65000,
+          "fl": 370,
+          "mach": 0.796,
+          "referenceKgH": 997,
+          "modelKgH": 971.9371674004698,
+          "errorPct": -2.51382473415549
+        },
+        {
+          "massKg": 65000,
+          "fl": 390,
+          "mach": 0.796,
+          "referenceKgH": 1001,
+          "modelKgH": 966.2094295428036,
+          "errorPct": -3.475581464255384
+        },
+        {
+          "massKg": 70000,
+          "fl": 250,
+          "mach": 0.679,
+          "referenceKgH": 1089,
+          "modelKgH": 1032.1464264854012,
+          "errorPct": -5.2207138213589355
+        },
+        {
+          "massKg": 70000,
+          "fl": 270,
+          "mach": 0.706,
+          "referenceKgH": 1088,
+          "modelKgH": 1035.0223701098391,
+          "errorPct": -4.869267453139781
+        },
+        {
+          "massKg": 70000,
+          "fl": 290,
+          "mach": 0.732,
+          "referenceKgH": 1083,
+          "modelKgH": 1035.0859842842326,
+          "errorPct": -4.424193510227825
+        },
+        {
+          "massKg": 70000,
+          "fl": 310,
+          "mach": 0.758,
+          "referenceKgH": 1077,
+          "modelKgH": 1035.0007293241574,
+          "errorPct": -3.8996537303474965
+        },
+        {
+          "massKg": 70000,
+          "fl": 330,
+          "mach": 0.784,
+          "referenceKgH": 1079,
+          "modelKgH": 1042.4725034380238,
+          "errorPct": -3.3853101540293085
+        },
+        {
+          "massKg": 70000,
+          "fl": 350,
+          "mach": 0.796,
+          "referenceKgH": 1068,
+          "modelKgH": 1043.5897485193407,
+          "errorPct": -2.28560407122278
+        },
+        {
+          "massKg": 70000,
+          "fl": 370,
+          "mach": 0.797,
+          "referenceKgH": 1063,
+          "modelKgH": 1036.3422872572708,
+          "errorPct": -2.507781067048842
+        },
+        {
+          "massKg": 70000,
+          "fl": 390,
+          "mach": 0.789,
+          "referenceKgH": 1078,
+          "modelKgH": 1024.993089777503,
+          "errorPct": -4.9171530818642895
+        },
+        {
+          "massKg": 75000,
+          "fl": 250,
+          "mach": 0.7,
+          "referenceKgH": 1165,
+          "modelKgH": 1102.4520886898642,
+          "errorPct": -5.36891942576273
+        },
+        {
+          "massKg": 75000,
+          "fl": 270,
+          "mach": 0.726,
+          "referenceKgH": 1161,
+          "modelKgH": 1103.4815182977961,
+          "errorPct": -4.954218923531773
+        },
+        {
+          "massKg": 75000,
+          "fl": 290,
+          "mach": 0.751,
+          "referenceKgH": 1155,
+          "modelKgH": 1102.2870632038844,
+          "errorPct": -4.563890631698319
+        },
+        {
+          "massKg": 75000,
+          "fl": 310,
+          "mach": 0.778,
+          "referenceKgH": 1153,
+          "modelKgH": 1108.5996053782883,
+          "errorPct": -3.850858163201365
+        },
+        {
+          "massKg": 75000,
+          "fl": 330,
+          "mach": 0.794,
+          "referenceKgH": 1146,
+          "modelKgH": 1113.4519035269884,
+          "errorPct": -2.84014803429421
+        },
+        {
+          "massKg": 75000,
+          "fl": 350,
+          "mach": 0.797,
+          "referenceKgH": 1134,
+          "modelKgH": 1106.3222091009434,
+          "errorPct": -2.4407223015041057
+        },
+        {
+          "massKg": 75000,
+          "fl": 370,
+          "mach": 0.793,
+          "referenceKgH": 1134,
+          "modelKgH": 1097.1350497802264,
+          "errorPct": -3.2508774444244826
+        },
+        {
+          "massKg": 80000,
+          "fl": 250,
+          "mach": 0.719,
+          "referenceKgH": 1239,
+          "modelKgH": 1171.114015182618,
+          "errorPct": -5.479094819804842
+        },
+        {
+          "massKg": 80000,
+          "fl": 270,
+          "mach": 0.744,
+          "referenceKgH": 1234,
+          "modelKgH": 1170.5114989016963,
+          "errorPct": -5.1449352591818265
+        },
+        {
+          "massKg": 80000,
+          "fl": 290,
+          "mach": 0.77,
+          "referenceKgH": 1228,
+          "modelKgH": 1173.3855358076007,
+          "errorPct": -4.447431937491797
+        },
+        {
+          "massKg": 80000,
+          "fl": 310,
+          "mach": 0.792,
+          "referenceKgH": 1225,
+          "modelKgH": 1184.4323444852398,
+          "errorPct": -3.311645348143688
+        },
+        {
+          "massKg": 80000,
+          "fl": 330,
+          "mach": 0.797,
+          "referenceKgH": 1210,
+          "modelKgH": 1178.2941113595425,
+          "errorPct": -2.6203213752444166
+        },
+        {
+          "massKg": 80000,
+          "fl": 350,
+          "mach": 0.795,
+          "referenceKgH": 1200,
+          "modelKgH": 1168.136211945458,
+          "errorPct": -2.655315671211833
+        },
+        {
+          "massKg": 85000,
+          "fl": 250,
+          "mach": 0.737,
+          "referenceKgH": 1312,
+          "modelKgH": 1239.2518204089122,
+          "errorPct": -5.54483076151584
+        },
+        {
+          "massKg": 85000,
+          "fl": 270,
+          "mach": 0.762,
+          "referenceKgH": 1305,
+          "modelKgH": 1239.8672085493517,
+          "errorPct": -4.991018501965383
+        },
+        {
+          "massKg": 85000,
+          "fl": 290,
+          "mach": 0.787,
+          "referenceKgH": 1303,
+          "modelKgH": 1251.0348599767779,
+          "errorPct": -3.9881151207384558
+        },
+        {
+          "massKg": 85000,
+          "fl": 310,
+          "mach": 0.796,
+          "referenceKgH": 1289,
+          "modelKgH": 1249.4150119024584,
+          "errorPct": -3.07098433650439
+        },
+        {
+          "massKg": 85000,
+          "fl": 330,
+          "mach": 0.797,
+          "referenceKgH": 1276,
+          "modelKgH": 1241.724242549944,
+          "errorPct": -2.6861878879354317
+        },
+        {
+          "massKg": 85000,
+          "fl": 350,
+          "mach": 0.789,
+          "referenceKgH": 1278,
+          "modelKgH": 1227.5387269662554,
+          "errorPct": -3.9484564189158577
+        }
+      ],
+      "biasPct": -4.696311399924997,
+      "rmsPct": 4.953004458979047,
+      "sdPct": 1.5738209572885973,
+      "minPct": -9.91493611921992,
+      "maxPct": -2.28560407122278
+    }
+  ]
+}

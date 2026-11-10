@@ -7,6 +7,7 @@ import { type AircraftDefinition } from "../definition.ts";
 import { highLiftPerf } from "../highlift.ts";
 import { takeoffThrustN } from "../thrust.ts";
 import { A320_CONTEXT } from "./a320Context.ts";
+import { comparisonAssumptionsFor } from "./missionProfiles.ts";
 
 const cache = new Map<string, EvalContext>();
 
@@ -20,6 +21,7 @@ export function contextFor(def: AircraftDefinition): EvalContext {
     (takeoffThrustN(def) / r.takeoffThrustN);
   c = {
     ...A320_CONTEXT,
+    assumptions: comparisonAssumptionsFor(def),
     constraintsRef: {
       ...r,
       takeoffFieldLengthM: Math.round(tofl),

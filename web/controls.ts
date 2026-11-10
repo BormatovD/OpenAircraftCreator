@@ -6,6 +6,7 @@ import {
   type Lever,
   aeroQuality,
   cruiseMach,
+  longRangeCruise,
   wingThickness,
   bypassRatio,
   compositeHighLift,
@@ -42,6 +43,8 @@ interface Common {
   parts: string[];
   /** Что показывать в «рентгене», если отличается от parts (например, кресла без обшивки). */
   focus?: string[];
+  /** Рычаг показывается только для типов с подходящими исходными данными. */
+  appliesTo?: (d: AircraftDefinition) => boolean;
 }
 export interface RangeControl extends Common {
   kind: "range";
@@ -360,11 +363,22 @@ export const CONTROLS: Control[] = [
     toLever: (v) => aeroQuality(v),
   },
   {
+    id: "lrc",
+    group: "Аэродинамика",
+    kind: "toggle",
+    label: "LRC по таблице 737-8",
+    hint: "число Маха меняется с массой и высотой; при изменении самолёта сохраняется таблица скоростей базового 737-8",
+    parts: [],
+    appliesTo: (d) => d.id === "b737-8",
+    base: (d) => d.id === "b737-8",
+    toLever: (on) => longRangeCruise(on),
+  },
+  {
     id: "mach",
     group: "Аэродинамика",
     kind: "range",
-    label: "Крейсерское число Маха",
-    hint: "быстрее — растут волновое сопротивление и удельный расход; медленнее — растёт индуктивное",
+    label: "Постоянное число Маха",
+    hint: "одно значение на весь крейсер; быстрее — растёт волновое сопротивление, медленнее — индуктивное",
     parts: [],
     min: 0.7,
     max: 0.84,
@@ -385,11 +399,16 @@ function ruRows(n: number): string {
 
 export function defaults(def: AircraftDefinition): Values {
   const v: Values = {};
-  for (const c of CONTROLS) v[c.id] = c.base(def);
+  for (const c of controlsFor(def)) v[c.id] = c.base(def);
   return v;
 }
 
+export function controlsFor(def: AircraftDefinition): Control[] {
+  return CONTROLS.filter((c) => !c.appliesTo || c.appliesTo(def));
+}
+
 export function isChanged(c: Control, def: AircraftDefinition, value: number | boolean): boolean {
+  if (c.appliesTo && !c.appliesTo(def)) return false;
   if (c.kind === "toggle") return value !== c.base(def);
   return Math.abs((value as number) - c.base(def)) > c.step / 2;
 }
@@ -397,7 +416,9 @@ export function isChanged(c: Control, def: AircraftDefinition, value: number | b
 /** Рычаги для ядра — только те, что сдвинуты от значений выбранного самолёта. */
 export function leversFor(def: AircraftDefinition, values: Values): Lever[] {
   const out: Lever[] = [];
-  for (const c of CONTROLS) {
+  for (const c of controlsFor(def)) {
+    // Ползунок хранит выбранный постоянный Мах, но при LRC скорость задаёт таблица.
+    if (c.id === "mach" && values.lrc === true) continue;
     const v = values[c.id];
     if (!isChanged(c, def, v)) continue;
     out.push(c.kind === "toggle" ? c.toLever(v as boolean) : c.toLever(v as number));
@@ -466,9 +487,8 @@ export const SCENARIOS: Scenario[] = [
     id: "b737-fan",
     title: "Вентилятор как у A320neo",
     text:
-      "Почему у 737 MAX вентилятор 1,76 м, а не 1,98 м, как у LEAP-1A: двухконтурность 11 вместо 9 даёт всего −0,7% топлива на место " +
-      "при +0,6 т массы, а гондола опускается к земле — клиренс 0,40 м, на грани. Низкое шасси 737 — наследие 1960-х, когда трап не везде был; " +
-      "поднять двигатель (рычаг «Подъём») — значит удлинять стойки, как Boeing и сделал на -10.",
+      "Двухконтурность 11 вместо 9 увеличивает вентилятор и гондолу: расход двигателя снижается, но растут масса и сопротивление, уменьшается клиренс. " +
+      "Сравните расход и ограничения справа. Скорости остаются по таблице LRC базового 737-8; рычаг «Подъём двигателя» меняет его установку.",
     aircraft: "b737-8",
     mode: "fixed",
     values: { bpr: 11 },
@@ -477,9 +497,8 @@ export const SCENARIOS: Scenario[] = [
     id: "b737-classic-wing",
     title: "Крыло 737 Classic",
     text:
-      "Возвращаем профиль поколения 1960-х (κ 0,87 вместо 0,935): волновое сопротивление на M 0,78 растёт так, что расход на место +16%, " +
-      "а потолок по тяге падает до FL300. Поэтому 737 Classic летал на M 0,745, а для NG крыло спроектировали заново — " +
-      "это самое ценное, что в 737-8 осталось от 1997 года.",
+      "Меняем профиль крыла: κ 0,87 вместо 0,935. Волновое сопротивление начинает расти раньше; это видно в расходе и запасе тяги. " +
+      "Самолёт сохраняет остальные параметры и таблицу LRC 737-8. Это проверка влияния профиля на MAX, а не воспроизведение всего 737 Classic.",
     aircraft: "b737-8",
     mode: "fixed",
     values: { airfoil: 0.87 },
@@ -489,7 +508,7 @@ export const SCENARIOS: Scenario[] = [
     title: "Гондола на пилоне",
     text:
       "У всех 737 двигатель прижат к нижней поверхности крыла — иначе не хватает клиренса. Цена — интерференция гондолы и крыла (Raymer, Q 1,5 вместо 1,3). " +
-      "Вынести двигатель на пилон, как у A320, — −0,8% топлива на место; в модели это бесплатно, в жизни — длиннее шасси и тяжелее.",
+      "Снижаем Q до 1,3 и сравниваем расход при том же профиле LRC. Масса новой установки и изменение шасси этим рычагом не учитываются.",
     aircraft: "b737-8",
     mode: "fixed",
     values: { installation: false },
@@ -508,7 +527,7 @@ export const SCENARIOS: Scenario[] = [
     id: "b737-ewis",
     title: "Лёгкая кабельная сеть",
     text:
-      "Облегчение проводки на 40% — алюминиевые жилы, тонкая изоляция, шины данных — снимает с 737-8 ≈760 кг и даёт −1,3% топлива на место. " +
+      "Облегчение проводки на 40% — алюминиевые жилы, тонкая изоляция, шины данных — уменьшает массу и расход. Итог по килограммам и топливу пересчитывается справа. " +
       "Наведите на рычаг: в «рентгене» видно, как в пучках становится меньше проводов.",
     aircraft: "b737-8",
     mode: "fixed",

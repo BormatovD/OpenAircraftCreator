@@ -1,12 +1,12 @@
 // Единый конвейер: определение + рычаги → массы → аэродинамика → двигатель → миссия → показатели.
 // Любой новый рычаг проходит через этот же путь, поэтому его эффект сразу виден во всех выходах.
 
-import { type AeroConfig } from "./aero.ts";
+import { type AeroConfig, aeroAtFl } from "./aero.ts";
 import { G0 } from "./atmosphere.ts";
 import { type AircraftDefinition, aeroSpanM } from "./definition.ts";
 import { type Lever, applyDefinition, collectAero, collectMission, collectTsfcFactor } from "./levers.ts";
 import { type Calibration, type MassBreakdown, computeMasses } from "./mass/massTree.ts";
-import { DEFAULT_ASSUMPTIONS, type MissionAssumptions, rangeForFuel } from "./mission.ts";
+import { DEFAULT_ASSUMPTIONS, type MissionAssumptions, type MissionResult, rangeForFuel } from "./mission.ts";
 import { aspectRatioOf, dragBuildup, dragDivergenceMach, oswaldObert, waveDrag, waveParams } from "./drag.ts";
 import { clForWeight, inducedFactor } from "./aero.ts";
 import { flightLevelToM, isa } from "./atmosphere.ts";
@@ -63,6 +63,9 @@ export interface Evaluation {
   missionFuelKg: number;
   /** Рейсовое топливо на миссию, без резервов. */
   tripFuelKg: number;
+  /** Условия текущей миссии и её пофазный результат — те же, что использованы для расчёта показателей. */
+  missionAssumptions: MissionAssumptions;
+  missionResult: MissionResult;
   seats: number;
   /** Места, которые помещаются в MZFW при заданной массе пассажира. */
   seatsCarried: number;
@@ -118,6 +121,8 @@ export function engineStateFor(def: AircraftDefinition, ctx: EvalContext, levers
   return {
     tsfcCruise: ctx.tsfcCruise * tsfcFactor(ctx.engineRef, def.engine) * collectTsfcFactor(levers) * tsfcMachFactor(def.engine.bypassRatio, as.cruiseMach),
     takeoffThrustN: takeoffThrustN(def),
+    referenceMach: as.cruiseMach,
+    bypassRatio: def.engine.bypassRatio,
   };
 }
 
@@ -129,6 +134,7 @@ export function assumptionsFor(ctx: EvalContext, levers: Lever[]): MissionAssump
 export interface CruiseDrag {
   cl: number;
   mach: number;
+  fl: number;
   /** Вклады в CD, в «каунтах» (×10⁴): агрегаты, прочее, индуктивное, волновое. */
   parts: { id: string; label: string; counts: number }[];
   total: number;
@@ -136,22 +142,24 @@ export interface CruiseDrag {
   mdd: number;
 }
 
-/** Раскладка сопротивления в середине крейсера (FL350, масса — взлётная минус половина топлива рейса). */
-export function cruiseDrag(def: AircraftDefinition, aero: AeroConfig, as: MissionAssumptions, massKg: number, base: BaselineAero): CruiseDrag {
-  const atm = isa(flightLevelToM(350));
-  const v = as.cruiseMach * atm.speedOfSoundMs;
-  const cl = clForWeight(aero, massKg * G0, atm.densityKgM3, v);
-  const b = dragBuildup(def);
+/** Раскладка в выбранной точке. evaluate передаёт реальную массу / FL / Mach из интегрирования миссии. */
+export function cruiseDrag(def: AircraftDefinition, aero: AeroConfig, as: MissionAssumptions, massKg: number, base: BaselineAero, fl = 350, mach = as.cruiseMach): CruiseDrag {
+  const atm = isa(flightLevelToM(fl));
+  const v = mach * atm.speedOfSoundMs;
+  const aFl = aeroAtFl(aero, fl);
+  const cl = clForWeight(aFl, massKg * G0, atm.densityKgM3, v);
+  // Та же поправка Re, что в миссии: разбиение компонентов нормируется к её CD0 на данном эшелоне.
+  const b = dragBuildup(def, 0.78, fl);
   const k = base.cd0Factor ?? aero.cd0 / b.cd0;
-  const scale = aero.cd0 / (b.cd0 * k || 1);
+  const scale = aFl.cd0 / (b.cd0 * k || 1);
   const parts: CruiseDrag["parts"] = b.components.map((c) => ({ id: c.id as string, label: c.label, counts: c.cd0 * k * scale * 1e4 }));
   parts.push({ id: "misc", label: "Прочее", counts: b.misc * k * scale * 1e4 });
   const induced = inducedFactor(aero) * cl * cl;
-  const wave = aero.wave ? waveDrag(aero.wave, cl, as.cruiseMach) : 0;
+  const wave = aero.wave ? waveDrag(aero.wave, cl, mach) : 0;
   parts.push({ id: "induced", label: "Индуктивное", counts: induced * 1e4 });
   parts.push({ id: "wave", label: "Волновое", counts: wave * 1e4 });
-  const total = aero.cd0 + induced + wave;
-  return { cl, mach: as.cruiseMach, parts, total: total * 1e4, ld: cl / total, mdd: aero.wave ? dragDivergenceMach(aero.wave, cl).mdd : 0 };
+  const total = aFl.cd0 + induced + wave;
+  return { cl, mach, fl, parts, total: total * 1e4, ld: cl / total, mdd: aero.wave ? dragDivergenceMach(aero.wave, cl).mdd : 0 };
 }
 
 export function bisect(f: (x: number) => number, lo: number, hi: number, target: number, iters = 34): number {
@@ -204,7 +212,9 @@ export function evaluateResolved(
     mission.distanceNm,
   );
   // Расход на место — только рейсовое топливо, без резервов.
-  const trip = rangeForFuel(aero, engine, as, oew + payload + missionFuelKg, missionFuelKg).tripFuelKg;
+  const missionResult = rangeForFuel(aero, engine, as, oew + payload + missionFuelKg, missionFuelKg);
+  const trip = missionResult.tripFuelKg;
+  const cruiseSample = missionResult.trip.cruiseSample;
   const km = mission.distanceNm * 1.852;
 
   const payloadLimitedByMzfw = seats * mission.massPerPaxKg > w.mzfwKg - oew;
@@ -236,6 +246,8 @@ export function evaluateResolved(
     rangeWithMissionPayloadNm,
     missionFuelKg,
     tripFuelKg: trip,
+    missionAssumptions: as,
+    missionResult,
     seats,
     payloadKg: payload,
     payloadLimitedByMzfw,
@@ -244,7 +256,8 @@ export function evaluateResolved(
     seatsCarried,
     fuelPerSeatPer100KmKg: (trip / seatsCarried / km) * 100,
     payloadRange,
-    cruiseDrag: cruiseDrag(def, aero, as, oew + payload + missionFuelKg / 2, ctx.aero),
+    cruiseDrag: cruiseDrag(def, aero, as, cruiseSample?.massKg ?? oew + payload + missionFuelKg / 2,
+      ctx.aero, cruiseSample?.fl ?? as.cruiseFL, cruiseSample?.mach ?? as.cruiseMach),
     thrust,
     oei,
     highLift,

@@ -4,7 +4,9 @@
 
 import { type AeroConfig, aeroAtFl, clForWeight, liftToDrag, maxLiftToDrag } from "./aero.ts";
 import { G0, NM, flightLevelToM, isa } from "./atmosphere.ts";
-import { requiredThrustN, thrustLapse } from "./thrust.ts";
+import { requiredThrustN } from "./thrust.ts";
+import { type LrcTable, interpolateLrcMach } from "./cruise.ts";
+import { tsfcMachFactor } from "./propulsion.ts";
 
 export const LHV_JET_A = 43.2e6; // Дж/кг, теплотворная способность керосина
 
@@ -13,12 +15,19 @@ export interface EngineState {
   tsfcCruise: number;
   /** Суммарная взлётная тяга, Н. Если задана, эшелон ограничен ещё и тягой (300 фут/мин остаточной скороподъёмности). */
   takeoffThrustN?: number;
+  /** Точка, в которой задан tsfcCruise. Нужна при переменной скорости; без неё TSFC постоянен. */
+  referenceMach?: number;
+  bypassRatio?: number;
 }
 
 export type CruiseAltitudeMode = "fixed" | "stepClimb";
 
 export interface MissionAssumptions {
   cruiseMach: number;
+  /** В LRC скорость интерполируется по массе и высоте; cruiseMach остаётся явно помеченным резервным допущением вне таблицы. */
+  cruiseSpeedMode?: "fixedMach" | "lrc";
+  /** Таблица скорости базового типа. Расход FF из неё в миссию не подставляется. */
+  lrcTable?: LrcTable;
   /** Эшелон для режима "fixed". */
   cruiseFL: number;
   /** "fixed" — весь крейсер на cruiseFL; "stepClimb" — ступенчатый набор по мере выработки топлива. */
@@ -51,6 +60,7 @@ export interface MissionAssumptions {
 // остальное — типовые значения для узкофюзеляжника, помечены в документе как допущения.
 export const DEFAULT_ASSUMPTIONS: MissionAssumptions = {
   cruiseMach: 0.78,
+  cruiseSpeedMode: "fixedMach",
   cruiseFL: 350,
   cruiseAltitudeMode: "stepClimb",
   // A320: потолок FL398; ступени по 2 000 ft.
@@ -75,50 +85,86 @@ export const DEFAULT_ASSUMPTIONS: MissionAssumptions = {
 
 export interface TripResult {
   distanceM: number;
+  takeoffFuelKg: number;
   climbFuelKg: number;
+  /** Только горизонтальный крейсер; топливо ступеней показано отдельно. */
   cruiseFuelKg: number;
+  stepClimbFuelKg: number;
+  descentFuelKg: number;
   landingMassKg: number;
   initialFL: number;
   finalFL: number;
+  initialMach: number;
+  finalMach: number;
+  minMach: number;
+  maxMach: number;
+  /** Хотя бы одна расчётная точка вне таблицы LRC: использовано явное допущение cruiseMach. */
+  lrcFallback: boolean;
+  /** Нет доступного эшелона из заданного списка по CL / тяге. Нижний используется только как оценка. */
+  flightLevelLimited: boolean;
+  /** Реальная точка интегрирования около середины крейсерского топлива, для панели аэродинамики. */
+  cruiseSample?: { massKg: number; fl: number; mach: number };
 }
 
-// Атмосфера на эшелоне не меняется — кешируем: миссия вызывается тысячи раз при перепроектировании.
-const speedCache = new Map<string, { speedMs: number; densityKgM3: number }>();
+// Кешируем только атмосферу по эшелону. Кеш (FL, Mach) при непрерывном LRC рос бы без ограничения.
+const atmosphereCache = new Map<number, ReturnType<typeof isa>>();
+function atmosphereAt(fl: number): ReturnType<typeof isa> {
+  let atm = atmosphereCache.get(fl);
+  if (!atm) {
+    atm = isa(flightLevelToM(fl));
+    atmosphereCache.set(fl, atm);
+  }
+  return atm;
+}
 function cruiseSpeed(fl: number, mach: number): { speedMs: number; densityKgM3: number } {
-  const key = `${fl}|${mach}`;
-  let v = speedCache.get(key);
-  if (!v) {
-    const atm = isa(flightLevelToM(fl));
-    v = { speedMs: mach * atm.speedOfSoundMs, densityKgM3: atm.densityKgM3 };
-    speedCache.set(key, v);
-  }
-  return v;
+  const atm = atmosphereAt(fl);
+  return { speedMs: mach * atm.speedOfSoundMs, densityKgM3: atm.densityKgM3 };
 }
 
-const lapseCache = new Map<string, number>();
 function lapseAt(fl: number, mach: number): number {
-  const key = `${fl}|${mach}`;
-  let v = lapseCache.get(key);
-  if (v === undefined) {
-    v = thrustLapse(flightLevelToM(fl), mach);
-    lapseCache.set(key, v);
-  }
-  return v;
+  // Та же формула thrustLapse; атмосферное давление уже в кеше, Мах может быть любым.
+  return (atmosphereAt(fl).pressurePa / 101325) * (1 + 0.2 * mach * mach) ** 3.5 * (1 - 0.49 * Math.sqrt(mach));
 }
 
-/** Самый высокий эшелон из списка, где CL при данной массе не превышает предел и хватает тяги. */
-export function bestFlightLevel(aero: AeroConfig, as: MissionAssumptions, massKg: number, engine?: EngineState): number {
-  // Самый высокий эшелон, где CL не выше предела (без сортировки и копирования массива — горячий путь).
-  let best = as.stepFLs[0];
-  for (const fl of as.stepFLs) if (fl < best) best = fl;
+export function cruiseMachAt(as: MissionAssumptions, massKg: number, fl: number): { mach: number; fallback: boolean } {
+  if (as.cruiseSpeedMode !== "lrc") return { mach: as.cruiseMach, fallback: false };
+  const mach = as.lrcTable ? interpolateLrcMach(as.lrcTable, massKg, fl) : undefined;
+  return mach === undefined ? { mach: as.cruiseMach, fallback: true } : { mach, fallback: false };
+}
+
+/** Поправка на текущий Мах — согласованно с точкой, в которой передан TSFC (Howe пока выключена). */
+export function tsfcAtMach(engine: EngineState, mach: number): number {
+  if (engine.referenceMach === undefined || engine.bypassRatio === undefined) return engine.tsfcCruise;
+  return engine.tsfcCruise * tsfcMachFactor(engine.bypassRatio, mach) / tsfcMachFactor(engine.bypassRatio, engine.referenceMach);
+}
+
+function flightLevelAllowed(aero: AeroConfig, as: MissionAssumptions, massKg: number, fl: number, mach: number, engine?: EngineState): boolean {
+  const { speedMs, densityKgM3 } = cruiseSpeed(fl, mach);
+  return clForWeight(aero, massKg * G0, densityKgM3, speedMs) <= as.cruiseClMax &&
+    (engine?.takeoffThrustN === undefined || engine.takeoffThrustN * lapseAt(fl, mach) >= requiredThrustN(aero, massKg, fl, mach));
+}
+
+/** Выбор эшелона проверяет также нижнюю ступень и не заполняет отсутствующие ячейки LRC. */
+export function selectFlightLevel(aero: AeroConfig, as: MissionAssumptions, massKg: number, engine?: EngineState): { fl: number; limited: boolean } {
+  if (!as.stepFLs.length) throw new RangeError("Для ступенчатого набора нужен хотя бы один эшелон");
+  let lowest = as.stepFLs[0];
+  let best: number | undefined;
   for (const fl of as.stepFLs) {
-    if (fl <= best) continue;
-    const { speedMs, densityKgM3 } = cruiseSpeed(fl, as.cruiseMach);
-    if (clForWeight(aero, massKg * G0, densityKgM3, speedMs) > as.cruiseClMax) continue;
-    if (engine?.takeoffThrustN && engine.takeoffThrustN * lapseAt(fl, as.cruiseMach) < requiredThrustN(aero, massKg, fl, as.cruiseMach)) continue;
+    if (fl < lowest) lowest = fl;
+    if (best !== undefined && fl <= best) continue;
+    const speed = cruiseMachAt(as, massKg, fl);
+    if (speed.fallback || !flightLevelAllowed(aero, as, massKg, fl, speed.mach, engine)) continue;
     best = fl;
   }
-  return best;
+  if (best !== undefined) return { fl: best, limited: false };
+  // Вне таблицы даём оценку на нижнем эшелоне, но не объявляем её подтверждённым LRC / допустимым профилем.
+  const speed = cruiseMachAt(as, massKg, lowest);
+  return { fl: lowest, limited: !flightLevelAllowed(aero, as, massKg, lowest, speed.mach, engine) };
+}
+
+/** Совместимый краткий API; диагностика доступности — selectFlightLevel / TripResult. */
+export function bestFlightLevel(aero: AeroConfig, as: MissionAssumptions, massKg: number, engine?: EngineState): number {
+  return selectFlightLevel(aero, as, massKg, engine).fl;
 }
 
 /**
@@ -133,10 +179,17 @@ export function simulateTrip(
   tripFuelKg: number,
   cruiseFL?: number,
 ): TripResult {
+  if (!Number.isFinite(takeoffMassKg) || takeoffMassKg <= 0 || !Number.isFinite(tripFuelKg) || tripFuelKg < 0 || tripFuelKg >= takeoffMassKg)
+    throw new RangeError("Масса должна быть положительной, топливо — неотрицательным и меньше массы самолёта");
   const stepping = cruiseFL === undefined && as.cruiseAltitudeMode === "stepClimb";
   let m = takeoffMassKg - as.takeoffFuelKg;
-  let fl = cruiseFL ?? (stepping ? bestFlightLevel(aero, as, m, engine) : as.cruiseFL);
-  let { speedMs, densityKgM3 } = cruiseSpeed(fl, as.cruiseMach);
+  const selected = stepping ? selectFlightLevel(aero, as, m, engine) : { fl: cruiseFL ?? as.cruiseFL, limited: false };
+  let fl = selected.fl;
+  let speed = cruiseMachAt(as, m, fl);
+  let mach = speed.mach;
+  let lrcFallback = speed.fallback;
+  let flightLevelLimited = selected.limited || !flightLevelAllowed(aero, as, m, fl, mach, engine);
+  let { speedMs, densityKgM3 } = cruiseSpeed(fl, mach);
   const h = flightLevelToM(fl);
   let distance = 0;
 
@@ -144,8 +197,8 @@ export function simulateTrip(
   // Поляра на текущем эшелоне — с поправкой трения на число Рейнольдса.
   let aFl = aeroAtFl(aero, fl);
   const clClimb = clForWeight(aFl, m * G0, densityKgM3, speedMs);
-  const ldClimb = liftToDrag(aFl, clClimb, as.cruiseMach) * as.climbLdRatio;
-  const etaCruise = speedMs / (engine.tsfcCruise * LHV_JET_A);
+  const ldClimb = liftToDrag(aFl, clClimb, mach) * as.climbLdRatio;
+  const etaCruise = speedMs / (tsfcAtMach(engine, mach) * LHV_JET_A);
   const etaClimb = etaCruise * as.climbEfficiencyRatio;
   const climbDist = as.climbDistanceKm * 1000;
   const climbEnergy = m * (G0 * h + 0.5 * speedMs * speedMs + (G0 * climbDist) / ldClimb);
@@ -157,11 +210,20 @@ export function simulateTrip(
     const share = Math.max(0, tripFuelKg / fixedFuel);
     return {
       distanceM: share * (climbDist + as.descentDistanceKm * 1000),
+      takeoffFuelKg: as.takeoffFuelKg * share,
       climbFuelKg: climbFuel * share,
       cruiseFuelKg: 0,
+      stepClimbFuelKg: 0,
+      descentFuelKg: as.descentFuelKg * share,
       landingMassKg: takeoffMassKg - tripFuelKg,
       initialFL: fl,
       finalFL: fl,
+      initialMach: mach,
+      finalMach: mach,
+      minMach: mach,
+      maxMach: mach,
+      lrcFallback,
+      flightLevelLimited,
     };
   }
 
@@ -169,30 +231,59 @@ export function simulateTrip(
   distance += climbDist;
   const initialFL = fl;
 
-  // Крейсер: Бреге пошагово по массе, Мах постоянен, CL меняется.
+  // Крейсер: Бреге пошагово по массе; скорость LRC пересчитывается на каждом шаге и на каждом эшелоне.
   // При ступенчатом наборе подъём на следующий эшелон стоит энергии m·g·Δh, оплачиваемой из крейсерского топлива.
   const cruiseFuel = tripFuelKg - fixedFuel;
   let remaining = cruiseFuel;
   const dm = cruiseFuel / as.cruiseSteps;
+  let stepClimbFuelKg = 0;
+  let initialMach = mach;
+  let minMach = Infinity;
+  let maxMach = -Infinity;
+  let cruiseSample: TripResult["cruiseSample"];
+  let sampleDelta = Infinity;
+  const sampleMass = m - cruiseFuel / 2;
   while (remaining > 1e-6) {
+    speed = cruiseMachAt(as, m, fl);
+    mach = speed.mach;
+    lrcFallback ||= speed.fallback;
+    ({ speedMs, densityKgM3 } = cruiseSpeed(fl, mach));
     if (stepping) {
-      const target = bestFlightLevel(aero, as, m, engine);
-      if (target > fl) {
-        const dh = flightLevelToM(target) - flightLevelToM(fl);
-        const stepFuel = Math.min(remaining, (m * G0 * dh) / (etaClimb * LHV_JET_A));
-        m -= stepFuel;
-        remaining -= stepFuel;
-        fl = target;
-        ({ speedMs, densityKgM3 } = cruiseSpeed(fl, as.cruiseMach));
-        aFl = aeroAtFl(aero, fl);
-        if (remaining <= 1e-6) break;
+      const target = selectFlightLevel(aero, as, m, engine);
+      flightLevelLimited ||= target.limited;
+      if (target.fl > fl) {
+        const targetMach = cruiseMachAt(as, m, target.fl).mach;
+        const targetSpeed = cruiseSpeed(target.fl, targetMach).speedMs;
+        const dh = flightLevelToM(target.fl) - flightLevelToM(fl);
+        const kinetic = Math.max(0, (targetSpeed * targetSpeed - speedMs * speedMs) / 2);
+        const etaStep = speedMs / (tsfcAtMach(engine, mach) * LHV_JET_A) * as.climbEfficiencyRatio;
+        const stepFuel = m * (G0 * dh + kinetic) / (etaStep * LHV_JET_A);
+        // Нельзя занять верхний эшелон, оплатив лишь часть его энергетической цены.
+        if (stepFuel < remaining) {
+          m -= stepFuel;
+          remaining -= stepFuel;
+          stepClimbFuelKg += stepFuel;
+          fl = target.fl;
+          aFl = aeroAtFl(aero, fl);
+        }
       }
     }
     const step = Math.min(dm, remaining);
     const mMid = m - step / 2;
+    speed = cruiseMachAt(as, mMid, fl);
+    mach = speed.mach;
+    lrcFallback ||= speed.fallback;
+    ({ speedMs, densityKgM3 } = cruiseSpeed(fl, mach));
+    if (minMach === Infinity) initialMach = mach;
+    minMach = Math.min(minMach, mach);
+    maxMach = Math.max(maxMach, mach);
+    if (Math.abs(mMid - sampleMass) < sampleDelta) {
+      sampleDelta = Math.abs(mMid - sampleMass);
+      cruiseSample = { massKg: mMid, fl, mach };
+    }
     const cl = clForWeight(aFl, mMid * G0, densityKgM3, speedMs);
-    const ld = liftToDrag(aFl, cl, as.cruiseMach);
-    distance += ((speedMs * ld) / (G0 * engine.tsfcCruise)) * Math.log(m / (m - step));
+    const ld = liftToDrag(aFl, cl, mach);
+    distance += ((speedMs * ld) / (G0 * tsfcAtMach(engine, mach))) * Math.log(m / (m - step));
     m -= step;
     remaining -= step;
   }
@@ -200,7 +291,24 @@ export function simulateTrip(
   m -= as.descentFuelKg;
   distance += as.descentDistanceKm * 1000;
 
-  return { distanceM: distance, climbFuelKg: climbFuel, cruiseFuelKg: cruiseFuel, landingMassKg: m, initialFL, finalFL: fl };
+  return {
+    distanceM: distance,
+    takeoffFuelKg: as.takeoffFuelKg,
+    climbFuelKg: climbFuel,
+    cruiseFuelKg: cruiseFuel - stepClimbFuelKg,
+    stepClimbFuelKg,
+    descentFuelKg: as.descentFuelKg,
+    landingMassKg: m,
+    initialFL,
+    finalFL: fl,
+    initialMach,
+    finalMach: mach,
+    minMach: Number.isFinite(minMach) ? minMach : mach,
+    maxMach: Number.isFinite(maxMach) ? maxMach : mach,
+    lrcFallback,
+    flightLevelLimited,
+    cruiseSample,
+  };
 }
 
 /** Топливо, нужное на заданную дистанцию (бисекция по simulateTrip). */
@@ -229,6 +337,8 @@ export interface Reserves {
   alternateKg: number;
   finalKg: number;
   totalKg: number;
+  lrcFallback: boolean;
+  flightLevelLimited: boolean;
 }
 
 export function reserves(
@@ -247,23 +357,47 @@ export function reserves(
     as.alternateDistanceNm * NM,
     as.alternateFL,
   );
+  const alternate = simulateTrip(aero, engine, as, landingMassKg, alternateKg, as.alternateFL);
   // Финальный резерв: ожидание на максимальном L/D.
   const massAfterAlt = landingMassKg - alternateKg;
   const t = as.finalReserveMin * 60;
   if (as.finalReserveMode === "cruise") {
-    // Продолжение крейсерского полёта: расход по Бреге на крейсерском качестве и TSFC (упрощение — L/D при CL 0,5).
-    const finalKg = massAfterAlt * (1 - Math.exp((-t * G0 * engine.tsfcCruise) / liftToDrag(aeroAtFl(aero, as.cruiseFL), 0.5, as.cruiseMach)));
-    return { contingencyKg, alternateKg, finalKg, totalKg: contingencyKg + alternateKg + finalKg };
+    // Продолжение крейсера на заданном cruiseFL. Масса, CL и скорость LRC меняются с выработкой топлива;
+    // прежний постоянный CL=0,5 не соответствовал фактической массе / скорости.
+    let m = massAfterAlt;
+    let lrcFallback = alternate.lrcFallback;
+    let flightLevelLimited = alternate.flightLevelLimited;
+    const fl = as.cruiseFL;
+    const aFl = aeroAtFl(aero, fl);
+    const n = 24;
+    for (let i = 0; i < n; i++) {
+      const speed = cruiseMachAt(as, m, fl);
+      lrcFallback ||= speed.fallback;
+      flightLevelLimited ||= !flightLevelAllowed(aero, as, m, fl, speed.mach, engine);
+      const { speedMs, densityKgM3 } = cruiseSpeed(fl, speed.mach);
+      const cl = clForWeight(aFl, m * G0, densityKgM3, speedMs);
+      const ld = liftToDrag(aFl, cl, speed.mach);
+      m *= Math.exp(-(t / n) * G0 * tsfcAtMach(engine, speed.mach) / ld);
+    }
+    const finalKg = massAfterAlt - m;
+    return { contingencyKg, alternateKg, finalKg, totalKg: contingencyKg + alternateKg + finalKg, lrcFallback, flightLevelLimited };
   }
   const tsfcHold = engine.tsfcCruise * as.holdTsfcRatio;
   const finalKg = massAfterAlt * (1 - Math.exp((-t * G0 * tsfcHold) / maxLiftToDrag(aero)));
-  return { contingencyKg, alternateKg, finalKg, totalKg: contingencyKg + alternateKg + finalKg };
+  return {
+    contingencyKg, alternateKg, finalKg, totalKg: contingencyKg + alternateKg + finalKg,
+    lrcFallback: alternate.lrcFallback, flightLevelLimited: alternate.flightLevelLimited,
+  };
 }
 
 export interface MissionResult {
   rangeNm: number;
   tripFuelKg: number;
   reserves: Reserves;
+  trip: TripResult;
+  /** Достаточно топлива на заданные резервы. Допустимость высоты и покрытие таблицы сообщаются отдельно. */
+  feasible: boolean;
+  reserveShortfallKg: number;
 }
 
 /**
@@ -277,15 +411,25 @@ export function rangeForFuel(
   takeoffMassKg: number,
   takeoffFuelKg: number,
 ): MissionResult {
+  if (!Number.isFinite(takeoffFuelKg) || takeoffFuelKg < 0 || takeoffFuelKg >= takeoffMassKg)
+    throw new RangeError("Взлётное топливо должно быть неотрицательным и меньше массы самолёта");
   let reserveKg = 0.1 * takeoffFuelKg;
   let trip = simulateTrip(aero, engine, as, takeoffMassKg, takeoffFuelKg - reserveKg);
   let res = reserves(aero, engine, as, takeoffFuelKg - reserveKg, trip.landingMassKg);
   for (let i = 0; i < 20; i++) {
     const next = res.totalKg;
     if (Math.abs(next - reserveKg) < 0.5) break;
-    reserveKg = next;
+    reserveKg = Math.min(takeoffFuelKg, next);
     trip = simulateTrip(aero, engine, as, takeoffMassKg, takeoffFuelKg - reserveKg);
     res = reserves(aero, engine, as, takeoffFuelKg - reserveKg, trip.landingMassKg);
   }
-  return { rangeNm: trip.distanceM / NM, tripFuelKg: takeoffFuelKg - reserveKg, reserves: res };
+  const reserveShortfallKg = Math.max(0, res.totalKg - takeoffFuelKg);
+  return {
+    rangeNm: trip.distanceM / NM,
+    tripFuelKg: takeoffFuelKg - reserveKg,
+    reserves: res,
+    trip,
+    feasible: reserveShortfallKg <= 0.5,
+    reserveShortfallKg,
+  };
 }

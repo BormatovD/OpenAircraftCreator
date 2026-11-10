@@ -15,7 +15,7 @@ import { engineCycle, tsfcFactor } from "../src/propulsion.ts";
 import { renderMethod } from "./method.ts";
 import { engineDiagram } from "./engineDiagram.ts";
 import { coreRadiusFor, lptStagesFor } from "./scene/shapes.ts";
-import { scenarioFamily, CONTROLS, type Control, type Mode, SCENARIOS, type Values, defaults, isChanged, leversFor } from "./controls.ts";
+import { scenarioFamily, CONTROLS, type Control, type Mode, SCENARIOS, type Values, controlsFor, defaults, isChanged, leversFor } from "./controls.ts";
 import { type AircraftModel, type Family, FAMILY, buildAircraft, partCenter } from "./scene/aircraft.ts";
 import { Environment, PHASES, type Phase } from "./scene/environment.ts";
 import { LIVERIES, NO_LIVERY, PLAIN_FIN, finLiveryTexture, liveryById } from "./scene/livery.ts";
@@ -672,7 +672,7 @@ function stepCamera(dt: number): void {
 
 /** Рычаги, которые действуют на выбранный агрегат. */
 function linkedControls(id: string | null): Control[] {
-  return id ? CONTROLS.filter((c) => c.parts.includes(id)) : [];
+  return id ? controlsFor(AIRCRAFT[state.aircraftId]).filter((c) => c.parts.includes(id)) : [];
 }
 /** Группы рычагов агрегата — вкладки нижней панели. */
 function linkedGroups(id: string | null): string[] {
@@ -744,7 +744,8 @@ function syncHeader(): void {
 
 function controlRow(c: Control, def: AircraftDefinition): string {
   const v = state.values[c.id];
-  const changed = isChanged(c, def, v);
+  const disabled = c.id === "mach" && state.values.lrc === true;
+  const changed = !disabled && isChanged(c, def, v);
   if (c.kind === "toggle")
     return `<label class="lever toggle${changed ? " changed" : ""}" data-row="${c.id}">
       <input type="checkbox" data-ctrl="${c.id}" ${v ? "checked" : ""} />
@@ -752,10 +753,10 @@ function controlRow(c: Control, def: AircraftDefinition): string {
     </label>`;
   const baseV = c.base(def);
   return `<div class="lever range${changed ? " changed" : ""}" data-row="${c.id}">
-    <div class="lever-top"><label class="lever-label" for="ctrl-${c.id}">${c.label}</label><output id="out-${c.id}">${c.format(v as number)}</output></div>
+    <div class="lever-top"><label class="lever-label" for="ctrl-${c.id}">${c.label}</label><output id="out-${c.id}">${disabled ? "M по таблице LRC" : c.format(v as number)}</output></div>
     <input id="ctrl-${c.id}" type="range" data-ctrl="${c.id}" min="${c.min}" max="${c.max}" step="${c.step}" value="${v}"
-      style="--base:${((baseV - c.min) / (c.max - c.min)) * 100}%" />
-    <span class="lever-hint">${c.hint}${changed ? ` · база ${c.format(baseV)}` : ""}</span>
+      ${disabled ? "disabled" : ""} style="--base:${((baseV - c.min) / (c.max - c.min)) * 100}%" />
+    <span class="lever-hint">${disabled ? "Отключите LRC, чтобы задать постоянный Мах. Фактические скорости показаны справа." : c.hint}${changed ? ` · база ${c.format(baseV)}` : ""}</span>
   </div>`;
 }
 
@@ -766,7 +767,9 @@ let leversBuilt = "";
  */
 function renderLevers(): void {
   const def = AIRCRAFT[state.aircraftId];
-  const allGroups = [...new Set(CONTROLS.map((c) => c.group))];
+  const visible = controlsFor(def);
+  const activeControls = visible.filter((c) => c.id !== "mach" || state.values.lrc !== true);
+  const allGroups = [...new Set(visible.map((c) => c.group))];
   const sel = state.selected;
   const groups = sel ? linkedGroups(sel) : allGroups;
   const tabs = sel ? [...groups, ABOUT_TAB] : groups;
@@ -775,8 +778,8 @@ function renderLevers(): void {
   drawer.dataset.open = String(state.drawerOpen);
   drawer.dataset.mode = sel ? "part" : "all";
   $("drawer-toggle").setAttribute("aria-expanded", String(state.drawerOpen));
-  const anyChanged = CONTROLS.some((c) => isChanged(c, def, state.values[c.id]));
-  const nChanged = CONTROLS.filter((c) => isChanged(c, def, state.values[c.id])).length;
+  const anyChanged = activeControls.some((c) => isChanged(c, def, state.values[c.id]));
+  const nChanged = activeControls.filter((c) => isChanged(c, def, state.values[c.id])).length;
   $("drawer-toggle").innerHTML = state.drawerOpen ? "Рычаги ▾" : `Рычаги ▴${nChanged ? ` <span class="badge">${nChanged}</span>` : ""}`;
   ($("reset") as HTMLButtonElement).disabled = !anyChanged;
   const n = sel ? result?.ev.masses.byId.get(sel) : null;
@@ -785,7 +788,7 @@ function renderLevers(): void {
     $("drawer-title").innerHTML = `<span class="swatch" style="background:var(--${familyOf(n.id)})"></span><b>${n.label}</b>
       <span class="muted">${fmtKg(n.kg)}${d ? ` <em class="${d.startsWith("−") ? "good" : "bad"}">${d}</em>` : ""}${n.ata ? ` · ATA ${n.ata}` : ""}</span>`;
   } else $("drawer-title").innerHTML = state.drawerOpen ? `<b>Все рычаги</b><span class="muted">нажмите на агрегат — останутся только его</span>` : "";
-  const changedIn = (g: string) => CONTROLS.some((c) => c.group === g && isChanged(c, def, state.values[c.id]));
+  const changedIn = (g: string) => activeControls.some((c) => c.group === g && isChanged(c, def, state.values[c.id]));
   $("drawer-tabs").innerHTML = tabs
     .map(
       (t) =>
@@ -804,14 +807,14 @@ function renderLevers(): void {
     renderDetail();
     return;
   }
-  const list = CONTROLS.filter((c) => c.group === state.drawerTab && (!sel || c.parts.includes(sel)));
+  const list = visible.filter((c) => c.group === state.drawerTab && (!sel || c.parts.includes(sel)));
   const html = list.map((c) => controlRow(c, def)).join("");
   // Пока ползунок тянут, разметку не пересобираем — иначе он потеряет захват.
   const active = document.activeElement as HTMLInputElement | null;
   if (active?.dataset.ctrl && active.type === "range" && leversBuilt === state.drawerTab + "|" + list.map((c) => c.id).join()) {
     for (const c of list) {
       const out = document.getElementById(`out-${c.id}`);
-      if (out && c.kind === "range") out.textContent = c.format(state.values[c.id] as number);
+      if (out && c.kind === "range") out.textContent = c.id === "mach" && state.values.lrc === true ? "M по таблице LRC" : c.format(state.values[c.id] as number);
     }
     return;
   }
@@ -980,7 +983,24 @@ function renderDrag(): void {
     <div class="drag-head"><span>C<sub>D</sub> <b>${nf(d.total / 1e4, 4)}</b> ${deltaPct(d.total, b.total)}${tip(cdTip)}</span><span>Качество L/D <b>${nf(d.ld, 1)}</b> ${deltaPct(d.ld, b.ld, false)}${tip(ldTip)}</span></div>
     <div class="drag-bar">${seg}</div>
     <ul class="drag-list">${rows}</ul>
-    <p class="drag-note">Вклады — в каунтах (0,0001 C<sub>D</sub>). M ${nf(d.mach, 2)}, C<sub>L</sub> ${nf(d.cl, 2)} в середине крейсера на FL350; число Маха, после которого резко растёт волновое сопротивление, — ${nf(d.mdd, 3)}.</p>`;
+    <p class="drag-note">Вклады — в каунтах (0,0001 C<sub>D</sub>). Срез расчётной миссии: M ${nf(d.mach, 3)}, FL${nf(d.fl)}, C<sub>L</sub> ${nf(d.cl, 2)}; число Маха расходимости сопротивления — ${nf(d.mdd, 3)}.</p>
+    ${missionProfileNote(result.ev)}`;
+}
+
+function missionProfileNote(ev: Evaluation): string {
+  const a = ev.missionAssumptions;
+  const m = ev.missionResult;
+  const p = m.trip;
+  const lrc = a.cruiseSpeedMode === "lrc";
+  const machSpan = Math.abs(p.maxMach - p.minMach);
+  const machDigits = machSpan < 0.001 ? 4 : 3;
+  const speed = machSpan < 1e-6 ? `M ${nf(p.minMach, 3)}` : `M ${nf(p.minMach, machDigits)}–${nf(p.maxMach, machDigits)}`;
+  const levels = p.initialFL === p.finalFL ? `FL${nf(p.initialFL)}` : `FL${nf(p.initialFL)} → FL${nf(p.finalFL)}`;
+  return `<p class="drag-note"><b>Рейс ${nf(Math.round(DEFAULT_MISSION.distanceNm * 1.852))} км:</b> ${lrc ? "LRC" : "постоянный Мах"}, ${speed}; ${levels}.
+    ${lrc ? "Используется таблица скоростей базового 737-8; оптимум изменённого самолёта заново не ищется." : ""}</p>
+    ${p.lrcFallback || m.reserves.lrcFallback ? `<p class="drag-note"><b>Вне таблицы LRC:</b> на части рейса или резервной миссии применён постоянный M ${nf(a.cruiseMach, 2)}. Экстраполяция таблицы не выполняется.</p>` : ""}
+    ${p.flightLevelLimited || m.reserves.flightLevelLimited ? '<p class="drag-note"><b>Ограничение высоты:</b> часть рейса или резервной миссии не проходит проверку модели по C<sub>L</sub> и тяге с запасом 300 фут/мин. Это диагностическое ограничение расчёта.</p>' : ""}
+    ${!m.feasible ? `<p class="drag-note"><b>Недостаточный запас топлива:</b> дефицит резервов ${fmtKg(m.reserveShortfallKg)}.</p>` : ""}`;
 }
 
 function renderPayloadRange(): void {
@@ -1010,7 +1030,8 @@ function renderPayloadRange(): void {
       <text x="${W - P.r}" y="${H - 4}" text-anchor="end">nm</text>
       <text x="4" y="${P.t + 4}">т</text>
     </svg>
-    <div class="pr-legend"><span><i class="k-cur"></i>сейчас</span><span><i class="k-base"></i>${AIRCRAFT_LABEL[state.aircraftId]}</span><span><i class="k-mission"></i>рейс ${nf(Math.round(DEFAULT_MISSION.distanceNm * 1.852))} км</span></div>`;
+    <div class="pr-legend"><span><i class="k-cur"></i>сейчас</span><span><i class="k-base"></i>${AIRCRAFT_LABEL[state.aircraftId]}</span><span><i class="k-mission"></i>рейс ${nf(Math.round(DEFAULT_MISSION.distanceNm * 1.852))} км</span></div>
+    ${missionProfileNote(ev)}`;
 }
 
 /** Механизация: CLmax по конфигурациям и что из них следует на взлёте и посадке. */
@@ -1270,7 +1291,6 @@ const pickAircraft = (id: string) => {
   state.values = defaults(AIRCRAFT[state.aircraftId]);
   if (state.selected) select(state.selected);
   syncHeader();
-  renderScenarios();
   renderScenarios();
   schedule();
 };

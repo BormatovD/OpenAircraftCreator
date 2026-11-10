@@ -26,6 +26,7 @@ for (const c of boeingCases()) {
   );
   const sp = errorSplit(ctx, c);
   console.log(`    крейсер (кг/nm) ${s(sp.cruisePct)}%, постоянное топливо ${s(sp.fixedKg, 0)} кг (по графику ≈${Math.round(sp.fixedChartKg)} кг)`);
+  console.log(`    профиль: ${c.as.cruiseSpeedMode === "lrc" ? "LRC по таблице" : `M ${c.as.cruiseMach}`}; вне таблицы ${r.lrcFallbackPoints}, ограничение высоты ${r.flightLevelLimitedPoints}, нехватка резервов ${r.reserveShortfallPoints} точек`);
   saved[c.def.id] = {
     blindRmsPct: r.rmsPct,
     blindBiasPct: r.biasPct,
@@ -37,6 +38,10 @@ for (const c of boeingCases()) {
     cruisePct: sp.cruisePct,
     fixedKg: sp.fixedKg,
     fixedChartKg: sp.fixedChartKg,
+    cruiseSpeedMode: c.as.cruiseSpeedMode ?? "fixedMach",
+    lrcFallbackPoints: r.lrcFallbackPoints,
+    flightLevelLimitedPoints: r.flightLevelLimitedPoints,
+    reserveShortfallPoints: r.reserveShortfallPoints,
   };
 }
 // Разложение для 737-300: что дали конкретные отличия от A320 (профиль, установка гондолы, правило резервов).

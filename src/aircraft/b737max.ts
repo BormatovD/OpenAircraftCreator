@@ -6,6 +6,7 @@ import { type AircraftDefinition } from "../definition.ts";
 import { type MissionAssumptions } from "../mission.ts";
 import { A320CEO, A320NEO } from "./a320.ts";
 import { B737_ASSUMPTIONS } from "./b737.ts";
+import lrcTable from "../../data/fcom/b737-8-lrc.json" with { type: "json" };
 
 const LBF = 4.44822;
 
@@ -70,6 +71,8 @@ export const B737_8: AircraftDefinition = {
 
 /**
  * Миссия графика 3.2.3: режим максимальной дальности, «typical mission rules» (не расписаны) — приняты те же резервы ATA,
- * что у 737-300 и 757. Число Маха LRC ≈0,78 — допущение.
+ * что у 737-300 и 757. Мах — таблица PI.11.2 737-8/LEAP-1B27; M0,78 — явный fallback вне её области.
  */
-export const B737_8_ASSUMPTIONS: MissionAssumptions = { ...B737_ASSUMPTIONS, cruiseMach: 0.78, stepFLs: [310, 330, 350, 370, 390] };
+export const B737_8_ASSUMPTIONS: MissionAssumptions = {
+  ...B737_ASSUMPTIONS, cruiseMach: 0.78, cruiseSpeedMode: "lrc", lrcTable, stepFLs: [310, 330, 350, 370, 390],
+};
