@@ -12,6 +12,27 @@ export interface AeroConfig {
   oswald: number;
   /** Параметры волнового сопротивления; без них поляра — чисто параболическая. */
   wave?: WaveParams;
+  /**
+   * CD0 задан на эталонном эшелоне (FL350, M 0,78). Трение зависит от числа Рейнольдса: выше — воздух реже, Re меньше,
+   * коэффициент трения больше. Таблица множителей CD0 по эшелонам — из того же расчёта по составляющим.
+   */
+  cd0Scale?: { fl: number[]; k: number[] };
+}
+
+/** Поляра на данном эшелоне: CD0 с поправкой на число Рейнольдса. Без таблицы — как есть. */
+export function aeroAtFl(a: AeroConfig, fl: number): AeroConfig {
+  const t = a.cd0Scale;
+  if (!t) return a;
+  const { fl: x, k } = t;
+  let f: number;
+  if (fl <= x[0]) f = k[0];
+  else if (fl >= x[x.length - 1]) f = k[k.length - 1];
+  else {
+    let i = 1;
+    while (x[i] < fl) i++;
+    f = k[i - 1] + ((k[i] - k[i - 1]) * (fl - x[i - 1])) / (x[i] - x[i - 1]);
+  }
+  return { ...a, cd0: a.cd0 * f };
 }
 
 export function aspectRatio(a: AeroConfig): number {

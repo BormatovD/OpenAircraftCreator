@@ -1,6 +1,6 @@
 {
   "name": "openaircraftcreator-core",
-  "version": "0.21.0",
+  "version": "0.25.0",
   "description": "Расчётное ядро OpenAircraftCreator: миссия, поляра, калибровка по диаграммам нагрузка–дальность",
   "type": "module",
   "private": true,

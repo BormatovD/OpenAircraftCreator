@@ -36,6 +36,8 @@ export interface ConstraintReference {
   takeoffThrustN: number;
   /** CLmax во взлётной конфигурации базового самолёта (той же модели механизации). */
   clMaxTakeoff: number;
+  /** Длина фюзеляжа базового самолёта, м; по умолчанию — A320 (37,57 м). */
+  baseLengthM?: number;
   /** Минимальный клиренс, подтверждённый эксплуатацией (A320neo, AC 2-3-0: ≈0,46 м). */
   provenMinClearanceM: number;
 }
@@ -81,19 +83,23 @@ export function checkConstraints(
   });
 
   // 3. Угол касания хвостом: точка касания уходит назад на половину вставки в фюзеляж.
+  // Геометрия касания — от A320 (37,57 м); у другого базового самолёта «как у базы» — его собственный угол.
   const h = ref.tailContactArmM * Math.tan((ref.tailStrikeDeg * Math.PI) / 180);
-  const stretch = def.fuselage.lengthM - 37.57;
-  const tailAngle = (Math.atan(h / (ref.tailContactArmM + stretch / 2)) * 180) / Math.PI;
+  const angleAt = (len: number) => (Math.atan(h / (ref.tailContactArmM + (len - 37.57) / 2)) * 180) / Math.PI;
+  const tailAngle = angleAt(def.fuselage.lengthM);
+  const baseAngle = angleAt(ref.baseLengthM ?? 37.57);
+  // Нарушение — на градус ниже угла отрыва A320 (или угла самой базы, если он меньше).
+  const tailLimit = Math.min(ref.liftoffPitchDeg, baseAngle) - 1;
   out.push({
     id: "tail-strike",
     label: "Угол касания хвостом",
-    status: tailAngle >= ref.tailStrikeDeg - 0.05 ? "ok" : tailAngle >= ref.liftoffPitchDeg ? "warning" : "violation",
+    status: tailAngle >= baseAngle - 0.05 ? "ok" : tailAngle >= tailLimit ? "warning" : "violation",
     value: `${tailAngle.toFixed(1)}°`,
-    limit: `база ${ref.tailStrikeDeg}°; угол отрыва ≈${ref.liftoffPitchDeg}° (допущение)`,
+    limit: `база ${baseAngle.toFixed(1)}°; ниже ${tailLimit.toFixed(1)}° — условный предел (угол отрыва ≈${ref.liftoffPitchDeg}° — допущение)`,
     message:
-      tailAngle >= ref.tailStrikeDeg - 0.05
+      tailAngle >= baseAngle - 0.05
         ? "Как у базового самолёта"
-        : tailAngle >= ref.liftoffPitchDeg
+        : tailAngle >= tailLimit
           ? "Запас на отрыве меньше: нужна более аккуратная техника пилотирования или защита хвоста"
           : "Хвост касается полосы раньше отрыва: нужны более длинные стойки или иной закрылок",
   });

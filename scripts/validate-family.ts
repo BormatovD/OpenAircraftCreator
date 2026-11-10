@@ -3,7 +3,7 @@
 
 import { writeFileSync } from "node:fs";
 import { A320_CONTEXT as ctx } from "../src/aircraft/a320Context.ts";
-import { boeingCases, relativeOewErrorPct, residualFactor, validateBoeing, validateFamily } from "../src/validation.ts";
+import { boeingCases, errorSplit, relativeOewErrorPct, residualFactor, validateBoeing, validateFamily } from "../src/validation.ts";
 
 const v = process.argv.includes("-v");
 const s = (x: number, d = 1) => `${x >= 0 ? "+" : ""}${x.toFixed(d)}`;
@@ -24,7 +24,20 @@ for (const c of boeingCases()) {
     `${c.name.padEnd(24)} ${String(r.points.length).padStart(3)} точек: без подгонки СКО ${r.rmsPct.toFixed(1)}%, среднее ${s(r.biasPct)}% | ` +
       (c.oewKg ? `OEW Boeing ${c.oewKg}, модель ${Math.round(r.oewModelKg)} кг (${s(((r.oewModelKg - c.oewKg) / c.oewKg) * 100)}%)` : `OEW модель ${Math.round(r.oewModelKg)} кг`) + ` | остаток ×${k.factor.toFixed(3)} → СКО ${k.rmsPct.toFixed(1)}%`,
   );
-  saved[c.def.id] = { blindRmsPct: r.rmsPct, blindBiasPct: r.biasPct, points: r.points.length, oewModelKg: r.oewModelKg, residualFactor: k.factor, fittedRmsPct: k.rmsPct, fittedMaxAbsPct: k.maxAbsPct };
+  const sp = errorSplit(ctx, c);
+  console.log(`    крейсер (кг/nm) ${s(sp.cruisePct)}%, постоянное топливо ${s(sp.fixedKg, 0)} кг (по графику ≈${Math.round(sp.fixedChartKg)} кг)`);
+  saved[c.def.id] = {
+    blindRmsPct: r.rmsPct,
+    blindBiasPct: r.biasPct,
+    points: r.points.length,
+    oewModelKg: r.oewModelKg,
+    residualFactor: k.factor,
+    fittedRmsPct: k.rmsPct,
+    fittedMaxAbsPct: k.maxAbsPct,
+    cruisePct: sp.cruisePct,
+    fixedKg: sp.fixedKg,
+    fixedChartKg: sp.fixedChartKg,
+  };
 }
 // Разложение для 737-300: что дали конкретные отличия от A320 (профиль, установка гондолы, правило резервов).
 {

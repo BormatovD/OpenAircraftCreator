@@ -57,6 +57,10 @@
 * {
   box-sizing: border-box;
 }
+/* Атрибут hidden сильнее любых display из компонентов. */
+[hidden] {
+  display: none !important;
+}
 html,
 body {
   margin: 0;
@@ -69,10 +73,11 @@ body {
   background: var(--bg);
   color: var(--ink);
   display: grid;
-  grid-template-columns: 300px 1fr 340px;
-  grid-template-rows: auto 1fr;
+  grid-template-columns: 300px 1fr 360px;
+  grid-template-rows: auto auto 1fr;
   grid-template-areas:
     "bar bar bar"
+    "scen scen scen"
     "left view right";
   overflow: hidden;
   font-variant-numeric: tabular-nums;
@@ -87,6 +92,16 @@ body {
   padding: 14px 20px;
   border-bottom: 1px solid var(--panel-edge);
 }
+.brand {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* Разделы и переключатели не сжимаются: при нехватке места сокращается подзаголовок. */
+.views,
+.bar-controls {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
 .brand h1 {
   margin: 0;
   font-size: 22px;
@@ -97,6 +112,9 @@ body {
   margin: 2px 0 0;
   color: var(--ink-soft);
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .bar-controls {
   display: flex;
@@ -122,6 +140,10 @@ body {
   background: var(--accent);
   color: var(--bg);
   font-weight: 600;
+}
+.segmented button:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 .theme-toggle {
   border: 1px solid var(--panel-edge);
@@ -271,9 +293,10 @@ input[type="range"] {
 }
 
 .detail {
-  border: 1px solid var(--panel-edge);
-  border-radius: 8px;
-  padding: 12px;
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) 1fr;
+  gap: 20px;
+  align-items: start;
 }
 .detail h3 {
   margin: 0;
@@ -531,7 +554,7 @@ body.busy .constraints {
 }
 .busy-note {
   position: absolute;
-  top: 12px;
+  top: 100px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 2;
@@ -723,12 +746,13 @@ body.busy .busy-note {
 }
 body.method-mode .panel,
 body.method-mode #viewport,
-body.method-mode .bar-controls {
+body.method-mode .bar-controls,
+body.method-mode .scenario-bar {
   display: none;
 }
 .method {
   grid-column: 1 / -1;
-  grid-row: 2;
+  grid-row: 2 / -1;
   overflow-y: auto;
   display: grid;
   grid-template-columns: 220px minmax(0, 820px);
@@ -1086,28 +1110,8 @@ body.method-mode .bar-controls {
 }
 
 /* ——— Фаза полёта и связь агрегат ↔ рычаги ——— */
-.phase-bar {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  z-index: 2;
-  background: color-mix(in srgb, var(--panel) 85%, transparent);
-  backdrop-filter: blur(4px);
-}
-.phase-bar button {
-  padding: 6px 12px;
-  font-size: 13px;
-}
-.lever.linked {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-  animation: linked-pulse 1.4s ease-in-out 2;
-}
-@keyframes linked-pulse {
-  50% {
-    background: color-mix(in srgb, var(--accent) 22%, transparent);
-  }
-}
+
+
 .linked-levers {
   display: flex;
   flex-wrap: wrap;
@@ -1155,9 +1159,7 @@ body.method-mode .bar-controls {
   .callout {
     transition: none;
   }
-  .lever.linked {
-    animation: none;
-  }
+
 }
 
 /* Тяга на наборе */
@@ -1258,4 +1260,428 @@ table.tol td {
 table.tol td:nth-child(2) {
   color: var(--ink);
   font-weight: 600;
+}
+
+/* ——— Раскладка 0.24: показатели сверху, рычаги снизу, вкладки вместо длинных прокруток ——— */
+/* Единый тонкий скроллбар там, где прокрутка всё же нужна. */
+.panel,
+.drawer-body,
+.method,
+.toc {
+  scrollbar-width: thin;
+  scrollbar-color: var(--panel-edge) transparent;
+}
+.panel::-webkit-scrollbar,
+.drawer-body::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.panel::-webkit-scrollbar-thumb,
+.drawer-body::-webkit-scrollbar-thumb {
+  background: var(--panel-edge);
+  border-radius: 8px;
+}
+.panel::-webkit-scrollbar-track,
+.drawer-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.hint-inline,
+.muted {
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 400;
+}
+.summary .legend {
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+/* Плавающие плашки над сценой */
+.kpi,
+.view-tools,
+.drawer {
+  position: absolute;
+  z-index: 3;
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+}
+.kpi {
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: stretch;
+  max-width: calc(100% - 24px);
+  padding: 8px 6px;
+}
+.kpi-main,
+.kpi-tile {
+  padding: 2px 12px;
+  border-left: 1px solid var(--panel-edge);
+  min-width: 0;
+  text-align: left;
+}
+.kpi-main {
+  border-left: 0;
+  padding-right: 16px;
+}
+.kpi-label {
+  font-size: 11px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.kpi-big {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.kpi-big small {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  letter-spacing: 0;
+}
+.kpi-value {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.kpi-delta {
+  font-size: 11px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+button.kpi-tile {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  cursor: pointer;
+}
+.kpi-limits.ok .kpi-value {
+  color: var(--good);
+}
+.kpi-limits.warn .kpi-value {
+  color: var(--warn);
+}
+.kpi-limits.bad .kpi-value {
+  color: var(--bad);
+}
+.kpi-compare {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink-soft);
+  background: var(--panel);
+  border: 1px dashed var(--panel-edge);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+
+.view-tools {
+  top: 100px;
+  left: 12px;
+  width: 176px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+.segmented.vertical {
+  flex-direction: column;
+}
+.segmented.vertical button {
+  padding: 5px 10px;
+  text-align: left;
+  font-size: 13px;
+}
+.tool-label {
+  color: var(--ink-soft);
+  margin-top: 6px;
+}
+.view-tools .spin-toggle {
+  margin-top: 2px;
+  font-size: 12px;
+}
+.select {
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+
+/* Нижняя панель: агрегат и его рычаги */
+.drawer {
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(860px, calc(100% - 24px));
+  display: flex;
+  flex-direction: column;
+}
+.drawer[data-open="false"] {
+  width: auto;
+}
+.drawer[data-open="false"] .tabs,
+.drawer[data-open="false"] .drawer-body,
+.drawer[data-open="false"] .drawer-close,
+.drawer[data-open="false"] .drawer-title:empty {
+  display: none;
+}
+.drawer-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px 6px 6px;
+}
+.drawer-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.drawer[data-open="false"] .drawer-title {
+  display: none;
+}
+.drawer-toggle,
+.drawer-close {
+  font: inherit;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  padding: 4px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.drawer-close {
+  border: 0;
+  font-size: 20px;
+  line-height: 1;
+  padding: 2px 8px;
+  color: var(--ink-soft);
+}
+.badge {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+}
+.tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--panel-edge);
+  padding: 0 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs button {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink-soft);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 7px 10px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+}
+.tabs button[aria-selected="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+.tabs .dot {
+  position: absolute;
+  top: 6px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.drawer-body {
+  max-height: min(38vh, 380px);
+  overflow-y: auto;
+  padding: 10px 16px 12px;
+}
+.lever-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 2px 18px;
+}
+.lever-grid .lever {
+  margin: 0;
+}
+.detail .engine-explainer {
+  margin-top: 0;
+}
+.detail .linked-levers {
+  margin-top: 8px;
+}
+
+/* Правая панель — вкладки */
+.panel.right {
+  padding-top: 0;
+  gap: 14px;
+}
+.panel.right > .tabs {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel);
+  margin: 0 -16px;
+  padding: 4px 8px 0;
+}
+.panel.right .tabs button {
+  padding: 9px 5px 8px;
+  font-size: 12px;
+}
+.panel.left {
+  gap: 18px;
+}
+
+@media (max-width: 980px) {
+  .kpi,
+  .view-tools,
+  .drawer {
+    position: static;
+    transform: none;
+    width: auto;
+    max-width: none;
+    margin: 8px;
+  }
+  .kpi {
+    flex-wrap: wrap;
+  }
+  .detail {
+    grid-template-columns: 1fr;
+  }
+}
+.detail .engine-explainer {
+  border-top: 0;
+  padding-top: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 18px;
+}
+.detail .engine-explainer > h4,
+.detail .engine-explainer > svg,
+.detail .engine-explainer > .flow-split {
+  grid-column: 1 / -1;
+}
+.detail .engine-explainer svg {
+  max-height: 210px;
+  width: 100%;
+}
+
+/* Подстановка значений модели под формулами «Как рассчитано» */
+.subst {
+  margin: -4px 0 12px;
+  padding: 4px 10px;
+  border-left: 2px solid var(--panel-edge);
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+}
+.subst math {
+  font-size: 0.95em;
+  color: var(--ink-soft);
+}
+.subst-tag {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+}
+.subst-note {
+  font-size: 11.5px;
+  opacity: 0.85;
+}
+
+/* Сценарии — строка под шапкой; набор зависит от производителя выбранного самолёта. */
+.scenario-bar {
+  grid-area: scen;
+  display: flex;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--panel-edge);
+  background: var(--panel);
+  min-width: 0;
+}
+.scenario-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex: 0 0 auto;
+}
+.scenario-bar .scenarios {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.scenario-bar .chip {
+  white-space: nowrap;
+}
+.scenario-bar .scenario-text {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+}
+.scenario-bar .scenario-text.idle {
+  color: var(--ink-soft);
+  border-left-color: var(--panel-edge);
+}
+@media (max-width: 1300px) {
+  .scenario-bar {
+    flex-wrap: wrap;
+  }
+}
+.scenario-bar .scenario-text.open {
+  -webkit-line-clamp: unset;
+}
+.scenario-bar .scenario-text:not(.idle) {
+  cursor: pointer;
 }

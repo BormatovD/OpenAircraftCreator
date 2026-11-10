@@ -3,7 +3,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import AC from "../../data/ac/a320-shapes.json" with { type: "json" };
+import { S } from "./shapeSet.ts";
 
 /** Толщина симметричного профиля NACA 00xx в точке x ∈ [0, 1] (доля хорды), полутолщина в долях хорды. */
 export function nacaHalfThickness(x: number, t: number): number {
@@ -11,22 +11,15 @@ export function nacaHalfThickness(x: number, t: number): number {
 }
 
 /**
- * Фюзеляж — по контурам Airbus AC A320 (2-2-0, виды сбоку и сверху; 2-5-0, сечение), извлечённым из
- * векторного PDF утилитой tools/ac_extract.py → tools/ac_shapes.py. Таблицы заданы для длины 37,57 м;
- * удлинение — две цилиндрические вставки: перед крылом (8 м от носа) и за ним (25 м), по половине каждая.
+ * Фюзеляж — по таблицам набора контуров (shapeSet.ts): у A320 — Airbus AC (2-2-0, виды сбоку и сверху; 2-5-0, сечение),
+ * у 737 — сетка 737-800. Таблицы заданы для длины чертежа; удлинение — две цилиндрические вставки: перед крылом
+ * и за ним, по половине каждая.
  */
 export interface FuselageShape {
   lengthM: number;
   widthM: number;
   heightM: number;
 }
-
-const FUS = AC.ceo.fuselage;
-const L0 = 37.57;
-const PLUG_FWD = 8.0;
-const PLUG_AFT = 25.0;
-const AC_H = 2.07;
-const AC_W = 1.975;
 
 function interp(xs: number[], ys: number[], x: number): number {
   if (x <= xs[0]) return ys[0];
@@ -47,6 +40,7 @@ function interp(xs: number[], ys: number[], x: number): number {
 
 /** Координата на чертеже AC для точки модели: вставки удлинения повторяют цилиндрическое сечение. */
 export function acX(lengthM: number, x: number): number {
+  const { baseLengthM: L0, plugFwd: PLUG_FWD, plugAft: PLUG_AFT } = S();
   const half = (lengthM - L0) / 2;
   let xa = x;
   if (xa >= PLUG_FWD) xa = half >= 0 && xa < PLUG_FWD + half ? PLUG_FWD : xa - half;
@@ -57,20 +51,22 @@ export function acX(lengthM: number, x: number): number {
 
 /** Обратно: где на удлинённом фюзеляже оказывается точка чертежа AC. */
 export function modelX(lengthM: number, xa: number): number {
+  const { baseLengthM: L0, plugFwd: PLUG_FWD, plugAft: PLUG_AFT } = S();
   const half = (lengthM - L0) / 2;
   return xa + (xa >= PLUG_FWD ? half : 0) + (xa >= PLUG_AFT ? half : 0);
 }
-export const FUSELAGE_PLUGS = { forward: PLUG_FWD, aft: PLUG_AFT, baseLengthM: L0 };
+/** Вставки удлинения текущего набора контуров. */
+export const fuselagePlugs = () => ({ forward: S().plugFwd, aft: S().plugAft, baseLengthM: S().baseLengthM });
 
-// Сечение: радиус по углу (0° — правый борт, 90° — верх) из 2-5-0; нижняя половина зеркальна.
-const SEC_DEG = AC.section.deg;
-const SEC_R = AC.section.r;
+// Сечение: радиус по углу (0° — правый борт, 90° — верх). У A320 — верхняя половина по 2-5-0, нижняя зеркальна;
+// у 737 — полный оборот (нижний «пузырь» уже верхнего).
 function sectionUnit(a: number): [number, number] {
+  const { section, halfW, halfH } = S();
   let d = ((a * 180) / Math.PI) % 360;
   if (d < 0) d += 360;
-  const dd = d <= 180 ? d : 360 - d;
-  const r = interp(SEC_DEG, SEC_R, dd);
-  return [(r * Math.cos(a)) / AC_W, (r * Math.sin(a)) / AC_H];
+  const dd = section.fullTurn || d <= 180 ? d : 360 - d;
+  const r = interp(section.deg, section.r, dd);
+  return [(r * Math.cos(a)) / halfW, (r * Math.sin(a)) / halfH];
 }
 /** Угол сечения, на котором нормированная высота равна s ∈ [−1, 1] (правый борт). */
 function sectionAngleForHeight(s: number): number {
@@ -94,8 +90,9 @@ export function fuselageHalfWidthAt(f: FuselageShape, x: number, y: number): num
 /** Полуширина, полувысота и смещение центра сечения по длине фюзеляжа. */
 export function fuselageSection(f: FuselageShape, x: number): { hw: number; hh: number; cy: number } {
   const xa = acX(f.lengthM, x);
-  const kH = f.heightM / 2 / AC_H;
-  const kW = f.widthM / 2 / AC_W;
+  const { fuselage: FUS, halfH, halfW } = S();
+  const kH = f.heightM / 2 / halfH;
+  const kW = f.widthM / 2 / halfW;
   const top = interp(FUS.x, FUS.top, xa) * kH;
   const bot = interp(FUS.x, FUS.bottom, xa) * kH;
   let hw = interp(FUS.x, FUS.half_width, xa) * kW;
@@ -125,7 +122,7 @@ export function fuselageGeometry(f: FuselageShape, segR = 72): THREE.BufferGeome
     const { hw, hh, cy } = fuselageSection(f, Math.max(0.0005, Math.min(f.lengthM - 0.02, x)));
     for (let j = 0; j <= segR; j++) {
       const a = (j / segR) * Math.PI * 2;
-      // Сечение — по чертежу AC 2-5-0 (верхняя половина, нижняя зеркальна).
+      // Сечение — по таблице набора контуров.
       const [cx, sy] = sectionUnit(a);
       pos.push(x, cy + hh * sy, hw * cx);
     }

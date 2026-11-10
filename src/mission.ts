@@ -2,7 +2,7 @@
 // плюс резервы: 5% на непредвиденное, запасной аэродром, 30 минут финального резерва.
 // Все допущения собраны в MissionAssumptions и подписаны: они не калибруются, калибруется только TSFC.
 
-import { type AeroConfig, clForWeight, liftToDrag, maxLiftToDrag } from "./aero.ts";
+import { type AeroConfig, aeroAtFl, clForWeight, liftToDrag, maxLiftToDrag } from "./aero.ts";
 import { G0, NM, flightLevelToM, isa } from "./atmosphere.ts";
 import { requiredThrustN, thrustLapse } from "./thrust.ts";
 
@@ -141,8 +141,10 @@ export function simulateTrip(
   let distance = 0;
 
   // Набор высоты: энергия = потенциальная + кинетическая + работа против сопротивления на дистанции набора.
-  const clClimb = clForWeight(aero, m * G0, densityKgM3, speedMs);
-  const ldClimb = liftToDrag(aero, clClimb, as.cruiseMach) * as.climbLdRatio;
+  // Поляра на текущем эшелоне — с поправкой трения на число Рейнольдса.
+  let aFl = aeroAtFl(aero, fl);
+  const clClimb = clForWeight(aFl, m * G0, densityKgM3, speedMs);
+  const ldClimb = liftToDrag(aFl, clClimb, as.cruiseMach) * as.climbLdRatio;
   const etaCruise = speedMs / (engine.tsfcCruise * LHV_JET_A);
   const etaClimb = etaCruise * as.climbEfficiencyRatio;
   const climbDist = as.climbDistanceKm * 1000;
@@ -182,13 +184,14 @@ export function simulateTrip(
         remaining -= stepFuel;
         fl = target;
         ({ speedMs, densityKgM3 } = cruiseSpeed(fl, as.cruiseMach));
+        aFl = aeroAtFl(aero, fl);
         if (remaining <= 1e-6) break;
       }
     }
     const step = Math.min(dm, remaining);
     const mMid = m - step / 2;
-    const cl = clForWeight(aero, mMid * G0, densityKgM3, speedMs);
-    const ld = liftToDrag(aero, cl, as.cruiseMach);
+    const cl = clForWeight(aFl, mMid * G0, densityKgM3, speedMs);
+    const ld = liftToDrag(aFl, cl, as.cruiseMach);
     distance += ((speedMs * ld) / (G0 * engine.tsfcCruise)) * Math.log(m / (m - step));
     m -= step;
     remaining -= step;
@@ -249,7 +252,7 @@ export function reserves(
   const t = as.finalReserveMin * 60;
   if (as.finalReserveMode === "cruise") {
     // Продолжение крейсерского полёта: расход по Бреге на крейсерском качестве и TSFC (упрощение — L/D при CL 0,5).
-    const finalKg = massAfterAlt * (1 - Math.exp((-t * G0 * engine.tsfcCruise) / liftToDrag(aero, 0.5, as.cruiseMach)));
+    const finalKg = massAfterAlt * (1 - Math.exp((-t * G0 * engine.tsfcCruise) / liftToDrag(aeroAtFl(aero, as.cruiseFL), 0.5, as.cruiseMach)));
     return { contingencyKg, alternateKg, finalKg, totalKg: contingencyKg + alternateKg + finalKg };
   }
   const tsfcHold = engine.tsfcCruise * as.holdTsfcRatio;

@@ -27,7 +27,7 @@ function anchoredAero(): BaselineAero {
 
 export const A320_CONTEXT: EvalContext = {
   calibration: calibrateMasses(A320CEO, AC_OEW_KG.a320ceo, analogueShares(), GROUP_MAP),
-  tsfcCruise: tsfcFromImperial(0.588),
+  tsfcCruise: tsfcFromImperial(0.586),
   engineRef: A320CEO.engine,
   constraintsRef: {
     nacelleClearanceM: 0.57, // AC 2-3-0, CFM56-5B при MRW

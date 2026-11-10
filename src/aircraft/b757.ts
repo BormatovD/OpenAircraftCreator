@@ -14,6 +14,7 @@ const LBF = 4.44822;
 const base: AircraftDefinition = {
   id: "b757-200",
   label: "Boeing 757-200",
+  shortName: "757-200",
   wing: {
     areaM2: 185.25, // 1 994 ft², Boeing (опорная площадь)
     spanM: 38.05, // 2.2.1

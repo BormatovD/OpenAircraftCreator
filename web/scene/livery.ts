@@ -3,7 +3,7 @@
 // Логотип рисуется в метрах вида сбоку, поэтому ложится на киль любой формы через его развёртку.
 
 import * as THREE from "three";
-import AC from "../../data/ac/a320-shapes.json" with { type: "json" };
+import { S } from "./shapeSet.ts";
 
 export interface Livery {
   id: string;
@@ -19,6 +19,8 @@ export interface Livery {
   logoDot: string;
   logoHalo: string;
   text: string;
+  /** Крупное название типа на борту. */
+  title: string;
   hinge: string;
   nacelle: string;
   wing: string;
@@ -43,6 +45,7 @@ export const LIVERIES: Livery[] = [
     logoDot: "#2440e0",
     logoHalo: "rgba(34,211,230,0.35)",
     text: "#1a5fe0",
+    title: "#22d3e6",
     hinge: "#9aa6b2",
     nacelle: "#3d4959",
     wing: "#c3ccd4",
@@ -63,6 +66,7 @@ export const LIVERIES: Livery[] = [
     logoDot: "#ffffff",
     logoHalo: "rgba(255,255,255,0.35)",
     text: "#ffffff",
+    title: "#1e6fd9",
     hinge: "#0d3f8f",
     nacelle: "#1a62d6",
     wing: "#c8d0d8",
@@ -83,6 +87,7 @@ export const LIVERIES: Livery[] = [
     logoDot: "#2440e0",
     logoHalo: "rgba(56,189,248,0.35)",
     text: "#1d3fc4",
+    title: "#1d3fc4",
     hinge: "#a3adb8",
     nacelle: "#eef2f5",
     wing: "#c8d0d8",
@@ -103,6 +108,7 @@ export const LIVERIES: Livery[] = [
     logoDot: "#f4f7fa",
     logoHalo: "rgba(255,255,255,0.25)",
     text: "#f4f7fa",
+    title: "#1ea0e8",
     hinge: "#1b222b",
     nacelle: "#3a4655",
     wing: "#b9c2ca",
@@ -133,11 +139,11 @@ export function stripeY(x: number, L: number): number {
 }
 
 // ——— Киль ———
-// Область рисования логотипа в координатах вида сбоку AC (x — от носа базового A320, y — от оси фюзеляжа).
-const FIN_BOX = { x0: 27.5, x1: 37.5, y0: 1.4, y1: 8.2 };
+// Область рисования логотипа в координатах вида сбоку чертежа (x — от носа, y — от оси фюзеляжа) — из набора контуров.
 const PPM = 110;
 
 function finArtwork(l: Livery, mirrorText: boolean): HTMLCanvasElement {
+  const FIN_BOX = S().fin.box;
   const W = Math.round((FIN_BOX.x1 - FIN_BOX.x0) * PPM);
   const H = Math.round((FIN_BOX.y1 - FIN_BOX.y0) * PPM);
   const cv = document.createElement("canvas");
@@ -158,9 +164,7 @@ function finArtwork(l: Livery, mirrorText: boolean): HTMLCanvasElement {
 
 function drawLogo(g: CanvasRenderingContext2D, l: Livery, mirrorText: boolean): void {
   // Пунктирная окружность, дуга-траектория и точка вылета.
-  const cx = 33.2;
-  const cy = 4.45;
-  const r = 1.45;
+  const { cx, cy, r } = S().fin.logo;
   g.lineCap = "round";
   g.strokeStyle = l.logoRing;
   g.lineWidth = 0.11;
@@ -194,10 +198,13 @@ function drawLogo(g: CanvasRenderingContext2D, l: Livery, mirrorText: boolean): 
   // Надпись вдоль руля направления, снизу вверх.
   // На одном борту развёртка зеркальна для зрителя, поэтому там надпись зеркалим поперёк строки.
   g.save();
-  g.translate(35.55, 3.0);
-  if (mirrorText) g.scale(-1, 1);
-  g.rotate(Math.PI / 2);
-  g.scale(1, -1);
+  // Вдоль задней кромки киля: линия параллельна ей, в 0,38 м перед кромкой.
+  const te = S().vtail.te;
+  const y0 = 2.9;
+  g.translate(te.slope * y0 + te.x0 - 0.38, y0);
+  // Наклон кромки от вертикали; зеркальный борт — без переворота поперёк строки (см. выше).
+  g.rotate(Math.PI / 2 - Math.atan(te.slope));
+  if (!mirrorText) g.scale(1, -1);
   g.fillStyle = l.text;
   g.font = "600 0.62px 'IBM Plex Sans', system-ui, sans-serif";
   g.textBaseline = "middle";
@@ -209,8 +216,8 @@ function drawHinges(g: CanvasRenderingContext2D, l: Livery): void {
   // Линии рулей и стыков с чертежа AC — тонко поверх окраски.
   g.strokeStyle = l.hinge;
   g.lineWidth = 0.035;
-  const vt = AC.ceo.vtail;
-  const tip = vt.tip_y;
+  const vt = S().vtail;
+  const tip = vt.tipY;
   for (const pl of vt.lines) {
     g.beginPath();
     pl.forEach(([u, v], i) => {
@@ -230,6 +237,7 @@ function drawHinges(g: CanvasRenderingContext2D, l: Livery): void {
  * в координаты вида сбоку AC.
  */
 export function finLiveryTexture(l: Livery, finXY: (u: number, v: number) => [number, number]): THREE.CanvasTexture {
+  const FIN_BOX = S().fin.box;
   const W = 1024;
   const H = 1024;
   const out = document.createElement("canvas");

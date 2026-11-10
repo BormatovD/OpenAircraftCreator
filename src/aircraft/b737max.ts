@@ -12,6 +12,8 @@ const LBF = 4.44822;
 export const B737_8: AircraftDefinition = {
   id: "b737-8",
   label: "Boeing 737-8, LEAP-1B",
+  shortName: "737-8",
+  shapeSet: "b737",
   wing: {
     areaM2: 127, // Boeing, 737 MAX (с законцовками)
     spanM: 34.3, // крыло 737NG без законцовок (Boeing)

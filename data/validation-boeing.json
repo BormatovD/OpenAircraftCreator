@@ -1,57 +1,69 @@
 {
   "_about": "Сгенерировано scripts/validate-family.ts (npm run validate) — не править вручную.",
   "b737-300": {
-    "blindRmsPct": 11.447941356944416,
-    "blindBiasPct": 10.052697492932662,
+    "blindRmsPct": 9.14228727008183,
+    "blindBiasPct": 7.802748106915069,
     "points": 78,
     "oewModelKg": 32495.065370391552,
-    "residualFactor": 1.0621925089432929,
-    "fittedRmsPct": 6.506704229937932,
-    "fittedMaxAbsPct": 17.51078924562688
+    "residualFactor": 1.0477876643432067,
+    "fittedRmsPct": 5.6664740972732695,
+    "fittedMaxAbsPct": 16.63673715536811,
+    "cruisePct": -13.154498768449162,
+    "fixedKg": 364.5699680926656,
+    "fixedChartKg": 3560.621324354658
   },
   "b737-8": {
-    "blindRmsPct": 8.426482107084514,
-    "blindBiasPct": -1.7569850749934912,
+    "blindRmsPct": 8.020265142477404,
+    "blindBiasPct": -1.9335354051885252,
     "points": 142,
     "oewModelKg": 44204.896579595166,
-    "residualFactor": 0.9800036629997269,
-    "fittedRmsPct": 7.882909352452236,
-    "fittedMaxAbsPct": 27.297341151560197
+    "residualFactor": 0.9792481684142295,
+    "fittedRmsPct": 7.413021977426379,
+    "fittedMaxAbsPct": 25.995163505948142,
+    "cruisePct": -9.659845070017461,
+    "fixedKg": 696.0832488081143,
+    "fixedChartKg": 3293.6868704071194
   },
   "b757-200-rb": {
-    "blindRmsPct": 5.4340937260793964,
-    "blindBiasPct": -4.7481039016318665,
+    "blindRmsPct": 4.166821696808561,
+    "blindBiasPct": -3.7080188824253435,
     "points": 98,
     "oewModelKg": 55988.156027069694,
-    "residualFactor": 0.9645901014180808,
-    "fittedRmsPct": 2.267010833562726,
-    "fittedMaxAbsPct": 8.43522255541091
+    "residualFactor": 0.9725017434306749,
+    "fittedRmsPct": 1.6933676763394399,
+    "fittedMaxAbsPct": 7.495871594534037,
+    "cruisePct": 0.6177071303610406,
+    "fixedKg": 466.6545700910135,
+    "fixedChartKg": 6629.112436705451
   },
   "b757-200-pw": {
-    "blindRmsPct": 7.576636825172137,
-    "blindBiasPct": -6.209839250150049,
+    "blindRmsPct": 5.963867107482983,
+    "blindBiasPct": -4.7883772220386165,
     "points": 103,
     "oewModelKg": 56065.26345423934,
-    "residualFactor": 0.9521985181784242,
-    "fittedRmsPct": 3.7824395817955163,
-    "fittedMaxAbsPct": 13.932404910850732
+    "residualFactor": 0.9629007641682757,
+    "fittedRmsPct": 3.118879658099383,
+    "fittedMaxAbsPct": 12.22056375427194,
+    "cruisePct": -0.2638809669686034,
+    "fixedKg": 691.8071059039751,
+    "fixedChartKg": 6120.526536693225
   },
   "b737Steps": [
     [
       "как у A320: суперкритический профиль, гондола на пилоне, резерв — ожидание",
-      25.90668780713967
+      22.59604799304943
     ],
     [
       "+ резервы ATA: 45 мин крейсера, а не ожидания",
-      19.792060001537696
+      16.604208269899367
     ],
     [
       "+ обычный профиль крыла (κ 0,87)",
-      11.258709874107668
+      9.026065700787832
     ],
     [
       "+ гондола вплотную под крылом (Q 1,5)",
-      10.052697492932662
+      7.802748106915069
     ]
   ]
 }

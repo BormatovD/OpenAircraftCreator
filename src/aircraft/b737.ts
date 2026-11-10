@@ -13,6 +13,7 @@ const LBF = 4.44822;
 export const B737_300: AircraftDefinition = {
   id: "b737-300",
   label: "Boeing 737-300, CFM56-3",
+  shortName: "737-300",
   wing: {
     areaM2: 91.04, // 980 ft², Boeing (опорная площадь)
     spanM: 28.88, // D6-58325-6, 2.2.3
@@ -92,7 +93,8 @@ export const B737_300_OEW_KG = Math.round(72540 * LB);
 export const B737_ASSUMPTIONS: MissionAssumptions = {
   ...DEFAULT_ASSUMPTIONS,
   cruiseMach: 0.745,
-  stepFLs: [290, 310, 330, 350, 370],
+  // Примечание к графику 3.2.6: «LRC at 31,000/35,000 feet» — только два эшелона, не оптимальный.
+  stepFLs: [310, 350],
   contingencyFraction: 0,
   alternateDistanceNm: 200,
   finalReserveMin: 45,

@@ -1,0 +1,271 @@
+// Наборы контуров для 3D-модели: всё, что снято с чертежей конкретного типа (вид сбоку и сверху, сечение,
+// оперение, положение двигателей и стоек). Координаты одинаковые для всех наборов: x — от носа назад, y — вверх
+// от оси цилиндрической части фюзеляжа, z — по размаху. Рычаги масштабируют форму от этих опорных размеров.
+//  • a320 — Airbus AC A320 (2-2-0, 2-3-0, 2-5-0, 2-9-0, 2-12-0), векторный PDF → tools/ac_shapes.py;
+//  • b737 — сетка Collada 737-800 → tools/mesh_shapes.py, плюс размеры Boeing D6-38A004 2.2.2 (база и колея шасси).
+
+import A320 from "../../data/ac/a320-shapes.json" with { type: "json" };
+import B737 from "../../data/ac/b737-8-shapes.json" with { type: "json" };
+import { type AircraftDefinition } from "../../src/definition.ts";
+
+type Line = { slope: number; x0: number };
+type P2 = [number, number];
+export interface Feature {
+  kind: string;
+  x0: number;
+  x1: number;
+  y0: number;
+  y1: number;
+}
+
+export interface ShapeSet {
+  id: "a320" | "b737";
+  fuselage: { x: number[]; top: number[]; bottom: number[]; half_width: number[] };
+  /** Радиус сечения по углу; fullTurn — таблица на полный оборот, иначе верхняя половина зеркалится вниз. */
+  section: { deg: number[]; r: number[]; fullTurn: boolean };
+  /** Полувысота и полуширина цилиндрической части на чертеже, м. */
+  halfH: number;
+  halfW: number;
+  /** Длина фюзеляжа на чертеже и места вставок удлинения (в цилиндре перед крылом и за ним). */
+  baseLengthM: number;
+  plugFwd: number;
+  plugAft: number;
+  features: Feature[];
+  cockpit: { windscreen: P2[]; side: P2[][] };
+  wing: {
+    le: Line;
+    /** Внутренняя часть передней кромки (наплыв у корня): кромка — ближняя к носу из двух прямых. */
+    leInner?: Line;
+    teInner: Line;
+    teOuter: Line;
+    kinkZ: number;
+    tipZ: number;
+    sideZ: number;
+    rootY: number;
+    dihedralDeg: number;
+    thicknessRoot: number;
+    thicknessTip: number;
+    lines: number[][][];
+    /** Размах и площадь, при которых форма чертежа совпадает с моделью (масштаб хорд). */
+    refSpanM: number;
+    refAreaM2: number;
+  };
+  htail: { le: Line; te: Line; tipZ: number; dihedralDeg: number; lines: number[][][] };
+  vtail: {
+    le: Line;
+    te: Line;
+    tipY: number;
+    lines: number[][][];
+    table: { y: number[]; le: number[]; te: number[] };
+    filletX: number;
+    leY0: number;
+    refSpanM: number;
+    refAreaM2: number;
+  };
+  /** Обтекатель центроплана — эллипсоид: центр по x, y и полуоси. */
+  fairing: { x: number; y: number; sx: number; sy: number; sz: number };
+  /** Срез воздухозаборника при опорной длине гондолы; ось — от оси самолёта; axisY: null — по клиренсу. */
+  nacelle: { inletX: number; refLengthM: number; axisZ: number; axisY: number | null; clearanceM: number };
+  groundY: number;
+  gear: {
+    noseX: number;
+    wheelbaseM: number;
+    mainZ: number;
+    mainR: number;
+    mainWheelGap: number;
+    mainTireW: number;
+    retractDeg: number;
+    noseR: number;
+    noseLegM: number;
+    rakeDeg: number;
+  };
+  cabin: { floorY: number; fwdDoorEnd: number; aftDoorX: number };
+  /** Где на борту крупное название типа (по длине чертежа). */
+  titleX: [number, number];
+  /** Грузовые люки правого борта: [x0, ширина, y0, y1]. */
+  cargo: [number, number, number, number][];
+  fin: { box: { x0: number; x1: number; y0: number; y1: number }; logo: { cx: number; cy: number; r: number } };
+}
+
+const A = A320.ceo;
+// Низ фюзеляжа на виде сбоку AC включает обтекатель центроплана (11,8–21 м); обтекатель в сцене — отдельная деталь,
+// поэтому труба фюзеляжа идёт по низу цилиндра — иначе всё нижнее сечение «проседает» и на борту появляется излом.
+const A320_FUS = {
+  ...A.fuselage,
+  bottom: A.fuselage.x.map((x, i) => (x > 11.5 && x < 21.0 ? Math.max(A.fuselage.bottom[i], -2.073) : A.fuselage.bottom[i])),
+};
+const A320_SET: ShapeSet = {
+  id: "a320",
+  fuselage: A320_FUS,
+  section: { deg: A320.section.deg, r: A320.section.r, fullTurn: false },
+  halfH: 2.07,
+  halfW: 1.975,
+  baseLengthM: 37.57,
+  plugFwd: 8.0,
+  // Задняя вставка — в цилиндре за крылом (21–24 м): с 24 м низ фюзеляжа уже поднимается к хвосту.
+  plugAft: 23.0,
+  features: A.features.filter((f) => f.kind !== "cockpit"),
+  cockpit: {
+    windscreen: [
+      [0.07, 0.872],
+      [0.719, 0.932],
+      [0.84, 0.488],
+      [0.147, 0.439],
+      [0.06, 0.488],
+    ],
+    side: [
+      [
+        [1.88, 0.419],
+        [2.229, 0.865],
+        [2.654, 0.868],
+        [2.654, 0.308],
+        [2.551, 0.308],
+      ],
+      [
+        [2.654, 0.308],
+        [2.654, 0.868],
+        [3.13, 0.868],
+        [3.267, 0.735],
+        [3.265, 0.35],
+        [3.225, 0.31],
+      ],
+    ],
+  },
+  wing: {
+    le: A.wing.le,
+    teInner: A.wing.te_inner,
+    teOuter: A.wing.te_outer,
+    kinkZ: A.wing.kink_z ?? 6.64,
+    tipZ: 34.1 / 2,
+    sideZ: 1.975,
+    rootY: -1.12,
+    dihedralDeg: 5.1,
+    thicknessRoot: 0.115,
+    thicknessTip: 0.1,
+    lines: A.wing.lines,
+    refSpanM: 34.1,
+    refAreaM2: 122.4,
+  },
+  htail: { le: A.htail.le, te: A.htail.te, tipZ: A.htail.tip_z, dihedralDeg: 6, lines: A.htail.lines },
+  vtail: {
+    le: A.vtail.le,
+    te: A.vtail.te,
+    tipY: A.vtail.tip_y,
+    lines: A.vtail.lines,
+    table: A.vtail.table,
+    filletX: 28.75,
+    leY0: 2.15,
+    refSpanM: 6.26,
+    refAreaM2: 21.5,
+  },
+  fairing: { x: 16.3, y: -1.4, sx: 4.9, sy: 0.82, sz: 2.12 },
+  nacelle: { inletX: 11.764, refLengthM: 4.44, axisZ: 5.75, axisY: null, clearanceM: 0.57 },
+  groundY: -3.867,
+  gear: {
+    noseX: 5.07,
+    wheelbaseM: 12.64,
+    mainZ: 3.795,
+    mainR: 0.584,
+    mainWheelGap: 0.46,
+    mainTireW: 0.43,
+    retractDeg: 80.5,
+    noseR: 0.381,
+    noseLegM: 1.957 - 0.43 * 0.55,
+    rakeDeg: 9,
+  },
+  cabin: { floorY: -0.52, fwdDoorEnd: 5.55, aftDoorX: 29.11 },
+  titleX: [6.7, 13.8],
+  cargo: [
+    [8.35, 1.81, -1.95, -0.7],
+    [24.55, 1.81, -1.95, -0.7],
+    [28.75, 0.86, -1.7, -0.95],
+  ],
+  fin: { box: { x0: 27.5, x1: 37.5, y0: 1.4, y1: 8.2 }, logo: { cx: 33.2, cy: 4.45, r: 1.45 } },
+};
+
+// 737-8: фюзеляж, крыло (без законцовки), оперение и место двигателя — с сетки 737-800 (у -8 они те же, гондола LEAP-1B
+// строится параметрически по определению). База шасси 15,60 м (51 ft 2 in), колея 5,72 м (18 ft 9 in), передняя стойка
+// в 4,09 м от носа (13 ft 5 in) — D6-38A004 2.2.2. Колёса: основные H44,5×16,5-21 (Ø1,13 м), передние 27×7,75R15.
+const B = B737;
+const vtB = B.vtail;
+const finLe = (y: number) => vtB.le.slope * y + vtB.le.x0;
+const finTe = (y: number) => vtB.te.slope * y + vtB.te.x0;
+const finCy = 1.9 + 0.41 * (vtB.tip_y - 1.9);
+const B737_SET: ShapeSet = {
+  id: "b737",
+  fuselage: B.fuselage,
+  section: { deg: B.section.deg, r: B.section.r, fullTurn: true },
+  halfH: B.halfHeight,
+  halfW: B.halfWidth,
+  baseLengthM: 39.12,
+  plugFwd: 9.5,
+  plugAft: 26.0,
+  features: B.features,
+  cockpit: { windscreen: B.cockpit.windscreen as P2[], side: B.cockpit.side as P2[][] },
+  wing: {
+    le: B.wing.le,
+    leInner: B.wing.le_inner,
+    teInner: B.wing.te_inner,
+    teOuter: B.wing.te_outer,
+    kinkZ: B.wing.kink_z,
+    tipZ: B.wing.tip_z,
+    sideZ: B.wing.side_z,
+    rootY: B.wing.root_y,
+    dihedralDeg: B.wing.dihedral_deg,
+    thicknessRoot: 0.14,
+    thicknessTip: B.wing.thickness_tip,
+    lines: B.wing.lines,
+    refSpanM: 34.3,
+    refAreaM2: 127,
+  },
+  htail: { le: B.htail.le, te: B.htail.te, tipZ: B.htail.tip_z, dihedralDeg: 7, lines: B.htail.lines },
+  vtail: {
+    le: vtB.le,
+    te: vtB.te,
+    tipY: vtB.tip_y,
+    lines: vtB.lines,
+    table: vtB.table,
+    filletX: vtB.fillet_x,
+    leY0: vtB.table.y[0] + 0.1,
+    refSpanM: 7.1,
+    refAreaM2: 26.4,
+  },
+  fairing: { x: 18.3, y: -1.45, sx: 4.3, sy: 0.72, sz: 2.05 },
+  nacelle: { inletX: B.nacelle.inlet_x, refLengthM: 4.517, axisZ: B.nacelle.axis_z, axisY: B.nacelle.axis_y, clearanceM: 0.45 },
+  groundY: B.groundY,
+  gear: {
+    noseX: 4.09,
+    wheelbaseM: 15.6,
+    mainZ: 2.86,
+    mainR: 0.565,
+    mainWheelGap: 0.405,
+    mainTireW: 0.41,
+    retractDeg: 88,
+    noseR: 0.343,
+    noseLegM: 1.28,
+    rakeDeg: 4,
+  },
+  cabin: { floorY: -0.5, fwdDoorEnd: B.features[0].x1 + 0.6, aftDoorX: B.features[3].x0 },
+  titleX: [5.6, 15.6],
+  // Люки 737: 48 × 35 in, передний — перед крылом, задний — за ним (положение по общему виду, ±0,3 м).
+  cargo: [
+    [7.9, 1.22, -1.85, -0.95],
+    [25.4, 1.22, -1.8, -0.9],
+  ],
+  fin: {
+    box: { x0: vtB.fillet_x - 0.4, x1: finTe(vtB.tip_y) + 0.8, y0: 1.3, y1: vtB.tip_y + 0.3 },
+    logo: { cx: finLe(finCy) + 0.4 * (finTe(finCy) - finLe(finCy)), cy: finCy, r: 1.3 },
+  },
+};
+
+const SETS = { a320: A320_SET, b737: B737_SET };
+let current: ShapeSet = A320_SET;
+
+/** Текущий набор контуров — тот, для которого строится сцена. */
+export const S = (): ShapeSet => current;
+
+/** Выбрать набор контуров по определению; вызывается перед сборкой модели и текстур. */
+export function useShapes(def: AircraftDefinition): ShapeSet {
+  current = SETS[def.shapeSet ?? "a320"];
+  return current;
+}

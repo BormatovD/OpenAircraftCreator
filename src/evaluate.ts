@@ -95,7 +95,22 @@ export function aeroFor(def: AircraftDefinition, base: BaselineAero, levers: Lev
     cd0: (cd0 * m.cd0Factor + m.cd0Delta) * m.dragFactor,
     oswald: (oswald + m.oswaldDelta) / m.dragFactor,
     wave: built ? waveParams(def) : undefined,
+    cd0Scale: built ? reynoldsScale(def) : undefined,
   };
+}
+
+/** Множители CD0 по эшелонам от изменения числа Рейнольдса (трение по составляющим, M 0,78). Кешируется по геометрии. */
+const reCache = new Map<string, { fl: number[]; k: number[] }>();
+function reynoldsScale(def: AircraftDefinition): { fl: number[]; k: number[] } {
+  const key = JSON.stringify([def.wing, def.fuselage, def.htail, def.vtail, def.engine.nacelleLengthM, def.engine.nacelleWidthM]);
+  let t = reCache.get(key);
+  if (!t) {
+    const ref = dragBuildup(def).cd0;
+    const fl = [0, 100, 150, 200, 250, 290, 310, 330, 350, 370, 390, 410, 430];
+    t = { fl, k: fl.map((x) => dragBuildup(def, 0.78, x).cd0 / ref) };
+    reCache.set(key, t);
+  }
+  return t;
 }
 
 /** Двигатель в миссии: крейсерский TSFC через модель КПД и взлётная тяга для ограничения эшелона. */

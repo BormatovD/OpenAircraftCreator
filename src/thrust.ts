@@ -11,7 +11,7 @@
 // двигателей (CFM56 → LEAP), то есть уже с учётом такой компенсации. Поэтому формула одна для всех B.
 
 import { G0, flightLevelToM, isa } from "./atmosphere.ts";
-import { type AeroConfig, clForWeight, liftToDrag } from "./aero.ts";
+import { type AeroConfig, aeroAtFl, clForWeight, liftToDrag } from "./aero.ts";
 import { type AircraftDefinition } from "./definition.ts";
 
 /** Остаточная скороподъёмность на потолке — 300 фут/мин (практика авиакомпаний и Airbus REC MAX). */
@@ -43,8 +43,9 @@ export function requiredThrustN(aero: AeroConfig, massKg: number, fl: number, ma
   const atm = isa(flightLevelToM(fl));
   const v = mach * atm.speedOfSoundMs;
   const w = massKg * G0;
-  const cl = clForWeight(aero, w, atm.densityKgM3, v);
-  return w / liftToDrag(aero, cl, mach) + (w * rocMs) / v;
+  const a = aeroAtFl(aero, fl);
+  const cl = clForWeight(a, w, atm.densityKgM3, v);
+  return w / liftToDrag(a, cl, mach) + (w * rocMs) / v;
 }
 
 /**

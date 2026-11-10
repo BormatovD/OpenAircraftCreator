@@ -52,7 +52,16 @@ export function bprInValidRange(bpr: number): boolean {
  * ограничена 8 — дальше формула Howe завышает чувствительность.
  */
 export function tsfcMachFactor(bypassRatio: number, mach: number, machRef = 0.78): number {
+  if (!HOWE_MACH_TSFC) return 1;
   const b = Math.min(bypassRatio, 8);
   const k = 0.28 * (1 + 0.063 * b * b);
   return (1 + k * mach) / (1 + k * machRef);
 }
+
+/**
+ * Формула Howe описывает двигатель при постоянном режиме. В крейсере режим следует за сопротивлением: на меньшем Махе
+ * двигатель дросселирован, и выигрыш от меньшего входного импульса съедает рост удельного расхода на частичном режиме.
+ * Проверка по таблице Long Range Cruise Control FCOM 737-8 (M 0,53–0,80, 40–85 т, FL250–410): с формулой Howe ошибка
+ * расхода от −1 до −22% и растёт к малым Махам; с постоянным TSFC — −3% ± 1,3% по всей таблице. Поэтому по умолчанию — выключена.
+ */
+export const HOWE_MACH_TSFC = false;

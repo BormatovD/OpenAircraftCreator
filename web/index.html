@@ -9,27 +9,34 @@
     <header class="bar">
       <div class="brand">
         <h1>A320 в разборе</h1>
-        <p>Рычаги меняют геометрию, массы, расход и ограничения — расчёт по модели, откалиброванной по данным Airbus</p>
+        <p title="Рычаги меняют геометрию, массы, расход и ограничения. Модель откалибрована один раз на A320 и без подгонки проверена на A319, A321, 737 и 757.">Рычаги меняют геометрию, массы, расход и ограничения · калибровка на A320</p>
       </div>
       <nav class="views" aria-label="Разделы">
         <a href="#" id="nav-model" aria-current="page">Модель</a>
         <a href="#method" id="nav-method">Как рассчитано</a>
       </nav>
       <div class="bar-controls">
-        <div class="segmented" role="radiogroup" aria-label="Базовый самолёт">
-          <button role="radio" data-aircraft="a320ceo" aria-checked="true">A320ceo</button>
-          <button role="radio" data-aircraft="a320neo" aria-checked="false">A320neo</button>
+        <div class="segmented" role="radiogroup" aria-label="Тип самолёта">
+          <button role="radio" data-type="a319" aria-checked="false">A319</button>
+          <button role="radio" data-type="a320" aria-checked="true">A320</button>
+          <button role="radio" data-type="a321" aria-checked="false">A321</button>
+          <button role="radio" data-type="b737" aria-checked="false" title="Boeing 737-8 (MAX 8), LEAP-1B">737-8</button>
+        </div>
+        <div class="segmented" role="radiogroup" aria-label="Поколение двигателей">
+          <button role="radio" data-gen="ceo" aria-checked="true">ceo</button>
+          <button role="radio" data-gen="neo" aria-checked="false">neo</button>
         </div>
         <button class="theme-toggle" id="theme-toggle" aria-label="Переключить тему">Светлая тема</button>
       </div>
     </header>
 
-    <aside class="panel left" aria-label="Сценарии и рычаги">
-      <section>
-        <h2>Сценарии</h2>
-        <div class="scenarios" id="scenarios"></div>
-        <p class="scenario-text" id="scenario-text" hidden></p>
-      </section>
+    <nav class="scenario-bar" aria-label="Сценарии">
+      <span class="scenario-label">Сценарии</span>
+      <div class="scenarios" id="scenarios"></div>
+      <p class="scenario-text" id="scenario-text"></p>
+    </nav>
+
+    <aside class="panel left" aria-label="Сценарии и агрегаты">
       <section>
         <h2>Пересчёт</h2>
         <div class="segmented wide" role="radiogroup" aria-label="Режим пересчёта">
@@ -38,58 +45,69 @@
         </div>
         <p class="mode-hint" id="mode-hint"></p>
       </section>
-      <section>
+      <section class="summary">
         <div class="section-head">
-          <h2>Рычаги</h2>
-          <button class="link" id="reset" disabled>Сбросить</button>
+          <h2>Агрегаты</h2>
+          <span class="hint-inline">нажмите — разбор и рычаги</span>
         </div>
-        <div id="levers"></div>
-      </section>
-      <section>
-        <label class="field-label" for="explode">Разбор</label>
-        <input id="explode" type="range" min="0" max="1" step="0.001" value="0" />
-        <div class="explode-ends"><span>собран</span><span>разобран</span></div>
-        <label class="spin-toggle"><input type="checkbox" id="spin" checked /> Движение: полёт и роторы</label>
-        <div class="field-label livery-label">Окраска</div>
-        <div class="scenarios" id="liveries"></div>
-      </section>
-      <section>
-        <h2>Группы</h2>
         <ul class="legend" id="legend"></ul>
+        <ol class="tree" id="tree"></ol>
       </section>
     </aside>
 
     <main id="viewport" aria-label="3D-модель самолёта">
       <div class="busy-note" aria-live="polite">Перепроектирую…</div>
-      <div class="segmented phase-bar" role="radiogroup" aria-label="Фаза полёта" id="phases"></div>
+      <section id="metrics" class="kpi" aria-live="polite"></section>
+      <div class="view-tools" aria-label="Вид">
+        <div class="segmented vertical" role="radiogroup" aria-label="Фаза полёта" id="phases"></div>
+        <label class="tool-label" for="explode">Разбор всего самолёта</label>
+        <input id="explode" type="range" min="0" max="1" step="0.001" value="0" />
+        <label class="spin-toggle"><input type="checkbox" id="spin" checked /> Полёт и роторы</label>
+        <label class="tool-label" for="livery">Окраска</label>
+        <select id="livery" class="select"></select>
+      </div>
+      <section id="drawer" class="drawer" data-open="false" aria-label="Агрегат и рычаги">
+        <div class="drawer-head">
+          <button class="drawer-toggle" id="drawer-toggle" aria-expanded="false">Рычаги</button>
+          <div class="drawer-title" id="drawer-title"></div>
+          <button class="link" id="reset" disabled>Сбросить рычаги</button>
+          <button class="drawer-close" id="drawer-close" aria-label="Закрыть">×</button>
+        </div>
+        <div class="tabs" role="tablist" id="drawer-tabs"></div>
+        <div class="drawer-body">
+          <div id="levers" class="lever-grid"></div>
+          <div id="detail" class="detail" hidden></div>
+        </div>
+      </section>
     </main>
 
     <aside class="panel right" aria-label="Показатели">
-      <section id="metrics" class="metrics" aria-live="polite"></section>
-      <section id="detail" class="detail" hidden></section>
-      <section>
-        <h2>Сопротивление в крейсере</h2>
-        <div id="drag" class="drag"></div>
-      </section>
-      <section>
-        <h2>Тяга на наборе</h2>
-        <div id="thrust" class="pr"></div>
-      </section>
-      <section>
-        <h2>Взлёт и посадка</h2>
-        <div id="tol"></div>
-      </section>
-      <section>
+      <div class="tabs" role="tablist" id="right-tabs">
+        <button role="tab" data-rtab="pr" aria-selected="true">Дальность</button>
+        <button role="tab" data-rtab="drag" aria-selected="false">Сопротивление</button>
+        <button role="tab" data-rtab="thrust" aria-selected="false">Тяга</button>
+        <button role="tab" data-rtab="tol" aria-selected="false">Взлёт</button>
+        <button role="tab" data-rtab="constraints" aria-selected="false">Ограничения</button>
+      </div>
+      <section data-rpanel="pr">
         <h2>Нагрузка — дальность</h2>
         <div id="pr" class="pr"></div>
       </section>
-      <section>
+      <section data-rpanel="drag" hidden>
+        <h2>Сопротивление в крейсере</h2>
+        <div id="drag" class="drag"></div>
+      </section>
+      <section data-rpanel="thrust" hidden>
+        <h2>Тяга на наборе</h2>
+        <div id="thrust" class="pr"></div>
+      </section>
+      <section data-rpanel="tol" hidden>
+        <h2>Взлёт и посадка</h2>
+        <div id="tol"></div>
+      </section>
+      <section data-rpanel="constraints" hidden>
         <h2>Ограничения</h2>
         <ul class="constraints" id="constraints"></ul>
-      </section>
-      <section>
-        <h2>Массы агрегатов</h2>
-        <ol class="tree" id="tree"></ol>
       </section>
     </aside>
 

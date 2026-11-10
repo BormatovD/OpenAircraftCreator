@@ -6,6 +6,7 @@ import { type AircraftDefinition } from "../definition.ts";
 export const A320CEO: AircraftDefinition = {
   id: "a320ceo",
   label: "A320ceo, законцовки-«заборчики», CFM56-5B",
+  shortName: "A320",
   wing: {
     areaM2: 122.4, // Jenkinson; Airbus — 122,6
     spanM: 34.1, // AC 2-2-0
@@ -104,6 +105,7 @@ export function a320neoFrom(ceo: AircraftDefinition): AircraftDefinition {
     ...structuredClone(ceo),
     id: "a320neo",
     label: "A320neo, шарклеты, LEAP-1A",
+    shortName: "A320neo",
     wing: { ...ceo.wing, tip: "sharklet" },
     engine: {
       ...ceo.engine,

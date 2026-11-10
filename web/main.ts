@@ -2,8 +2,10 @@ import "./style.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { CSS2DObject, CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
+import { A319CEO, A319NEO, A321CEO, A321NEO } from "../src/aircraft/a320family.ts";
 import { A320CEO, A320NEO } from "../src/aircraft/a320.ts";
-import { A320_CONTEXT as CTX } from "../src/aircraft/a320Context.ts";
+import { B737_8 } from "../src/aircraft/b737max.ts";
+import { contextFor } from "../src/aircraft/contextFor.ts";
 import { type ConstraintResult } from "../src/constraints.ts";
 import { type AircraftDefinition } from "../src/definition.ts";
 import { DEFAULT_MISSION, type Evaluation, evaluate } from "../src/evaluate.ts";
@@ -13,14 +15,34 @@ import { engineCycle, tsfcFactor } from "../src/propulsion.ts";
 import { renderMethod } from "./method.ts";
 import { engineDiagram } from "./engineDiagram.ts";
 import { coreRadiusFor, lptStagesFor } from "./scene/shapes.ts";
-import { CONTROLS, type Control, type Mode, SCENARIOS, type Values, defaults, isChanged, leversFor } from "./controls.ts";
+import { scenarioFamily, CONTROLS, type Control, type Mode, SCENARIOS, type Values, defaults, isChanged, leversFor } from "./controls.ts";
 import { type AircraftModel, type Family, FAMILY, buildAircraft, partCenter } from "./scene/aircraft.ts";
 import { Environment, PHASES, type Phase } from "./scene/environment.ts";
 import { LIVERIES, NO_LIVERY, PLAIN_FIN, finLiveryTexture, liveryById } from "./scene/livery.ts";
 import { fuselageTexture, htailTexture, wingTexture } from "./scene/textures.ts";
 
-const AIRCRAFT: Record<string, AircraftDefinition> = { a320ceo: A320CEO, a320neo: A320NEO };
-const AIRCRAFT_LABEL: Record<string, string> = { a320ceo: "A320ceo", a320neo: "A320neo" };
+const AIRCRAFT: Record<string, AircraftDefinition> = {
+  a319ceo: A319CEO,
+  a319neo: A319NEO,
+  a320ceo: A320CEO,
+  a320neo: A320NEO,
+  a321ceo: A321CEO,
+  a321neo: A321NEO,
+  "b737-8": B737_8,
+};
+const AIRCRAFT_LABEL: Record<string, string> = {
+  a319ceo: "A319ceo",
+  a319neo: "A319neo",
+  a320ceo: "A320ceo",
+  a320neo: "A320neo",
+  a321ceo: "A321ceo",
+  a321neo: "A321neo",
+  "b737-8": "737-8",
+};
+/** id = тип + поколение: a321neo, b737-8. У 737 одно поколение — переключатель ceo/neo для него неактивен. */
+const typeOf = (id: string) => (id.startsWith("b737") ? "b737" : id.slice(0, 4));
+const genOf = (id: string) => id.slice(typeOf(id).length);
+const gensOf = (type: string) => Object.keys(AIRCRAFT).filter((k) => typeOf(k) === type).map(genOf);
 const FAMILY_LABEL: Record<Family, string> = {
   structure: "Конструкция",
   propulsion: "Силовая установка",
@@ -64,7 +86,15 @@ const state = {
   busy: false,
   spin: true,
   livery: NO_LIVERY as string,
+  /** Нижняя панель: открыта ли и какая вкладка — группа рычагов или «Об агрегате». */
+  drawerOpen: false,
+  drawerTab: "" as string,
+  rightTab: "pr" as string,
 };
+/** Разбор выбранного агрегата (0…1) — анимируется отдельно от общего ползунка. */
+let selK = 0;
+let selPart: string | null = null;
+const ABOUT_TAB = "about";
 
 /** Постоянные выноски — только у агрегатов тяжелее этой доли OEW; остальные — при наведении или изменении. */
 const ALWAYS_LABEL_SHARE = 0.02;
@@ -81,7 +111,7 @@ const baseCache = new Map<string, Evaluation>();
 function baseOf(id: string): Evaluation {
   let e = baseCache.get(id);
   if (!e) {
-    e = evaluate(AIRCRAFT[id], [], CTX);
+    e = evaluate(AIRCRAFT[id], [], contextFor(AIRCRAFT[id]));
     baseCache.set(id, e);
   }
   return e;
@@ -98,10 +128,10 @@ function compute(): Result {
   const def = AIRCRAFT[state.aircraftId];
   const base = baseOf(state.aircraftId);
   const levers = leversFor(def, state.values);
-  const fixed = evaluate(def, levers, CTX);
+  const fixed = evaluate(def, levers, contextFor(def));
   if (state.mode === "fixed") return { ev: fixed, base };
   const mission = { ...designMissionOf(base), payloadKg: fixed.seats * DEFAULT_MISSION.massPerPaxKg };
-  const rs = redesign(def, levers, CTX, mission);
+  const rs = redesign(def, levers, contextFor(def), mission);
   return { ev: rs.evaluation, base, redesign: { converged: rs.converged, iterations: rs.iterations, designRangeNm: mission.rangeNm } };
 }
 
@@ -285,11 +315,11 @@ function buildScene(): void {
     });
     // Детали из чертежей AC — текстурами поверх формы.
     const detail: Record<string, () => THREE.Texture> = {
-      fuselage: () => cachedTexture(`fus|${ev.definition.fuselage.lengthM}|none`, () => fuselageTexture(ev.definition)),
-      "wing.box": () => cachedTexture("wing", wingTexture),
-      "wing.highLift": () => cachedTexture("wing", wingTexture),
-      htail: () => cachedTexture("htail", htailTexture),
-      vtail: () => cachedTexture(`fin|${ev.definition.vtail.areaM2}|${ev.definition.vtail.spanM}|plain`, () => finLiveryTexture(PLAIN_FIN, model!.finXY)),
+      fuselage: () => cachedTexture(`fus|${ev.definition.shapeSet ?? "a320"}|${ev.definition.fuselage.lengthM}|none`, () => fuselageTexture(ev.definition)),
+      "wing.box": () => cachedTexture(`wing|${ev.definition.shapeSet ?? "a320"}`, wingTexture),
+      "wing.highLift": () => cachedTexture(`wing|${ev.definition.shapeSet ?? "a320"}`, wingTexture),
+      htail: () => cachedTexture(`htail|${ev.definition.shapeSet ?? "a320"}`, htailTexture),
+      vtail: () => cachedTexture(`fin|${ev.definition.shapeSet ?? "a320"}|${ev.definition.vtail.areaM2}|${ev.definition.vtail.spanM}|plain`, () => finLiveryTexture(PLAIN_FIN, model!.finXY)),
     };
     if (detail[part.id]) {
       const tex = detail[part.id]();
@@ -381,22 +411,24 @@ function pose(): void {
   const gearUp = (1 - env.current.gear) * (1 - k);
   const flaps = env.current.flaps;
   for (const part of model.parts.values()) {
-    part.group.position.copy(part.explode).multiplyScalar(k);
+    // Выбранный агрегат раскладывается сам, даже когда самолёт собран.
+    const kp = part.id === selPart ? Math.max(k, ease(selK)) : k;
+    part.group.position.copy(part.explode).multiplyScalar(kp);
     for (const o of part.group.children) {
       if (!(o instanceof THREE.Mesh)) continue;
       const off = o.userData.offset as THREE.Vector3 | null;
       const b = o.userData.basePos as THREE.Vector3 | null;
       const d = o.userData.deploy as THREE.Vector3 | null;
       o.position.set(
-        (b?.x ?? 0) + (off?.x ?? 0) * k + (d?.x ?? 0) * flaps,
-        (b?.y ?? 0) + (off?.y ?? 0) * k + (d?.y ?? 0) * flaps,
-        (b?.z ?? 0) + (o.userData.side ?? 0) * part.sideSpread * k + (off?.z ?? 0) * k,
+        (b?.x ?? 0) + (off?.x ?? 0) * kp + (d?.x ?? 0) * flaps,
+        (b?.y ?? 0) + (off?.y ?? 0) * kp + (d?.y ?? 0) * flaps,
+        (b?.z ?? 0) + (o.userData.side ?? 0) * part.sideSpread * kp + (off?.z ?? 0) * kp,
       );
       // Механизация: выдвижение и поворот вокруг шарнира. Взлёт (≈0,45) — закрылки ≈10–15°, предкрылки ≈18°;
       // посадка — 40° и 27°. Каретка выдвигается быстрее, чем растёт угол (так устроен Фаулер).
       const h = o.userData.hinge as { kind: "flap" | "slat"; pivot: THREE.Vector3; axis: THREE.Vector3; angle: number; slide: THREE.Vector3 } | null;
       if (h) {
-        const f = flaps * (1 - k);
+        const f = flaps * (1 - kp);
         const ang = h.angle * (h.kind === "flap" ? Math.pow(f, 1.6) : Math.sqrt(f));
         const sl = h.kind === "flap" ? Math.pow(f, 0.6) : Math.sqrt(f);
         o.quaternion.setFromAxisAngle(h.axis, ang);
@@ -462,15 +494,15 @@ function applyLivery(natural: boolean): void {
     });
   };
   if (l) {
-    paint("fuselage", "#ffffff", cachedTexture(`fus|${L}|${l.id}`, () => fuselageTexture(def, l)));
+    paint("fuselage", "#ffffff", cachedTexture(`fus|${def.shapeSet ?? "a320"}|${L}|${l.id}|${def.shortName}`, () => fuselageTexture(def, l)));
     const fin = model.finXY;
-    paint("vtail", "#ffffff", cachedTexture(`fin|${def.vtail.areaM2}|${def.vtail.spanM}|${l.id}`, () => finLiveryTexture(l, fin)));
+    paint("vtail", "#ffffff", cachedTexture(`fin|${def.shapeSet ?? "a320"}|${def.vtail.areaM2}|${def.vtail.spanM}|${l.id}`, () => finLiveryTexture(l, fin)));
     paint("nacelles", l.nacelle);
     paint("wingtips", l.fin[1]);
     for (const id of ["wing.box", "wing.highLift", "htail"]) paint(id, l.wing);
   } else {
-    paint("fuselage", null, cachedTexture(`fus|${L}|none`, () => fuselageTexture(def)));
-    paint("vtail", null, cachedTexture(`fin|${def.vtail.areaM2}|${def.vtail.spanM}|plain`, () => finLiveryTexture(PLAIN_FIN, model!.finXY)));
+    paint("fuselage", null, cachedTexture(`fus|${def.shapeSet ?? "a320"}|${L}|none`, () => fuselageTexture(def)));
+    paint("vtail", null, cachedTexture(`fin|${def.shapeSet ?? "a320"}|${def.vtail.areaM2}|${def.vtail.spanM}|plain`, () => finLiveryTexture(PLAIN_FIN, model!.finXY)));
     for (const id of ["nacelles", "wingtips", "wing.box", "wing.highLift", "htail"]) paint(id, null);
   }
 }
@@ -578,21 +610,73 @@ function applySelection(): void {
   paintEdges();
   markLinkedLevers();
   for (const b of document.querySelectorAll<HTMLButtonElement>(".tree button")) b.setAttribute("aria-pressed", String(b.dataset.id === state.selected));
-  renderDetail();
+  if (state.drawerTab === ABOUT_TAB) renderDetail();
   applyExplode();
 }
 
 function select(id: string | null): void {
   state.selected = state.selected === id ? null : id;
+  if (state.selected) {
+    // Агрегат раскладывается, камера переводит взгляд на него, снизу открываются его рычаги.
+    if (selPart !== state.selected) selK = 0;
+    selPart = state.selected;
+    const groups = linkedGroups(state.selected);
+    state.drawerOpen = true;
+    state.drawerTab = groups[0] ?? ABOUT_TAB;
+  } else state.drawerOpen = false;
+  aimCamera();
   applySelection();
-  // Обратная связь: у выбранного агрегата подсвечиваются его рычаги, первый прокручивается в поле зрения.
-  const first = document.querySelector<HTMLElement>(".lever.linked");
-  if (first) first.scrollIntoView({ block: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
+  renderLevers();
+}
+
+/** Плавный перевод точки обзора: на выбранный агрегат в разобранном виде или обратно на самолёт. */
+const HOME_TARGET = new THREE.Vector3(18, -1.5, 0);
+let aim: { from: THREE.Vector3; to: THREE.Vector3; t: number } | null = null;
+function aimCamera(): void {
+  let to = HOME_TARGET.clone();
+  if (state.selected && model) {
+    const part = model.parts.get(state.selected);
+    if (part) to = partCenter(part).add(part.explode);
+  }
+  aim = { from: controls.target.clone(), to, t: 0 };
+}
+/** Открытая нижняя панель закрывает низ сцены — центр изображения поднимается на половину её высоты. */
+let viewShift = 0;
+function shiftView(dt: number): void {
+  const d = $("drawer");
+  const want = state.drawerOpen && getComputedStyle(d).position === "absolute" ? d.offsetHeight / 2 : 0;
+  const next = reduceMotion ? want : viewShift + (want - viewShift) * Math.min(1, dt * 8);
+  if (Math.abs(next - viewShift) < 0.3 && Math.abs(want - next) < 0.3 && viewShift === want) return;
+  viewShift = Math.abs(want - next) < 0.3 ? want : next;
+  const { clientWidth: w, clientHeight: h } = viewport;
+  if (viewShift > 0.5) camera.setViewOffset(w, h, 0, viewShift, w, h);
+  else camera.clearViewOffset();
+  camera.updateProjectionMatrix();
+}
+function stepCamera(dt: number): void {
+  shiftView(dt);
+  // Разбор выбранного агрегата: 0,6 с туда и обратно.
+  const want = state.selected ? 1 : 0;
+  const was = selK;
+  selK = reduceMotion ? want : Math.max(0, Math.min(1, selK + Math.sign(want - selK) * dt / 0.6));
+  if (selK === 0 && !state.selected) selPart = null;
+  if (was !== selK) applyExplode();
+  if (!aim) return;
+  aim.t = reduceMotion ? 1 : Math.min(1, aim.t + dt / 0.7);
+  const p = aim.from.clone().lerp(aim.to, ease(aim.t));
+  // Камера смещается вместе с точкой обзора — ракурс и расстояние сохраняются.
+  camera.position.add(p.clone().sub(controls.target));
+  controls.target.copy(p);
+  if (aim.t >= 1) aim = null;
 }
 
 /** Рычаги, которые действуют на выбранный агрегат. */
 function linkedControls(id: string | null): Control[] {
   return id ? CONTROLS.filter((c) => c.parts.includes(id)) : [];
+}
+/** Группы рычагов агрегата — вкладки нижней панели. */
+function linkedGroups(id: string | null): string[] {
+  return [...new Set(linkedControls(id).map((c) => c.group))];
 }
 function markLinkedLevers(): void {
   const ids = new Set(linkedControls(state.selected).map((c) => c.id));
@@ -613,16 +697,21 @@ function setFocusCtrl(id: string | null): void {
 // ——— Левая панель: сценарии, режим, рычаги ———
 function renderScenarios(): void {
   const box = $("scenarios");
-  box.innerHTML = SCENARIOS.map(
+  const fam = scenarioFamily(state.aircraftId);
+  box.innerHTML = SCENARIOS.filter((s) => scenarioFamily(s.aircraft) === fam).map(
     (s) => `<button class="chip" data-scenario="${s.id}" aria-pressed="${s.id === state.scenarioId}">${s.title}</button>`,
   ).join("");
   for (const b of box.querySelectorAll<HTMLButtonElement>("button"))
     b.addEventListener("click", () => applyScenario(b.dataset.scenario === state.scenarioId ? null : b.dataset.scenario!));
   const s = SCENARIOS.find((x) => x.id === state.scenarioId);
   const text = $("scenario-text");
-  text.hidden = !s;
-  text.textContent = s?.text ?? "";
+  text.textContent = s?.text ?? (fam === "boeing" ? "Сценарии про решения самого 737: что дал бы больший вентилятор, старое крыло, пилон." : "Сценарии — готовые наборы рычагов с объяснением. Нажмите ещё раз, чтобы снять.");
+  text.classList.toggle("idle", !s);
+  text.title = s ? "Нажмите, чтобы развернуть" : "";
+  text.classList.remove("open");
 }
+
+$("scenario-text").addEventListener("click", (e) => (e.currentTarget as HTMLElement).classList.toggle("open"));
 
 function applyScenario(id: string | null): void {
   state.scenarioId = id;
@@ -641,6 +730,15 @@ function applyScenario(id: string | null): void {
 
 function syncHeader(): void {
   for (const o of document.querySelectorAll<HTMLButtonElement>("[data-aircraft]")) o.setAttribute("aria-checked", String(o.dataset.aircraft === state.aircraftId));
+  const nameNow = AIRCRAFT[state.aircraftId].shortName ?? AIRCRAFT_LABEL[state.aircraftId];
+  document.querySelector(".brand h1")!.textContent = `${nameNow} в разборе`;
+  document.title = `${nameNow} в разборе`;
+  const type = typeOf(state.aircraftId);
+  for (const o of document.querySelectorAll<HTMLButtonElement>("[data-type]")) o.setAttribute("aria-checked", String(o.dataset.type === type));
+  for (const o of document.querySelectorAll<HTMLButtonElement>("[data-gen]")) {
+    o.setAttribute("aria-checked", String(genOf(state.aircraftId) === o.dataset.gen));
+    o.disabled = !gensOf(type).includes(o.dataset.gen!);
+  }
   for (const o of document.querySelectorAll<HTMLButtonElement>("[data-mode]")) o.setAttribute("aria-checked", String(o.dataset.mode === state.mode));
 }
 
@@ -662,22 +760,62 @@ function controlRow(c: Control, def: AircraftDefinition): string {
 }
 
 let leversBuilt = "";
+/**
+ * Нижняя панель. Выбран агрегат — его рычаги по группам и вкладка «Об агрегате»; ничего не выбрано —
+ * все рычаги по группам (панель открывается кнопкой «Рычаги»).
+ */
 function renderLevers(): void {
   const def = AIRCRAFT[state.aircraftId];
-  const groups = [...new Set(CONTROLS.map((c) => c.group))];
-  const html = groups
-    .map((g) => `<fieldset class="lever-group"><legend>${g}</legend>${CONTROLS.filter((c) => c.group === g).map((c) => controlRow(c, def)).join("")}</fieldset>`)
+  const allGroups = [...new Set(CONTROLS.map((c) => c.group))];
+  const sel = state.selected;
+  const groups = sel ? linkedGroups(sel) : allGroups;
+  const tabs = sel ? [...groups, ABOUT_TAB] : groups;
+  if (!tabs.includes(state.drawerTab)) state.drawerTab = tabs[0];
+  const drawer = $("drawer");
+  drawer.dataset.open = String(state.drawerOpen);
+  drawer.dataset.mode = sel ? "part" : "all";
+  $("drawer-toggle").setAttribute("aria-expanded", String(state.drawerOpen));
+  const anyChanged = CONTROLS.some((c) => isChanged(c, def, state.values[c.id]));
+  const nChanged = CONTROLS.filter((c) => isChanged(c, def, state.values[c.id])).length;
+  $("drawer-toggle").innerHTML = state.drawerOpen ? "Рычаги ▾" : `Рычаги ▴${nChanged ? ` <span class="badge">${nChanged}</span>` : ""}`;
+  ($("reset") as HTMLButtonElement).disabled = !anyChanged;
+  const n = sel ? result?.ev.masses.byId.get(sel) : null;
+  if (n && result) {
+    const d = fmtDeltaKg(n.kg - (result.base.masses.byId.get(n.id)?.kg ?? n.kg));
+    $("drawer-title").innerHTML = `<span class="swatch" style="background:var(--${familyOf(n.id)})"></span><b>${n.label}</b>
+      <span class="muted">${fmtKg(n.kg)}${d ? ` <em class="${d.startsWith("−") ? "good" : "bad"}">${d}</em>` : ""}${n.ata ? ` · ATA ${n.ata}` : ""}</span>`;
+  } else $("drawer-title").innerHTML = state.drawerOpen ? `<b>Все рычаги</b><span class="muted">нажмите на агрегат — останутся только его</span>` : "";
+  const changedIn = (g: string) => CONTROLS.some((c) => c.group === g && isChanged(c, def, state.values[c.id]));
+  $("drawer-tabs").innerHTML = tabs
+    .map(
+      (t) =>
+        `<button role="tab" data-dtab="${t}" aria-selected="${t === state.drawerTab}">${t === ABOUT_TAB ? "Об агрегате" : t}${t !== ABOUT_TAB && changedIn(t) ? '<i class="dot"></i>' : ""}</button>`,
+    )
     .join("");
+  for (const b of $("drawer-tabs").querySelectorAll<HTMLButtonElement>("button"))
+    b.onclick = () => {
+      state.drawerTab = b.dataset.dtab!;
+      renderLevers();
+    };
+  const about = state.drawerTab === ABOUT_TAB;
+  $("detail").hidden = !about;
+  $("levers").hidden = about;
+  if (about) {
+    renderDetail();
+    return;
+  }
+  const list = CONTROLS.filter((c) => c.group === state.drawerTab && (!sel || c.parts.includes(sel)));
+  const html = list.map((c) => controlRow(c, def)).join("");
   // Пока ползунок тянут, разметку не пересобираем — иначе он потеряет захват.
   const active = document.activeElement as HTMLInputElement | null;
-  if (active?.dataset.ctrl && active.type === "range" && leversBuilt) {
-    for (const c of CONTROLS) {
+  if (active?.dataset.ctrl && active.type === "range" && leversBuilt === state.drawerTab + "|" + list.map((c) => c.id).join()) {
+    for (const c of list) {
       const out = document.getElementById(`out-${c.id}`);
       if (out && c.kind === "range") out.textContent = c.format(state.values[c.id] as number);
     }
     return;
   }
-  leversBuilt = html;
+  leversBuilt = state.drawerTab + "|" + list.map((c) => c.id).join();
   const box = $("levers");
   box.innerHTML = html;
   for (const input of box.querySelectorAll<HTMLInputElement>("input[data-ctrl]")) {
@@ -692,10 +830,18 @@ function renderLevers(): void {
     // После отпускания ползунка обновляем подписи «база …».
     if (c.kind === "range") input.addEventListener("change", () => requestAnimationFrame(() => (input.blur(), renderLevers())));
   }
-  markLinkedLevers();
-  const anyChanged = CONTROLS.some((c) => isChanged(c, def, state.values[c.id]));
-  ($("reset") as HTMLButtonElement).disabled = !anyChanged;
 }
+$("drawer-toggle").addEventListener("click", () => {
+  state.drawerOpen = !state.drawerOpen;
+  renderLevers();
+});
+$("drawer-close").addEventListener("click", () => {
+  if (state.selected) select(state.selected);
+  else {
+    state.drawerOpen = false;
+    renderLevers();
+  }
+});
 
 // ——— Правая панель ———
 /** Всплывающая подсказка: одна на страницу, позиция — у значка, прижата к краям окна. */
@@ -741,36 +887,63 @@ function deltaPct(cur: number, base: number, lowerIsBetter = true, digits = 1): 
   return `<span class="delta ${good ? "good" : "bad"}">${p > 0 ? "+" : "−"}${nf(Math.abs(p), digits)}%</span>`;
 }
 
+/** Главные показатели — полоса сверху по центру сцены. */
 function renderMetrics(): void {
   const { ev, base, redesign: rd } = result;
   const km = DEFAULT_MISSION.distanceNm * 1.852;
   const scenario = SCENARIOS.find((s) => s.id === state.scenarioId);
   const cmp = scenario?.compareWith ? baseOf(scenario.compareWith) : null;
   const seatsNote = ev.payloadLimitedByMzfw ? `${ev.seatsCarried} из ${ev.seats} мест — упор в MZFW` : `${ev.seats} мест`;
-  const tile = (label: string, value: string, delta: string, note = "") =>
-    `<div class="tile"><div class="tile-label">${label}</div><div class="tile-value">${value}</div>${delta}${note ? `<div class="tile-note">${note}</div>` : ""}</div>`;
+  const name = AIRCRAFT_LABEL[state.aircraftId];
+  const same = Math.abs(ev.fuelPerSeatPer100KmKg / base.fuelPerSeatPer100KmKg - 1) < 5e-4;
+  const tile = (label: string, value: string, delta: string, note: string) =>
+    `<div class="kpi-tile" title="${note}"><div class="kpi-label">${label}</div><div class="kpi-value">${value}</div><div class="kpi-delta">${delta}</div></div>`;
+  const bad = ev.constraints.filter((c) => c.status === "violation").length;
+  const warn = ev.constraints.filter((c) => c.status === "warning").length;
   $("metrics").innerHTML = `
-    <div class="headline">
-      <div class="total-label">Топливо на место, рейс ${nf(Math.round(km))} км</div>
-      <div class="total-value">${nf(ev.fuelPerSeatPer100KmKg, 3)}<small> кг/100 км</small></div>
-      <div class="headline-delta">${
-        Math.abs(ev.fuelPerSeatPer100KmKg / base.fuelPerSeatPer100KmKg - 1) < 5e-4
-          ? `${AIRCRAFT_LABEL[state.aircraftId]} без изменений`
-          : `${deltaPct(ev.fuelPerSeatPer100KmKg, base.fuelPerSeatPer100KmKg)} к ${AIRCRAFT_LABEL[state.aircraftId]}`
-      } · ${seatsNote}</div>
-      ${cmp ? `<div class="compare">${AIRCRAFT_LABEL[scenario!.compareWith!]} для сравнения: ${nf(cmp.fuelPerSeatPer100KmKg, 3)} кг/100 км, OEW ${fmtKg(cmp.oewKg)}</div>` : ""}
+    <div class="kpi-main" title="Рейс ${nf(Math.round(km))} км, ${seatsNote}">
+      <div class="kpi-label">Топливо на место · ${nf(Math.round(km))} км</div>
+      <div class="kpi-big">${nf(ev.fuelPerSeatPer100KmKg, 3)}<small> кг/100 км</small></div>
+      <div class="kpi-delta">${same ? `как у ${name}` : `${deltaPct(ev.fuelPerSeatPer100KmKg, base.fuelPerSeatPer100KmKg)} к ${name}`} · ${seatsNote}</div>
     </div>
-    <div class="tiles">
-      ${tile("Топливо на рейс", fmtKg(ev.tripFuelKg), deltaPct(ev.tripFuelKg, base.tripFuelKg), "без резервов")}
-      ${tile("Пустой снаряжённый", fmtKg(ev.oewKg), deltaPct(ev.oewKg, base.oewKg))}
-      ${tile("MTOW", fmtKg(ev.definition.weights.mtowKg), deltaPct(ev.definition.weights.mtowKg, base.definition.weights.mtowKg), rd ? "под ту же миссию" : "")}
-      ${tile("Дальность, все места", `${nf(Math.round(ev.rangeWithMissionPayloadNm))} nm`, deltaPct(ev.rangeWithMissionPayloadNm, base.rangeWithMissionPayloadNm, false), `${nf(Math.round(ev.rangeWithMissionPayloadNm * 1.852))} км`)}
-    </div>`;
+    ${tile("Топливо на рейс", fmtKg(ev.tripFuelKg), deltaPct(ev.tripFuelKg, base.tripFuelKg), "без резервов")}
+    ${tile("Пустой снаряжённый", fmtKg(ev.oewKg), deltaPct(ev.oewKg, base.oewKg), "OEW")}
+    ${tile("MTOW", fmtKg(ev.definition.weights.mtowKg), deltaPct(ev.definition.weights.mtowKg, base.definition.weights.mtowKg), rd ? "под ту же миссию" : "максимальная взлётная масса")}
+    ${tile("Дальность, все места", `${nf(Math.round(ev.rangeWithMissionPayloadNm))} nm`, deltaPct(ev.rangeWithMissionPayloadNm, base.rangeWithMissionPayloadNm, false), `${nf(Math.round(ev.rangeWithMissionPayloadNm * 1.852))} км`)}
+    <button class="kpi-tile kpi-limits ${bad ? "bad" : warn ? "warn" : "ok"}" id="kpi-limits" title="Открыть список ограничений">
+      <div class="kpi-label">Ограничения</div>
+      <div class="kpi-value">${bad ? `✕ ${bad}` : warn ? `! ${warn}` : "✓"}</div>
+      <div class="kpi-delta">${bad ? "нарушено" : warn ? "на грани" : "в норме"}</div>
+    </button>
+    ${cmp ? `<div class="kpi-compare">${AIRCRAFT_LABEL[scenario!.compareWith!]}: ${nf(cmp.fuelPerSeatPer100KmKg, 3)} кг/100 км, OEW ${fmtKg(cmp.oewKg)}</div>` : ""}`;
+  $("kpi-limits").onclick = () => setRightTab("constraints");
   const d = result.ev.definition;
   $("mode-hint").innerHTML =
     state.mode === "fixed"
       ? "Геометрия, MTOW и MZFW выбранного самолёта. Меняются массы, расход и дальность."
       : `Самолёт масштабируется под ту же нагрузку и ${nf(Math.round(rd!.designRangeNm))} nm: площадь крыла ${nf(d.wing.areaM2, 1)} м², размах ${nf(d.wing.spanM, 2)} м, тяга ×${nf(d.engine.thrustScale, 3)}.${rd!.converged ? "" : " <b>Итерации не сошлись.</b>"}`;
+}
+
+/** Правая панель — вкладки вместо длинной прокрутки. */
+function setRightTab(tab: string): void {
+  state.rightTab = tab;
+  for (const b of document.querySelectorAll<HTMLButtonElement>("[data-rtab]")) b.setAttribute("aria-selected", String(b.dataset.rtab === tab));
+  for (const p of document.querySelectorAll<HTMLElement>("[data-rpanel]")) p.hidden = p.dataset.rpanel !== tab;
+  try {
+    localStorage.setItem("oac-rtab", tab);
+  } catch {
+    /* без сохранения */
+  }
+}
+for (const b of document.querySelectorAll<HTMLButtonElement>("[data-rtab]")) b.addEventListener("click", () => setRightTab(b.dataset.rtab!));
+{
+  let saved: string | null = null;
+  try {
+    saved = localStorage.getItem("oac-rtab");
+  } catch {
+    /* без сохранения */
+  }
+  setRightTab(saved && document.querySelector(`[data-rtab="${saved}"]`) ? saved : "pr");
 }
 
 const DRAG_COLORS: Record<string, string> = {
@@ -951,7 +1124,7 @@ function renderTree(): void {
 
 function renderDetail(): void {
   const box = $("detail");
-  if (!state.selected || !result) {
+  if (!state.selected || !result || state.drawerTab !== ABOUT_TAB) {
     box.hidden = true;
     return;
   }
@@ -965,17 +1138,15 @@ function renderDetail(): void {
   queueMicrotask(() => {
     for (const b of box.querySelectorAll<HTMLButtonElement>("[data-goto]"))
       b.onclick = () => {
-        const row = document.querySelector<HTMLElement>(`.lever[data-row="${b.dataset.goto}"]`);
-        row?.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
-        row?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+        state.drawerTab = b.dataset.goto!;
+        renderLevers();
       };
   });
   const baseKg = result.base.masses.byId.get(n.id)?.kg ?? n.kg;
   const spec = NODES.find((s) => s.id === n.id)!;
   box.hidden = false;
   box.innerHTML = `
-    <h3>${n.label}</h3>
-    <div class="ata">${n.ata ? `Глава ATA ${n.ata}` : "Без главы ATA"}</div>
+    <div class="detail-main">
     <dl>
       <dt>Масса</dt><dd>${fmtKg(n.kg)}</dd>
       ${Math.abs(n.kg - baseKg) > 0.5 ? `<dt>У ${AIRCRAFT_LABEL[state.aircraftId]}</dt><dd>${fmtKg(baseKg)}</dd>` : ""}
@@ -984,14 +1155,15 @@ function renderDetail(): void {
     </dl>
     <p class="source">${spec.source}</p>
     ${
-      linkedControls(n.id).length
-        ? `<div class="linked-levers"><span>Рычаги:</span>${linkedControls(n.id)
-            .map((c) => `<button class="chip small" data-goto="${c.id}">${c.label}</button>`)
+      linkedGroups(n.id).length
+        ? `<div class="linked-levers"><span>Рычаги:</span>${linkedGroups(n.id)
+            .map((g) => `<button class="chip small" data-goto="${g}">${g}</button>`)
             .join("")}</div>`
-        : ""
+        : `<p class="source">Рычагов у этого агрегата нет — его масса меняется вслед за другими.</p>`
     }
-    ${n.id === "engines" ? engineExplainer() : ""}
-    <a class="method-link" href="#${METHOD_ANCHOR[n.id] ?? "m-mass"}">Как рассчитано →</a>`;
+    <a class="method-link" href="#${METHOD_ANCHOR[n.id] ?? "m-mass"}">Как рассчитано →</a>
+    </div>
+    ${n.id === "engines" ? engineExplainer() : ""}`;
 }
 
 const METHOD_ANCHOR: Record<string, string> = { engines: "m-engine", nacelles: "m-engine", "wing.highLift": "m-mass", fuel: "m-mission" };
@@ -1082,11 +1254,35 @@ renderer.domElement.addEventListener("pointermove", (e) => {
   });
 });
 
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && state.selected) select(state.selected);
+});
 $("explode").addEventListener("input", (e) => {
   state.explode = parseFloat((e.target as HTMLInputElement).value);
   applyExplode();
 });
 
+// Выбор типа и поколения двигателей: id = тип + поколение (a321neo).
+const pickAircraft = (id: string) => {
+  if (state.aircraftId === id || !AIRCRAFT[id]) return;
+  state.aircraftId = id;
+  state.scenarioId = null;
+  state.values = defaults(AIRCRAFT[state.aircraftId]);
+  if (state.selected) select(state.selected);
+  syncHeader();
+  renderScenarios();
+  renderScenarios();
+  schedule();
+};
+for (const b of document.querySelectorAll<HTMLButtonElement>("[data-type]"))
+  b.addEventListener("click", () => {
+    // Поколение сохраняется, если у типа оно есть; с 737-8 на Airbus — neo (то же поколение двигателей).
+    const t = b.dataset.type!;
+    const gens = gensOf(t);
+    const g = genOf(state.aircraftId);
+    pickAircraft(t + (gens.includes(g) ? g : gens.includes("neo") ? "neo" : gens[0]));
+  });
+for (const b of document.querySelectorAll<HTMLButtonElement>("[data-gen]")) b.addEventListener("click", () => pickAircraft(typeOf(state.aircraftId) + b.dataset.gen!));
 for (const b of document.querySelectorAll<HTMLButtonElement>("[data-aircraft]")) {
   b.addEventListener("click", () => {
     if (state.aircraftId === b.dataset.aircraft) return;
@@ -1145,23 +1341,19 @@ try {
   state.livery = "night";
 }
 function renderLiveries(): void {
-  const box = $("liveries");
+  const box = $<HTMLSelectElement>("livery");
   const opts = [...LIVERIES.map((l) => [l.id, l.label]), [NO_LIVERY, "Без окраски"]];
-  box.innerHTML = opts
-    .map(([id, label]) => `<button class="chip small" data-livery="${id}" aria-pressed="${id === state.livery}">${label}</button>`)
-    .join("");
-  for (const b of box.querySelectorAll<HTMLButtonElement>("button"))
-    b.addEventListener("click", () => {
-      state.livery = b.dataset.livery!;
-      try {
-        localStorage.setItem("oac-livery", state.livery);
-      } catch {
-        /* без сохранения */
-      }
-      renderLiveries();
-      applyNaturalColors();
-    });
+  box.innerHTML = opts.map(([id, label]) => `<option value="${id}" ${id === state.livery ? "selected" : ""}>${label}</option>`).join("");
 }
+$<HTMLSelectElement>("livery").addEventListener("change", (e) => {
+  state.livery = (e.target as HTMLSelectElement).value;
+  try {
+    localStorage.setItem("oac-livery", state.livery);
+  } catch {
+    /* без сохранения */
+  }
+  applyNaturalColors();
+});
 renderLiveries();
 
 // ——— Разделы: модель и «Как рассчитано» (одна страница, переключение по #) ———
@@ -1174,7 +1366,7 @@ function route(): void {
   $("nav-method").toggleAttribute("aria-current", method);
   if (method) {
     if (!$("method").dataset.ready || $("method").dataset.for !== resultKey()) {
-      $("method").innerHTML = renderMethod(result.ev);
+      $("method").innerHTML = renderMethod(result.ev, `${AIRCRAFT_LABEL[state.aircraftId]}${CONTROLS.some((c) => isChanged(c, AIRCRAFT[state.aircraftId], state.values[c.id])) || state.mode === "redesign" ? " с рычагами" : ""}`);
       $("method").dataset.ready = "1";
       $("method").dataset.for = resultKey();
     }
@@ -1213,6 +1405,7 @@ function resize(): void {
   renderer.setSize(w, h);
   labelRenderer.setSize(w, h);
   camera.aspect = w / h;
+  if (viewShift > 0.5) camera.setViewOffset(w, h, 0, viewShift, w, h);
   camera.updateProjectionMatrix();
 }
 window.addEventListener("resize", resize);
@@ -1273,6 +1466,7 @@ renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1);
   if (document.body.classList.contains("method-mode")) return;
   env.update(dt, state.spin && !reduceMotion);
+  stepCamera(dt);
   pose();
   animateLights(dt);
   if (model && !reduceMotion && state.spin) {

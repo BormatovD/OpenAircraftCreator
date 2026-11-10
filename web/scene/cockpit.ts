@@ -1,39 +1,15 @@
-// Остекление кабины — отдельной геометрией поверх обшивки, по контурам Airbus AC 2-2-0.
+// Остекление кабины — отдельной геометрией поверх обшивки, по контурам типа (A320 — Airbus AC 2-2-0, 737 — сетка).
 // Лобовые стёкла берутся с вида спереди (z, y) и проецируются на обшивку вдоль оси самолёта;
 // боковые окна и форточка — с вида сбоку (x, y) и проецируются поперёк. Так стёкла ложатся
 // на кривую поверхность носа без искажений, которые давала текстура по развёртке.
 
 import * as THREE from "three";
+import { S } from "./shapeSet.ts";
 import { type FuselageShape, fuselageHalfWidthAt, fuselageSection } from "./shapes.ts";
 
 type P2 = [number, number];
 
-// Вид спереди (z от оси, y от оси фюзеляжа), правая половина.
-const WINDSCREEN: P2[] = [
-  [0.07, 0.872],
-  [0.719, 0.932],
-  [0.84, 0.488],
-  [0.147, 0.439],
-  [0.06, 0.488],
-];
-// Вид сбоку (x от носа, y от оси): боковое окно и сдвижная форточка.
-const SIDE_WINDOWS: P2[][] = [
-  [
-    [1.88, 0.419],
-    [2.229, 0.865],
-    [2.654, 0.868],
-    [2.654, 0.308],
-    [2.551, 0.308],
-  ],
-  [
-    [2.654, 0.308],
-    [2.654, 0.868],
-    [3.13, 0.868],
-    [3.267, 0.735],
-    [3.265, 0.35],
-    [3.225, 0.31],
-  ],
-];
+// Контуры стёкол — из набора контуров типа (shapeSet.ts): вид спереди (z, y) для лобовых, вид сбоку (x, y) для боковых.
 /** Ширина рамы между стёклами, м. */
 const FRAME = 0.045;
 
@@ -122,8 +98,8 @@ export function cockpitGlazing(f: FuselageShape): THREE.BufferGeometry[] {
   const sideMap = (side: 1 | -1) => (x: number, y: number) => new THREE.Vector3(x, y, side * fuselageHalfWidthAt(f, x, y));
   const out: THREE.BufferGeometry[] = [];
   for (const side of [1, -1] as const) {
-    out.push(decal(WINDSCREEN, front(side), axis));
-    for (const w of SIDE_WINDOWS) out.push(decal(w, sideMap(side), axis));
+    out.push(decal(S().cockpit.windscreen, front(side), axis));
+    for (const w of S().cockpit.side) out.push(decal(w, sideMap(side), axis));
   }
   return out;
 }

@@ -146,6 +146,10 @@ export interface WeightsDef {
 export interface AircraftDefinition {
   id: string;
   label: string;
+  /** Название типа для надписи на борту («A320», «737-8»). */
+  shortName?: string;
+  /** Набор контуров для 3D-модели (вид сбоку, сверху, сечение); по умолчанию — A320. */
+  shapeSet?: "a320" | "b737";
   wing: WingDef;
   htail: TailDef;
   vtail: TailDef;

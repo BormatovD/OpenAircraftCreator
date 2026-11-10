@@ -38,10 +38,12 @@ test("длиннее фюзеляж — больше CD0", () => {
   assert.ok(evaluate(A320CEO, [fuselageStretch(6)], ctx).aero.cd0 > evaluate(A320CEO, [], ctx).aero.cd0);
 });
 
-test("быстрее M 0,82 — расход на место выше, медленнее M 0,74 — ниже", () => {
+test("число Маха: у A320 оптимум расхода около M 0,78 — быстрее 0,82 и медленнее 0,70 дороже, 0,74–0,80 в пределах 1,5%", () => {
+  // Удельный расход в крейсере не зависит от Маха (проверено по FCOM 737-8), поэтому оптимум задаёт поляра: качество × скорость.
   const base = evaluate(A320CEO, [], ctx).fuelPerSeatPer100KmKg;
   assert.ok(evaluate(A320CEO, [cruiseMach(0.82)], ctx).fuelPerSeatPer100KmKg > base);
-  assert.ok(evaluate(A320CEO, [cruiseMach(0.74)], ctx).fuelPerSeatPer100KmKg < base * 1.01);
+  assert.ok(evaluate(A320CEO, [cruiseMach(0.7)], ctx).fuelPerSeatPer100KmKg > base * 1.03);
+  for (const m of [0.74, 0.8]) assert.ok(Math.abs(evaluate(A320CEO, [cruiseMach(m)], ctx).fuelPerSeatPer100KmKg / base - 1) < 0.015);
 });
 
 test("тоньше крыло — тяжелее, но меньше волновое", () => {

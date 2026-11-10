@@ -168,3 +168,46 @@ export function residualFactor(ctx: EvalContext, c: BoeingCase): { factor: numbe
   const e = boeingErrors(c, ctx, k).map((p) => p.errorPct);
   return { factor: k, rmsPct: rms(e), maxAbsPct: Math.max(...e.map(Math.abs)) };
 }
+
+// ——— Разложение ошибки Boeing: крейсер и «постоянное» топливо ———
+
+/**
+ * На каждой линии взлётной массы топливо почти линейно по дальности: m = a + b·R. Наклон b (кг/nm) — экономичность
+ * крейсера (сопротивление × TSFC), отрезок a — топливо, не зависящее от дальности (резервы, взлёт, набор, снижение).
+ * Сравнение a и b графика и модели разделяет две ошибки, которые в процентах дальности складываются и могут гасить друг друга.
+ */
+export interface ErrorSplit {
+  /** Ошибка расхода на милю в крейсере, %: минус — модель экономичнее графика. */
+  cruisePct: number;
+  /** Ошибка постоянного топлива, кг: плюс — модель тратит больше на резервы, набор и снижение. */
+  fixedKg: number;
+  /** Постоянное топливо по графику, кг (среднее по линиям). */
+  fixedChartKg: number;
+  lines: { towKg: number; cruisePct: number; fixedKg: number }[];
+}
+
+function linFit(x: number[], y: number[]) {
+  const n = x.length;
+  const mx = x.reduce((a, b) => a + b, 0) / n;
+  const my = y.reduce((a, b) => a + b, 0) / n;
+  const b = x.reduce((s, xi, i) => s + (xi - mx) * (y[i] - my), 0) / x.reduce((s, xi) => s + (xi - mx) ** 2, 0);
+  return { a: my - b * mx, b };
+}
+
+export function errorSplit(ctx: EvalContext, c: BoeingCase): ErrorSplit {
+  const pts = boeingErrors(c, ctx);
+  const tows = [...new Set(pts.map((p) => Math.round(p.towKg / 100)))].sort((a, b) => a - b);
+  const lines: ErrorSplit["lines"] = [];
+  let chartA = 0;
+  for (const t of tows) {
+    const on = pts.filter((p) => Math.round(p.towKg / 100) === t);
+    if (on.length < 3) continue;
+    const fuel = on.map((p) => p.towKg - p.zfwKg);
+    const ch = linFit(on.map((p) => p.rangeNm), fuel);
+    const mo = linFit(on.map((p) => p.modelNm), fuel);
+    chartA += ch.a;
+    lines.push({ towKg: t * 100, cruisePct: (mo.b / ch.b - 1) * 100, fixedKg: mo.a - ch.a });
+  }
+  const avg = (f: (l: ErrorSplit["lines"][number]) => number) => lines.reduce((s, l) => s + f(l), 0) / lines.length;
+  return { cruisePct: avg((l) => l.cruisePct), fixedKg: avg((l) => l.fixedKg), fixedChartKg: chartA / lines.length, lines };
+}

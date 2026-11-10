@@ -4,10 +4,10 @@
 // (длина фюзеляжа, доли размаха и хорды), поэтому следуют за рычагами. Окраска — livery.ts.
 
 import * as THREE from "three";
-import AC from "../../data/ac/a320-shapes.json" with { type: "json" };
 import { type AircraftDefinition } from "../../src/definition.ts";
 import { type Livery, stripeY } from "./livery.ts";
-import { FUSELAGE_PLUGS, type FuselageShape, modelX, sectionV } from "./shapes.ts";
+import { S } from "./shapeSet.ts";
+import { type FuselageShape, fuselagePlugs, modelX, sectionV } from "./shapes.ts";
 
 const WINDOW = "#1b2733";
 const SEAM_DEFAULT = "rgba(20,30,40,0.6)";
@@ -79,10 +79,23 @@ export function fuselageTexture(def: AircraftDefinition, livery: Livery | null =
     shape(pts, side, fill, stroke);
   };
 
-  const feats = AC.ceo.features;
-  const windows = feats.filter((w) => w.kind === "window");
-  // Вставки удлинения: окна продолжают шаг соседних.
-  const pitch = 0.5334;
+  const feats = S().features;
+  const drawn = feats.filter((w) => w.kind === "window");
+  const FUSELAGE_PLUGS = fuselagePlugs();
+  // Шаг окон — медиана по чертежу.
+  const steps = drawn.slice(1).map((w, i) => w.x0 - drawn[i].x0).sort((p, q) => p - q);
+  const pitch = steps.length ? steps[Math.floor(steps.length / 2)] : 0.5334;
+  // На виде сбоку AC A320 крыло закрывает три окна за ним (20,1–22,3 м) — дорисовываем пропуски с тем же шагом,
+  // если между окнами нет двери или выхода.
+  const openings = feats.filter((q) => q.kind === "door" || q.kind === "exit");
+  const windows: typeof drawn = [];
+  for (const [i, w] of drawn.entries()) {
+    windows.push(w);
+    const nx = drawn[i + 1];
+    if (!nx || nx.x0 - w.x0 < 1.6 * pitch) continue;
+    if (openings.some((o) => o.x1 > w.x1 && o.x0 < nx.x0)) continue;
+    for (let x = w.x0 + pitch; x < nx.x0 - 0.6 * pitch; x += pitch) windows.push({ ...w, x0: x, x1: x + (w.x1 - w.x0) });
+  }
   const half = (L - FUSELAGE_PLUGS.baseLengthM) / 2;
   const extra: { x0: number; x1: number; y0: number; y1: number }[] = [];
   if (half > 0)
@@ -113,6 +126,45 @@ export function fuselageTexture(def: AircraftDefinition, livery: Livery | null =
       band(-0.09, 0.09, livery.stripe, 3.2);
       band(-0.3, -0.25, livery.stripeThin, 5.0);
     }
+    // Название типа крупно на борту — между первой дверью и аварийными выходами над крылом, поверх линии окон
+    // (окна рисуются позже и остаются видны сквозь буквы). На левом борту нос справа — строку зеркалим по длине,
+    // чтобы надпись читалась слева направо с обоих бортов.
+    const name = def.shortName ?? "";
+    if (name) {
+      const tc = document.createElement("canvas");
+      const tg = tc.getContext("2d")!;
+      const fontPx = 220;
+      const font = `700 ${fontPx}px 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif`;
+      tg.font = font;
+      const tw = Math.ceil(tg.measureText(name).width);
+      tc.width = tw + 20;
+      tc.height = Math.round(fontPx * 1.0);
+      tg.font = font;
+      tg.fillStyle = livery.title;
+      tg.textBaseline = "middle";
+      tg.fillText(name, 10, tc.height / 2 + fontPx * 0.04);
+      const hM = 1.45; // высота строки, м
+      const xA = modelX(L, S().titleX[0]);
+      const xB = modelX(L, S().titleX[1]);
+      const wM = Math.min(xB - xA, (hM * tc.width) / tc.height);
+      const xc = (xA + xB) / 2;
+      const yTop = 1.28;
+      const yBot = yTop - hM;
+      for (const side of [1, -1] as const) {
+        const mirror = side === -1;
+        for (const shift of [0, 1]) {
+          const X0 = px(xc - wM / 2);
+          const X1 = px(xc + wM / 2);
+          const Y0 = (vOf(yTop, side) + shift) * H;
+          const Y1 = (vOf(yBot, side) + shift) * H;
+          g.save();
+          g.translate(mirror ? X1 : X0, Y0);
+          g.scale(((X1 - X0) / tc.width) * (mirror ? -1 : 1), (Y1 - Y0) / tc.height);
+          g.drawImage(tc, 0, 0);
+          g.restore();
+        }
+      }
+    }
   }
   g.strokeStyle = PANEL_LINE;
   g.lineWidth = 2;
@@ -125,11 +177,7 @@ export function fuselageTexture(def: AircraftDefinition, livery: Livery | null =
   for (const side of [1, -1] as const)
     for (const y of [1.55, 0.05, -1.25]) shape([[0.8, y], [L - 1.0, y]], side, null, PANEL_LINE, false);
   // Грузовые люки — на правом борту (AC 2-6-0): передний и задний 1,81 м, багажный 0,86 м.
-  const cargo: [number, number, number, number][] = [
-    [8.35, 1.81, -1.95, -0.7],
-    [24.55, 1.81, -1.95, -0.7],
-    [28.75, 0.86, -1.7, -0.95],
-  ];
+  const cargo = S().cargo;
   for (const [x0, w, y0, y1] of cargo) roundRect(modelX(L, x0), modelX(L, x0) + w, y0, y1, 1, null, SEAM);
   // Лючки обслуживания: кислород и наземное питание слева у носа, вода и дренаж сзади.
   for (const [x0, w, y0, y1, sd] of [
@@ -146,11 +194,15 @@ export function fuselageTexture(def: AircraftDefinition, livery: Livery | null =
   g.fillStyle = soot;
   g.fillRect(px(L - 1.6), 0, px(L) - px(L - 1.6), H);
 
+  // Окна в координатах модели. При укорочении (A319) вырезанный участок стягивает соседние окна — оставляем окно,
+  // только если до предыдущего не меньше 0,8 шага, иначе получается «гармошка».
+  const placed: { x0: number; x1: number; y0: number; y1: number }[] = [];
+  for (const w of [...windows.map((q) => ({ ...q, x0: modelX(L, q.x0), x1: modelX(L, q.x0) + (q.x1 - q.x0) })), ...extra].sort((p, q) => p.x0 - q.x0))
+    if (!placed.length || w.x0 - placed.at(-1)!.x0 >= 0.8 * pitch) placed.push(w);
   for (const side of [1, -1] as const) {
     // Ширину берём с чертежа, а не сдвигаем оба края: иначе окно на границе вставки растягивается на всю вставку.
     const at = (q: { x0: number; x1: number }) => [modelX(L, q.x0), modelX(L, q.x0) + (q.x1 - q.x0)] as const;
-    for (const w of windows) roundRect(...at(w), w.y0, w.y1, side, WINDOW, null);
-    for (const w of extra) roundRect(w.x0, w.x1, w.y0, w.y1, side, WINDOW, null);
+    for (const w of placed) roundRect(w.x0, w.x1, w.y0, w.y1, side, WINDOW, null);
     for (const d of feats.filter((q) => q.kind === "door" || q.kind === "exit"))
       roundRect(...at(d), d.y0, d.y1, side, null, SEAM);
     // Остекление кабины: на виде сбоку AC окна нарисованы незамкнутыми линиями — собираем стёкла
@@ -186,12 +238,13 @@ function surfaceTexture(lines: number[][][], mapU: (u: number) => number = (u) =
 }
 
 export function wingTexture(): THREE.CanvasTexture {
-  return surfaceTexture(AC.ceo.wing.lines);
+  return surfaceTexture(S().wing.lines);
 }
 export function htailTexture(): THREE.CanvasTexture {
-  return surfaceTexture(AC.ceo.htail.lines);
+  return surfaceTexture(S().htail.lines);
 }
 export function vtailTexture(): THREE.CanvasTexture {
-  const tip = AC.ceo.vtail.tip_y;
-  return surfaceTexture(AC.ceo.vtail.lines, (u) => (u * tip - 2.07) / (tip - 2.07));
+  const tip = S().vtail.tipY;
+  const base = S().halfH;
+  return surfaceTexture(S().vtail.lines, (u) => (u * tip - base) / (tip - base));
 }
