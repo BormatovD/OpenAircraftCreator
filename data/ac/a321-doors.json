@@ -1,0 +1,811 @@
+{
+  "schemaVersion": 1,
+  "_source": "Airbus A321 Aircraft Characteristics — Airport and Maintenance Planning, July 2026, supplied PDF; dimensions and vector outlines, not aircraft operating limitations.",
+  "source": {
+    "filename": "aca32101-jul-2026.pdf",
+    "revisionDate": "2026-07-01",
+    "sha256": "50ae7a11b9834cbb1b0f8b862fcb6e85aa7817e77596cd12903033e81456d40d",
+    "pdfPageCount": 471,
+    "pageNumbering": "1-based PDF page numbers",
+    "pages": {
+      "67": {
+        "section": "2-2-0",
+        "sectionPage": 2,
+        "title": "General Aircraft Dimensions",
+        "applicability": "A321-100 A321-200"
+      },
+      "68": {
+        "section": "2-2-0",
+        "sectionPage": 3,
+        "title": "General Aircraft Dimensions",
+        "applicability": "A321-100 A321-200"
+      },
+      "96": {
+        "section": "2-4-1",
+        "sectionPage": 2,
+        "title": "Typical Single Class Interior Arrangement — 220 seats",
+        "applicability": "A321-100 A321-200 A321neo"
+      },
+      "97": {
+        "section": "2-4-1",
+        "sectionPage": 3,
+        "title": "Typical Two Class Interior Arrangement — 185 seats",
+        "applicability": "A321-100 A321-200 A321neo"
+      },
+      "98": {
+        "section": "2-4-1",
+        "sectionPage": 4,
+        "title": "Typical Single Class Interior Arrangement — 244 seats",
+        "applicability": "A321neo-ACF"
+      },
+      "99": {
+        "section": "2-4-1",
+        "sectionPage": 5,
+        "title": "Typical Two Class Interior Arrangement — 206 seats",
+        "applicability": "A321neo-ACF A321neo-XLR"
+      },
+      "113": {
+        "section": "2-7-0",
+        "sectionPage": 2,
+        "title": "Door Identification — FIGURE-2-7-0-991-004-A01",
+        "applicability": "A321-100 A321-200 A321neo"
+      },
+      "114": {
+        "section": "2-7-0",
+        "sectionPage": 3,
+        "title": "Door Location — FIGURE-2-7-0-991-004-A01",
+        "applicability": "A321-100 A321-200 A321neo"
+      },
+      "115": {
+        "section": "2-7-0",
+        "sectionPage": 4,
+        "title": "Door Identification — FIGURE-2-7-0-991-047-A01",
+        "applicability": "A321neo-ACF A321neo-XLR"
+      },
+      "116": {
+        "section": "2-7-0",
+        "sectionPage": 5,
+        "title": "Door Location — FIGURE-2-7-0-991-047-A01",
+        "applicability": "A321neo-ACF A321neo-XLR"
+      },
+      "117": {
+        "section": "2-7-0",
+        "sectionPage": 6,
+        "title": "Forward Passenger/Crew Doors — FIGURE-2-7-0-991-033-A01",
+        "applicability": "All listed A321 variants"
+      },
+      "118": {
+        "section": "2-7-0",
+        "sectionPage": 7,
+        "title": "Emergency Exits — FIGURE-2-7-0-991-034-A01",
+        "applicability": "A321-100 A321-200 A321neo"
+      },
+      "119": {
+        "section": "2-7-0",
+        "sectionPage": 8,
+        "title": "Emergency Exits — FIGURE-2-7-0-991-046-A01",
+        "applicability": "A321neo-ACF A321neo-XLR"
+      },
+      "120": {
+        "section": "2-7-0",
+        "sectionPage": 9,
+        "title": "Aft Passenger/Crew Doors — FIGURE-2-7-0-991-035-A01",
+        "applicability": "All listed A321 variants"
+      },
+      "121": {
+        "section": "2-7-0",
+        "sectionPage": 10,
+        "title": "Forward Cargo Compartment Door — FIGURE-2-7-0-991-036-A01",
+        "applicability": "A321-100 A321-200"
+      },
+      "122": {
+        "section": "2-7-0",
+        "sectionPage": 11,
+        "title": "Forward Cargo Compartment Door — FIGURE-2-7-0-991-037-A01",
+        "applicability": "A321neo A321neo-ACF A321neo-XLR"
+      },
+      "123": {
+        "section": "2-7-0",
+        "sectionPage": 12,
+        "title": "Aft Cargo Compartment Door — FIGURE-2-7-0-991-038-A01",
+        "applicability": "All listed A321 variants"
+      },
+      "124": {
+        "section": "2-7-0",
+        "sectionPage": 13,
+        "title": "Bulk Cargo Compartment Door — FIGURE-2-7-0-991-039-A01",
+        "applicability": "All listed A321 variants"
+      }
+    }
+  },
+  "coordinateSystem": {
+    "unit": "m",
+    "x": "From the tip of the nose, positive aft. Published location references and measured panel centres are separate quantities.",
+    "y": "Up from the axis of the cylindrical fuselage; the upper cylindrical skin is +2.07 m. No ground or cabin-floor datum is used.",
+    "lengthM": 44.51,
+    "fuselageHeightM": 4.14,
+    "scaleSourcePdfPages": [
+      67,
+      68
+    ],
+    "exteriorBBox": "Measured in the unshifted vector side view. Hidden edges are reconstructed only where geometry.method says so. These are approximate outer panel boxes, not published clear-opening dimensions.",
+    "leftViewExtraction": {
+      "114": {
+        "clipPdfPoints": [
+          108,
+          180,
+          505,
+          290
+        ],
+        "scaleMPerPoint": 0.11396540148850862
+      },
+      "116": {
+        "clipPdfPoints": [
+          100,
+          205,
+          506,
+          322
+        ],
+        "scaleMPerPoint": 0.11139674883088604
+      }
+    },
+    "rightViewExtraction": {
+      "114": {
+        "clipPdfPoints": [
+          108,
+          420,
+          505,
+          526
+        ],
+        "scaleMPerPoint": 0.11396540148850862
+      },
+      "116": {
+        "clipPdfPoints": [
+          100,
+          425,
+          506,
+          540
+        ],
+        "scaleMPerPoint": 0.11139699344206752
+      }
+    }
+  },
+  "defaults": {
+    "a321ceo": "standard",
+    "a321neo": "standard"
+  },
+  "limitations": [
+    "The current repository A321ceo and A321neo definitions describe 220-seat conventional aircraft. ACF/XLR is a separate door configuration, not an automatic consequence of a neo engine.",
+    "LR is not identified separately on these door sheets. Select a door configuration from the aircraft's confirmed configuration; the LR label alone is not used to infer one.",
+    "No A319 geometry is inferred from this A321 source.",
+    "An exterior-panel centre need not coincide with the centre of the free aisle. The vector views also have finite schematic accuracy; no per-door longitudinal recentering is performed.",
+    "The ACF/XLR location sheet gives 5.04/36.47 m for passenger doors and 8.56/30.02 m for forward/aft cargo doors. Common clearance sheets retain 5.02/36.58 and 8.16/29.62 m. Published locationFromNoseM uses the variant-specific sheet 116; exteriorBBox preserves the drawing and exposes the discrepancy.",
+    "AFT OVERWING EXIT is marked OPTIONAL in the 206-seat ACF/XLR example (PDF 99), not in the 244-seat ACF example (PDF 98). This data does not establish certification or passenger limits for every possible layout."
+  ],
+  "variants": {
+    "standard": {
+      "appliesTo": [
+        "A321-100",
+        "A321-200",
+        "A321neo"
+      ],
+      "identificationPdfPage": 113,
+      "cabinOpenings": [
+        {
+          "id": "door1",
+          "kind": "door",
+          "sides": [
+            "L",
+            "R"
+          ],
+          "locationFromNoseM": 5.02,
+          "locationReference": "published-door-location-reference-line",
+          "exteriorBBox": {
+            "x0": 4.5612,
+            "x1": 5.5804,
+            "y0": -0.4754,
+            "y1": 1.527
+          },
+          "measuredExteriorBBox": {
+            "x0": 4.5612,
+            "x1": 5.5804,
+            "y0": -0.4754,
+            "y1": 1.527
+          },
+          "geometry": {
+            "method": "vector-outline",
+            "approximate": true,
+            "longitudinalAlignment": "unshifted-nose-based-vector-view",
+            "measuredCenterMinusLocationReferenceM": 0.0508
+          },
+          "clearOpening": {
+            "widthM": 0.81,
+            "heightM": 1.85,
+            "dimensionKind": "clear-opening"
+          },
+          "sourcePages": {
+            "location": 114,
+            "exterior": 114,
+            "clearance": 117
+          }
+        },
+        {
+          "id": "forwardEmergency",
+          "kind": "exit",
+          "sides": [
+            "L",
+            "R"
+          ],
+          "locationFromNoseM": 13.84,
+          "locationReference": "center-of-free-aisle",
+          "exteriorBBox": {
+            "x0": 13.4171,
+            "x1": 14.3332,
+            "y0": -0.393,
+            "y1": 1.5282
+          },
+          "measuredExteriorBBox": {
+            "x0": 13.4171,
+            "x1": 14.3332,
+            "y0": -0.393,
+            "y1": 1.5282
+          },
+          "geometry": {
+            "method": "vector-outline",
+            "approximate": true,
+            "longitudinalAlignment": "unshifted-nose-based-vector-view",
+            "measuredCenterMinusLocationReferenceM": 0.0351
+          },
+          "clearOpening": {
+            "widthM": 0.76,
+            "heightM": 1.52,
+            "dimensionKind": "free-aisle-width-and-sectional-opening-height"
+          },
+          "sourcePages": {
+            "location": 114,
+            "exterior": 114,
+            "clearance": 118
+          }
+        },
+        {
+          "id": "aftEmergency",
+          "kind": "exit",
+          "sides": [
+            "L",
+            "R"
+          ],
+          "locationFromNoseM": 24.79,
+          "locationReference": "center-of-free-aisle",
+          "exteriorBBox": {
+            "x0": 24.3144,
+            "x1": 25.2261,
+            "y0": -0.3978,
+            "y1": 1.5234
+          },
+          "measuredExteriorBBox": {
+            "x0": 24.3144,
+            "x1": 25.2261,
+            "y0": 0.3305,
+            "y1": 1.5234
+          },
+          "geometry": {
+            "method": "vector-outline-with-reconstructed-hidden-edge",
+            "approximate": true,
+            "longitudinalAlignment": "unshifted-nose-based-vector-view",
+            "measuredCenterMinusLocationReferenceM": -0.0198,
+            "reconstruction": "Lower edge hidden by the wing. Retain the visible upper edge and use the exterior height of the forward emergency exit on the same sheet; both exits have matching clear-opening dimensions on PDF 118."
+          },
+          "clearOpening": {
+            "widthM": 0.76,
+            "heightM": 1.52,
+            "dimensionKind": "free-aisle-width-and-sectional-opening-height"
+          },
+          "sourcePages": {
+            "location": 114,
+            "exterior": 114,
+            "clearance": 118
+          }
+        },
+        {
+          "id": "door4",
+          "kind": "door",
+          "sides": [
+            "L",
+            "R"
+          ],
+          "locationFromNoseM": 36.58,
+          "locationReference": "published-door-location-reference-line",
+          "exteriorBBox": {
+            "x0": 35.9718,
+            "x1": 36.9979,
+            "y0": -0.3204,
+            "y1": 1.6542
+          },
+          "measuredExteriorBBox": {
+            "x0": 35.9718,
+            "x1": 36.9979,
+            "y0": -0.3204,
+            "y1": 1.6542
+          },
+          "geometry": {
+            "method": "vector-outline",
+            "approximate": true,
+            "longitudinalAlignment": "unshifted-nose-based-vector-view",
+            "measuredCenterMinusLocationReferenceM": -0.0951
+          },
+          "clearOpening": {
+            "widthM": 0.81,
+            "heightM": 1.85,
+            "dimensionKind": "clear-opening"
+          },
+          "sourcePages": {
+            "location": 114,
+            "exterior": 114,
+            "clearance": 120
+          }
+        }
+      ],
+      "cargoOpenings": [
+        {
+          "id": "forwardCargo",
+          "kind": "cargo",
+          "sides": [
+            "R"
+          ],
+          "locationFromNoseM": 8.16,
+          "locationReference": "published-door-location-reference-line",
+          "exteriorBBox": {
+            "x0": 7.2957,
+            "x1": 9.0038,
+            "y0": -1.9997,
+            "y1": -0.5369
+          },
+          "measuredExteriorBBox": {
+            "x0": 7.2957,
+            "x1": 9.0038,
+            "y0": -1.9997,
+            "y1": -0.5369
+          },
+          "geometry": {
+            "method": "vector-outline",
+            "approximate": true,
+            "longitudinalAlignment": "unshifted-nose-based-vector-view",
+            "measuredCenterMinusLocationReferenceM": -0.0102
+          },
+          "clearOpening": {
+            "widthM": 1.82,
+            "heightM": 1.24,
+            "dimensionKind": "clear-opening"
+          },
+          "sourcePages": {
+            "location": 114,
+            "exterior": 114,
+            "clearance": 121
+          }
+        },
+        {
+          "id": "aftCargo",
+          "kind": "cargo",
+          "sides": [
+            "R"
+          ],
+          "locationFromNoseM": 29.62,
+          "locationReference": "published-door-location-reference-line",
+          "exteriorBBox": {
+            "x0": 28.7319,
+            "x1": 30.4364,
+            "y0": -1.9997,
+            "y1": -0.5365
+          },
+          "measuredExteriorBBox": {
+            "x0": 28.7319,
+            "x1": 30.4364,
+            "y0": -1.9997,
+            "y1": -0.5365
+          },
+          "geometry": {
+            "method": "vector-outline",
+            "approximate": true,
+            "longitudinalAlignment": "unshifted-nose-based-vector-view",
+            "measuredCenterMinusLocationReferenceM": -0.0358
+          },
+          "clearOpening": {
+            "widthM": 1.82,
+            "heightM": 1.23,
+            "dimensionKind": "clear-opening"
+          },
+          "sourcePages": {
+            "location": 114,
+            "exterior": 114,
+            "clearance": 123
+          }
+        },
+        {
+          "id": "bulkCargo",
+          "kind": "cargo",
+          "sides": [
+            "R"
+          ],
+          "locationFromNoseM": 33.22,
+          "locationReference": "published-door-location-reference-line",
+          "exteriorBBox": {
+            "x0": 32.6063,
+            "x1": 33.5556,
+            "y0": -1.767,
+            "y1": -0.8366
+          },
+          "measuredExteriorBBox": {
+            "x0": 32.6063,
+            "x1": 33.5556,
+            "y0": -1.767,
+            "y1": -0.8366
+          },
+          "geometry": {
+            "method": "vector-outline",
+            "approximate": true,
+            "longitudinalAlignment": "unshifted-nose-based-vector-view",
+            "measuredCenterMinusLocationReferenceM": -0.139
+          },
+          "clearOpening": {
+            "widthM": 0.95,
+            "heightM": 0.77,
+            "dimensionKind": "clear-opening"
+          },
+          "sourcePages": {
+            "location": 114,
+            "exterior": 114,
+            "clearance": 124
+          }
+        }
+      ],
+      "layouts": {
+        "singleClass220": {
+          "pdfPage": 96,
+          "optionalOpeningIds": []
+        },
+        "twoClass185": {
+          "pdfPage": 97,
+          "optionalOpeningIds": []
+        }
+      },
+      "notes": [
+        "Forward cargo clearance is identical on PDF 121 (ceo) and PDF 122 (neo); engine clearances on those sheets differ and are not part of clearOpening."
+      ]
+    },
+    "acfXlr": {
+      "appliesTo": [
+        "A321neo-ACF",
+        "A321neo-XLR"
+      ],
+      "identificationPdfPage": 115,
+      "cabinOpenings": [
+        {
+          "id": "door1",
+          "kind": "door",
+          "sides": [
+            "L",
+            "R"
+          ],
+          "locationFromNoseM": 5.04,
+          "locationReference": "published-door-location-reference-line",
+          "exteriorBBox": {
+            "x0": 4.5618,
+            "x1": 5.576,
+            "y0": -0.4752,
+            "y1": 1.5275
+          },
+          "measuredExteriorBBox": {
+            "x0": 4.5618,
+            "x1": 5.576,
+            "y0": -0.4752,
+            "y1": 1.5275
+          },
+          "geometry": {
+            "method": "vector-outline",
+            "approximate": true,
+            "longitudinalAlignment": "unshifted-nose-based-vector-view",
+            "measuredCenterMinusLocationReferenceM": 0.0289
+          },
+          "clearOpening": {
+            "widthM": 0.81,
+            "heightM": 1.85,
+            "dimensionKind": "clear-opening"
+          },
+          "sourcePages": {
+            "location": 116,
+            "exterior": 116,
+            "clearance": 117
+          }
+        },
+        {
+          "id": "forwardOverwing",
+          "kind": "exit",
+          "sides": [
+            "L",
+            "R"
+          ],
+          "locationFromNoseM": 18.7,
+          "locationReference": "center-of-free-aisle",
+          "exteriorBBox": {
+            "x0": 18.4444,
+            "x1": 19.041,
+            "y0": -0.1896,
+            "y1": 1.0124
+          },
+          "measuredExteriorBBox": {
+            "x0": 18.4444,
+            "x1": 19.041,
+            "y0": -0.1896,
+            "y1": 1.0124
+          },
+          "geometry": {
+            "method": "vector-outline",
+            "approximate": true,
+            "longitudinalAlignment": "unshifted-nose-based-vector-view",
+            "measuredCenterMinusLocationReferenceM": 0.0427
+          },
+          "clearOpening": {
+            "widthM": 0.57,
+            "heightM": 1.04,
+            "dimensionKind": "free-aisle-width-and-sectional-opening-height"
+          },
+          "sourcePages": {
+            "location": 116,
+            "exterior": 116,
+            "clearance": 119
+          }
+        },
+        {
+          "id": "aftOverwing",
+          "kind": "exit",
+          "sides": [
+            "L",
+            "R"
+          ],
+          "locationFromNoseM": 19.54,
+          "locationReference": "center-of-free-aisle",
+          "exteriorBBox": {
+            "x0": 19.3048,
+            "x1": 19.9028,
+            "y0": -0.1857,
+            "y1": 1.0179
+          },
+          "measuredExteriorBBox": {
+            "x0": 19.3048,
+            "x1": 19.9028,
+            "y0": -0.1857,
+            "y1": 1.0179
+          },
+          "geometry": {
+            "method": "vector-outline",
+            "approximate": true,
+            "longitudinalAlignment": "unshifted-nose-based-vector-view",
+            "measuredCenterMinusLocationReferenceM": 0.0638
+          },
+          "clearOpening": {
+            "widthM": 0.57,
+            "heightM": 1.04,
+            "dimensionKind": "free-aisle-width-and-sectional-opening-height"
+          },
+          "sourcePages": {
+            "location": 116,
+            "exterior": 116,
+            "clearance": 119
+          },
+          "optionalInLayouts": [
+            "twoClass206"
+          ]
+        },
+        {
+          "id": "door3",
+          "kind": "exit",
+          "sides": [
+            "L",
+            "R"
+          ],
+          "locationFromNoseM": 26.82,
+          "locationReference": "center-of-free-aisle",
+          "exteriorBBox": {
+            "x0": 26.5461,
+            "x1": 27.4635,
+            "y0": -0.3894,
+            "y1": 1.5318
+          },
+          "measuredExteriorBBox": {
+            "x0": 26.5461,
+            "x1": 27.4635,
+            "y0": -0.3894,
+            "y1": 1.269
+          },
+          "geometry": {
+            "method": "vector-outline-with-reconstructed-hidden-edge",
+            "approximate": true,
+            "longitudinalAlignment": "unshifted-nose-based-vector-view",
+            "measuredCenterMinusLocationReferenceM": 0.1848,
+            "reconstruction": "Upper edge partly hidden by the winglet. Retain the visible lower edge and use the exterior height of the standard forward emergency exit on PDF 114; PDF 119 gives the same clear-opening dimensions. This is a visualization reconstruction, not a published outer-panel dimension."
+          },
+          "clearOpening": {
+            "widthM": 0.76,
+            "heightM": 1.52,
+            "dimensionKind": "free-aisle-width-and-sectional-opening-height"
+          },
+          "sourcePages": {
+            "location": 116,
+            "exterior": 116,
+            "clearance": 119
+          }
+        },
+        {
+          "id": "door4",
+          "kind": "door",
+          "sides": [
+            "L",
+            "R"
+          ],
+          "locationFromNoseM": 36.47,
+          "locationReference": "published-door-location-reference-line",
+          "exteriorBBox": {
+            "x0": 35.9723,
+            "x1": 36.999,
+            "y0": -0.3197,
+            "y1": 1.6542
+          },
+          "measuredExteriorBBox": {
+            "x0": 35.9723,
+            "x1": 36.999,
+            "y0": -0.3197,
+            "y1": 1.6542
+          },
+          "geometry": {
+            "method": "vector-outline",
+            "approximate": true,
+            "longitudinalAlignment": "unshifted-nose-based-vector-view",
+            "measuredCenterMinusLocationReferenceM": 0.0157
+          },
+          "clearOpening": {
+            "widthM": 0.81,
+            "heightM": 1.85,
+            "dimensionKind": "clear-opening"
+          },
+          "sourcePages": {
+            "location": 116,
+            "exterior": 116,
+            "clearance": 120
+          }
+        }
+      ],
+      "cargoOpenings": [
+        {
+          "id": "forwardCargo",
+          "kind": "cargo",
+          "sides": [
+            "R"
+          ],
+          "locationFromNoseM": 8.56,
+          "locationReference": "published-door-location-reference-line",
+          "exteriorBBox": {
+            "x0": 7.2954,
+            "x1": 9.0015,
+            "y0": -2.0004,
+            "y1": -0.536
+          },
+          "measuredExteriorBBox": {
+            "x0": 7.2954,
+            "x1": 9.0015,
+            "y0": -2.0004,
+            "y1": -0.536
+          },
+          "geometry": {
+            "method": "vector-outline",
+            "approximate": true,
+            "longitudinalAlignment": "unshifted-nose-based-vector-view",
+            "measuredCenterMinusLocationReferenceM": -0.4116
+          },
+          "clearOpening": {
+            "widthM": 1.82,
+            "heightM": 1.24,
+            "dimensionKind": "clear-opening"
+          },
+          "sourcePages": {
+            "location": 116,
+            "exterior": 116,
+            "clearance": 122
+          }
+        },
+        {
+          "id": "aftCargo",
+          "kind": "cargo",
+          "sides": [
+            "R"
+          ],
+          "locationFromNoseM": 30.02,
+          "locationReference": "published-door-location-reference-line",
+          "exteriorBBox": {
+            "x0": 28.7306,
+            "x1": 30.4354,
+            "y0": -1.9996,
+            "y1": -0.5357
+          },
+          "measuredExteriorBBox": {
+            "x0": 28.7306,
+            "x1": 30.4354,
+            "y0": -1.9996,
+            "y1": -0.5357
+          },
+          "geometry": {
+            "method": "vector-outline",
+            "approximate": true,
+            "longitudinalAlignment": "unshifted-nose-based-vector-view",
+            "measuredCenterMinusLocationReferenceM": -0.437
+          },
+          "clearOpening": {
+            "widthM": 1.82,
+            "heightM": 1.23,
+            "dimensionKind": "clear-opening"
+          },
+          "sourcePages": {
+            "location": 116,
+            "exterior": 116,
+            "clearance": 123
+          }
+        },
+        {
+          "id": "bulkCargo",
+          "kind": "cargo",
+          "sides": [
+            "R"
+          ],
+          "locationFromNoseM": 33.22,
+          "locationReference": "published-door-location-reference-line",
+          "exteriorBBox": {
+            "x0": 32.6056,
+            "x1": 33.5548,
+            "y0": -1.7648,
+            "y1": -0.8376
+          },
+          "measuredExteriorBBox": {
+            "x0": 32.6056,
+            "x1": 33.5548,
+            "y0": -1.7648,
+            "y1": -0.8376
+          },
+          "geometry": {
+            "method": "vector-outline",
+            "approximate": true,
+            "longitudinalAlignment": "unshifted-nose-based-vector-view",
+            "measuredCenterMinusLocationReferenceM": -0.1398
+          },
+          "clearOpening": {
+            "widthM": 0.95,
+            "heightM": 0.77,
+            "dimensionKind": "clear-opening"
+          },
+          "sourcePages": {
+            "location": 116,
+            "exterior": 116,
+            "clearance": 124
+          }
+        }
+      ],
+      "layouts": {
+        "singleClass244": {
+          "pdfPage": 98,
+          "appliesTo": [
+            "A321neo-ACF"
+          ],
+          "optionalOpeningIds": []
+        },
+        "twoClass206": {
+          "pdfPage": 99,
+          "appliesTo": [
+            "A321neo-ACF",
+            "A321neo-XLR"
+          ],
+          "optionalOpeningIds": [
+            "aftOverwing"
+          ]
+        }
+      }
+    }
+  }
+}

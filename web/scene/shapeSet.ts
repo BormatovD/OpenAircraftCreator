@@ -3,9 +3,11 @@
 // от оси цилиндрической части фюзеляжа, z — по размаху. Рычаги масштабируют форму от этих опорных размеров.
 //  • a320 — Airbus AC A320 (2-2-0, 2-3-0, 2-5-0, 2-9-0, 2-12-0), векторный PDF → tools/ac_shapes.py;
 //  • b737 — сетка Collada 737-800 → tools/mesh_shapes.py, плюс размеры Boeing D6-38A004 2.2.2 (база и колея шасси).
+//  • b757 — Boeing D6-58327 Rev H, векторный общий вид 2.2.1 и размеры тележек 7.2 → tools/b757_extract.py.
 
 import A320 from "../../data/ac/a320-shapes.json" with { type: "json" };
 import B737 from "../../data/ac/b737-8-shapes.json" with { type: "json" };
+import B757 from "../../data/ac/b757-shapes.json" with { type: "json" };
 import { type AircraftDefinition } from "../../src/definition.ts";
 
 type Line = { slope: number; x0: number };
@@ -19,7 +21,7 @@ export interface Feature {
 }
 
 export interface ShapeSet {
-  id: "a320" | "b737";
+  id: "a320" | "b737" | "b757";
   fuselage: { x: number[]; top: number[]; bottom: number[]; half_width: number[] };
   /** Радиус сечения по углу; fullTurn — таблица на полный оборот, иначе верхняя половина зеркалится вниз. */
   section: { deg: number[]; r: number[]; fullTurn: boolean };
@@ -30,7 +32,9 @@ export interface ShapeSet {
   baseLengthM: number;
   plugFwd: number;
   plugAft: number;
+  stretchReference?: { referenceLengthM: number; forwardM: number };
   features: Feature[];
+  featuresBySide?: { left: Feature[]; right: Feature[] };
   cockpit: { windscreen: P2[]; side: P2[][] };
   wing: {
     le: Line;
@@ -74,8 +78,12 @@ export interface ShapeSet {
     mainR: number;
     mainWheelGap: number;
     mainTireW: number;
+    /** Расстояние между передней и задней осями четырёхколёсной тележки. */
+    axleSpacingM?: number;
     retractDeg: number;
     noseR: number;
+    noseTireW?: number;
+    noseWheelGap?: number;
     noseLegM: number;
     rakeDeg: number;
   };
@@ -258,7 +266,61 @@ const B737_SET: ShapeSet = {
   },
 };
 
-const SETS = { a320: A320_SET, b737: B737_SET };
+const C = B757;
+const nacelle757 = (n: typeof C.nacelle): ShapeSet["nacelle"] => ({
+  inletX: n.inlet_x, refLengthM: n.ref_length_m, axisZ: n.axis_z, axisY: n.axis_y, clearanceM: n.clearance_m,
+});
+const B757_SET: ShapeSet = {
+  id: "b757",
+  fuselage: C.fuselage,
+  section: { deg: C.section.deg, r: C.section.r, fullTurn: true },
+  halfH: C.halfHeight,
+  halfW: C.halfWidth,
+  baseLengthM: C.baseLengthM,
+  // Места гипотетических вставок рычагом — в цилиндре перед крылом и за ним; не конструкторские стыки Boeing.
+  plugFwd: 10,
+  plugAft: 32,
+  features: C.features,
+  featuresBySide: C.featuresBySide,
+  cockpit: { windscreen: C.cockpit.windscreen as P2[], side: C.cockpit.side as P2[][] },
+  wing: {
+    le: C.wing.le,
+    teInner: C.wing.te_inner,
+    teOuter: C.wing.te_outer,
+    kinkZ: C.wing.kink_z,
+    tipZ: C.wing.tip_z,
+    sideZ: C.wing.side_z,
+    rootY: C.wing.root_y,
+    dihedralDeg: C.wing.dihedral_deg,
+    thicknessRoot: C.wing.thickness_root,
+    thicknessTip: C.wing.thickness_tip,
+    lines: C.wing.lines,
+    refSpanM: C.wing.ref_span_m,
+    refAreaM2: C.wing.ref_area_m2,
+  },
+  htail: { le: C.htail.le, te: C.htail.te, tipZ: C.htail.tip_z, dihedralDeg: C.htail.dihedral_deg, lines: C.htail.lines },
+  vtail: {
+    le: C.vtail.le,
+    te: C.vtail.te,
+    tipY: C.vtail.tip_y,
+    lines: C.vtail.lines,
+    table: C.vtail.table,
+    filletX: C.vtail.fillet_x,
+    leY0: C.vtail.table.y[0] + 0.1,
+    refSpanM: C.vtail.ref_span_m,
+    refAreaM2: C.vtail.ref_area_m2,
+  },
+  fairing: C.fairing,
+  nacelle: nacelle757(C.nacelle),
+  groundY: C.groundY,
+  gear: C.gear,
+  cabin: C.cabin,
+  cargo: C.cargo as [number, number, number, number][],
+  titleX: C.titleX as [number, number],
+  fin: C.fin,
+};
+
+const SETS = { a320: A320_SET, b737: B737_SET, b757: B757_SET };
 let current: ShapeSet = A320_SET;
 
 /** Текущий набор контуров — тот, для которого строится сцена. */
@@ -266,6 +328,10 @@ export const S = (): ShapeSet => current;
 
 /** Выбрать набор контуров по определению; вызывается перед сборкой модели и текстур. */
 export function useShapes(def: AircraftDefinition): ShapeSet {
-  current = SETS[def.shapeSet ?? "a320"];
+  const base = SETS[def.shapeSet ?? "a320"];
+  const nacelle = base.id === "b757"
+    ? nacelle757(def.engine.name.startsWith("PW") ? C.nacelleByEngine.PW2000 : C.nacelleByEngine.RB211)
+    : base.nacelle;
+  current = { ...base, nacelle, stretchReference: def.fuselage.shapeStretch };
   return current;
 }

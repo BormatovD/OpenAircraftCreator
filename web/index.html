@@ -21,10 +21,11 @@
           <button role="radio" data-type="a320" aria-checked="true">A320</button>
           <button role="radio" data-type="a321" aria-checked="false">A321</button>
           <button role="radio" data-type="b737" aria-checked="false" title="Boeing 737-8 (MAX 8), LEAP-1B">737-8</button>
+          <button role="radio" data-type="b757" aria-checked="false" title="Boeing 757-200, RB211-535E4 или PW2037">757-200</button>
         </div>
-        <div class="segmented" role="radiogroup" aria-label="Поколение двигателей">
-          <button role="radio" data-gen="ceo" aria-checked="true">ceo</button>
-          <button role="radio" data-gen="neo" aria-checked="false">neo</button>
+        <div class="segmented" id="aircraft-variants" role="radiogroup" aria-label="Вариант самолёта и двигателя">
+          <button role="radio" data-variant="a320ceo" aria-checked="true">ceo</button>
+          <button role="radio" data-variant="a320neo" aria-checked="false">neo</button>
         </div>
         <button class="theme-toggle" id="theme-toggle" aria-label="Переключить тему">Светлая тема</button>
       </div>

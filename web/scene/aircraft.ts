@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { useShapes } from "./shapeSet.ts";
 import { cockpitGlazing } from "./cockpit.ts";
+import { cabinOpenings } from "./features.ts";
 import { fuselageFittings, wingtipLights } from "./fittings.ts";
 import { type AircraftDefinition, aeroSpanM } from "../../src/definition.ts";
 import {
@@ -96,7 +97,7 @@ export interface BuildOptions {
 }
 
 export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}): AircraftModel {
-  // Контуры типа (чертёж A320 или сетка 737): все «по чертежу» ниже берутся отсюда.
+  // Контуры типа (чертежи A320/757 или сетка 737): все «по чертежу» ниже берутся отсюда.
   const SH = useShapes(def);
   /** Коробка агрегата внутри фюзеляжа: ширина ограничена обшивкой на всех четырёх углах (иначе углы торчат наружу). */
   const hullBox = (f: FuselageShape, x0: number, x1: number, y0: number, y1: number, z0: number, z1: number) => {
@@ -148,12 +149,11 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
     heightM: def.fuselage.heightM,
   };
   const L = f.lengthM;
-  const stretch = L - SH.baseLengthM;
   // Обтекатель центроплана («брюхо» под крылом) — по контуру на виде сбоку AC: от 11,4 до 21,2 м,
   // низ на 2,22 м под осью; шире фюзеляжа у корня крыла.
   const fairing = new THREE.SphereGeometry(1, 40, 20);
   fairing.scale(SH.fairing.sx, SH.fairing.sy, SH.fairing.sz);
-  fairing.translate(SH.fairing.x + stretch / 2, SH.fairing.y, 0);
+  fairing.translate(modelX(L, SH.fairing.x), SH.fairing.y, 0);
   const glazing = cockpitGlazing(f);
   for (const g of glazing) g.userData.tone = "glass";
   const fittings = fuselageFittings(f).map((ft) => {
@@ -193,7 +193,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   };
   // Корень передней кромки сдвигается вместе с передней вставкой фюзеляжа.
   // Высота корня — по виду спереди: средняя линия крыла у борта ниже оси фюзеляжа (A320 — AC, 737 — сетка).
-  const wingRoot = v3(acLe(acSide) + stretch / 2, P.rootY, 0);
+  const wingRoot = v3(modelX(L, acLe(acSide)), P.rootY, 0);
   const wingShape = (side: 1 | -1, extra: Partial<SurfaceShape> = {}): SurfaceShape => ({
     root: wingRoot,
     rootChordM: cSide,
@@ -340,7 +340,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
       side,
     });
     add("wingtips", both((s) => surfaceGeometry(sharklet(s), 8, 14)), v3(0, -6.5, 0), v3(0, 1.8, 2), false, 4.5);
-  } else {
+  } else if (w.tip === "fence") {
     const tipLe = surfacePoint(wingShape(1), 1, 0, true);
     // Законцовка-«забор» A320ceo: наконечник стрелы, выступающий над и под крылом.
     const fence = (side: 1 | -1) => {
@@ -519,7 +519,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   const engZ = Math.min(SH.nacelle.axisZ, 0.6 * semi);
   const lePoint = surfacePoint(wingShape(1), engZ / semi, 0, false);
   const R = e.nacelleWidthM / 2;
-  const nacX = SH.nacelle.inletX - (e.nacelleLengthM - SH.nacelle.refLengthM) * 0.6 + stretch / 2;
+  const nacX = modelX(L, SH.nacelle.inletX) - (e.nacelleLengthM - SH.nacelle.refLengthM) * 0.6;
   const wingLow = surfacePoint(wingShape(1), engZ / semi, 0.2, false).y;
   // Земля — низ шин на виде сбоку AC (3,87 м под осью фюзеляжа). Ось двигателя — из клиренса 0,57 м
   // базовой гондолы CEO: при большем вентиляторе ось на месте, низ гондолы опускается (как в слое ограничений).
@@ -582,7 +582,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   // База шасси 12,64 м и колея 7,59 м — по AC 2-3-0.
 
   const G = SH.gear;
-  const mainX = G.noseX + G.wheelbaseM + stretch / 2;
+  const mainX = modelX(L, G.noseX + G.wheelbaseM);
   // Стойки — по AC 2-9-0. Основная: от оси шарнира до оси колёс 2,869 м выпущенная, ход амортизатора 0,47 м,
   // шарнир на 3,795 м от оси самолёта, уборка внутрь на 80°30′. Передняя: 1,957 м, ход 0,43 м, наклон 9°,
   // уборка вперёд на 92°. Колёса: основные 46×17R20 (Ø1,17 м), передние 30×8,8R15 (Ø0,76 м).
@@ -649,18 +649,23 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
       // Шлиц-шарнир спереди.
       bar(v3(-0.12, -1.55 * km, 0), v3(-0.32, -1.95 * km, 0), 0.035),
       bar(v3(-0.32, -1.95 * km, 0), v3(-0.1, -mainLeg + 0.25, 0), 0.035),
-      // Ось колёс и два колеса.
-      (() => {
+    ];
+    const wheelsPerStrut = def.gear.mainWheels / def.gear.mainStruts;
+    const axleXs = wheelsPerStrut === 4 && G.axleSpacingM ? [-G.axleSpacingM / 2, G.axleSpacingM / 2] : [0];
+    if (axleXs.length === 2) parts.push(bar(v3(axleXs[0], -mainLeg, 0), v3(axleXs[1], -mainLeg, 0), 0.13));
+    for (const axleX of axleXs) {
+      // По два колеса на ось; у 757 две оси с базой 45 in (D6-58327 §7.2).
+      parts.push((() => {
         const a = new THREE.CylinderGeometry(0.07, 0.07, 2 * G.mainWheelGap + 0.13, 12);
         a.rotateX(Math.PI / 2);
-        a.translate(0, -mainLeg, 0);
+        a.translate(axleX, -mainLeg, 0);
         return a;
-      })(),
-    ];
-    for (const k of [1, -1]) {
-      const t = tire(mainR, G.mainTireW);
-      t.translate(0, -mainLeg, k * G.mainWheelGap);
-      parts.push(t);
+      })());
+      for (const k of [1, -1]) {
+        const t = tire(mainR, G.mainTireW);
+        t.translate(axleX, -mainLeg, k * G.mainWheelGap);
+        parts.push(t);
+      }
     }
     const leg = merge(parts);
     leg.userData = { side, basePos: mainPivot(side), retract: { axis: "x", angle: (side * G.retractDeg * Math.PI) / 180 } };
@@ -706,8 +711,8 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
     bar(v3(0, -0.55 * kn, 0), v3(-0.95, 0.05, 0), 0.045),
   ];
   for (const k of [1, -1]) {
-    const t = tire(noseR, 0.22);
-    t.translate(0, -noseLegLen, k * 0.3);
+    const t = tire(noseR, G.noseTireW ?? 0.22);
+    t.translate(0, -noseLegLen, k * (G.noseWheelGap ?? 0.3));
     noseParts.push(t);
   }
   const noseLeg = merge(noseParts);
@@ -820,8 +825,10 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   const floorY = SH.cabin.floorY;
   const pitch = def.systems.seatPitchM;
   const rows = Math.ceil(def.systems.seats / def.systems.seatsAbreast);
-  const fwdDoorEnd = SH.cabin.fwdDoorEnd;
-  const aftDoorStart = modelX(L, SH.cabin.aftDoorX);
+  const openings = cabinOpenings(def).sort((a, b) => a.x0 - b.x0);
+  const ownCabin = def.id === "a321ceo" || def.id === "a321neo";
+  const fwdDoorEnd = ownCabin ? openings[0].x1 + 0.25 : SH.cabin.fwdDoorEnd;
+  const aftDoorStart = ownCabin ? openings.at(-1)!.x0 : modelX(L, SH.cabin.aftDoorX);
   const firstRow = fwdDoorEnd + 0.45;
   const seatTriple = (x: number, side: 1 | -1): THREE.BufferGeometry => {
     const zIn = 0.32;

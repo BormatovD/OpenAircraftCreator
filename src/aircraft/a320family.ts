@@ -45,7 +45,10 @@ function variantOf(v: Variant): AircraftDefinition {
     wing: { ...a.wing, highLift: { ...a.wing.highLift, flapType: v.flapType } },
     htail: { ...a.htail, armM: a.htail.armM + v.plugAftM },
     vtail: { ...a.vtail, armM: a.vtail.armM + v.plugAftM },
-    fuselage: { ...a.fuselage, lengthM: v.lengthM, pressurizedVolumeM3: v.pressurizedVolumeM3 },
+    fuselage: {
+      ...a.fuselage, lengthM: v.lengthM, pressurizedVolumeM3: v.pressurizedVolumeM3,
+      shapeStretch: { referenceLengthM: v.lengthM, forwardM: v.plugFwdM },
+    },
     engine: { ...a.engine, takeoffThrustKn: (v.thrustLbf * LBF) / 1000, bypassRatio: v.bpr, overallPressureRatio: v.opr },
     systems: {
       ...a.systems,

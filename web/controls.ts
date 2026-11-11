@@ -2,6 +2,7 @@
 // (из определения выбранного самолёта) и как превратить положение ползунка в рычаг расчётного ядра.
 
 import { type AircraftDefinition } from "../src/definition.ts";
+import { comparisonAssumptionsFor } from "../src/aircraft/missionProfiles.ts";
 import {
   type Lever,
   aeroQuality,
@@ -121,6 +122,7 @@ export const CONTROLS: Control[] = [
     kind: "toggle",
     label: "Шарклеты",
     hint: "вместо «заборчиков»: размах 35,8 м, +200 кг",
+    appliesTo: (d) => d.wing.tip !== "none",
     parts: ["wingtips"],
     base: (d) => d.wing.tip === "sharklet",
     toLever: (on) => wingTip(on ? "sharklet" : "fence"),
@@ -383,7 +385,7 @@ export const CONTROLS: Control[] = [
     min: 0.7,
     max: 0.84,
     step: 0.01,
-    base: () => 0.78,
+    base: (d) => comparisonAssumptionsFor(d).cruiseMach,
     format: (v) => `M ${num(v, 2)}`,
     toLever: (v) => cruiseMach(v),
   },
@@ -535,5 +537,5 @@ export const SCENARIOS: Scenario[] = [
   },
 ];
 
-/** Сценарии делятся по производителю выбранного самолёта. */
-export const scenarioFamily = (aircraftId: string) => (aircraftId.startsWith("b") ? "boeing" : "airbus");
+/** Сценарии 737 не переносятся автоматически на 757. */
+export const scenarioFamily = (aircraftId: string) => aircraftId.startsWith("b757") ? "b757" : aircraftId.startsWith("b737") ? "b737" : "airbus";

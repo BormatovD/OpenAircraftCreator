@@ -13,7 +13,8 @@ export function nacaHalfThickness(x: number, t: number): number {
 /**
  * Фюзеляж — по таблицам набора контуров (shapeSet.ts): у A320 — Airbus AC (2-2-0, виды сбоку и сверху; 2-5-0, сечение),
  * у 737 — сетка 737-800. Таблицы заданы для длины чертежа; удлинение — две цилиндрические вставки: перед крылом
- * и за ним, по половине каждая.
+ * и за ним. У вариантов семейства сохраняется их собственное соотношение вставок;
+ * дополнительное удлинение рычагом делится пополам.
  */
 export interface FuselageShape {
   lengthM: number;
@@ -40,23 +41,27 @@ function interp(xs: number[], ys: number[], x: number): number {
 
 /** Координата на чертеже AC для точки модели: вставки удлинения повторяют цилиндрическое сечение. */
 export function acX(lengthM: number, x: number): number {
-  const { baseLengthM: L0, plugFwd: PLUG_FWD, plugAft: PLUG_AFT } = S();
-  const half = (lengthM - L0) / 2;
+  const plugs = fuselagePlugs(lengthM);
   let xa = x;
-  if (xa >= PLUG_FWD) xa = half >= 0 && xa < PLUG_FWD + half ? PLUG_FWD : xa - half;
-  const aft = PLUG_AFT;
-  if (xa >= aft) xa = half >= 0 && xa < aft + half ? aft : xa - half;
+  for (const [station, delta] of [[plugs.forward, plugs.forwardM], [plugs.aft, plugs.aftM]])
+    if (xa >= station) xa = delta >= 0 && xa < station + delta ? station : xa - delta;
   return xa;
 }
 
 /** Обратно: где на удлинённом фюзеляже оказывается точка чертежа AC. */
 export function modelX(lengthM: number, xa: number): number {
-  const { baseLengthM: L0, plugFwd: PLUG_FWD, plugAft: PLUG_AFT } = S();
-  const half = (lengthM - L0) / 2;
-  return xa + (xa >= PLUG_FWD ? half : 0) + (xa >= PLUG_AFT ? half : 0);
+  const plugs = fuselagePlugs(lengthM);
+  const offset = (station: number, delta: number) => xa < station ? 0 : Math.max(delta, station - xa);
+  // При укорочении удалённый участок схлопывается в одну станцию, без обратного хода координаты.
+  return xa + offset(plugs.forward, plugs.forwardM) + offset(plugs.aft, plugs.aftM);
 }
 /** Вставки удлинения текущего набора контуров. */
-export const fuselagePlugs = () => ({ forward: S().plugFwd, aft: S().plugAft, baseLengthM: S().baseLengthM });
+export function fuselagePlugs(lengthM = S().baseLengthM) {
+  const shape = S();
+  const ref = shape.stretchReference;
+  const forwardM = (ref?.forwardM ?? 0) + (lengthM - (ref?.referenceLengthM ?? shape.baseLengthM)) / 2;
+  return { forward: shape.plugFwd, aft: shape.plugAft, baseLengthM: shape.baseLengthM, forwardM, aftM: lengthM - shape.baseLengthM - forwardM };
+}
 
 // Сечение: радиус по углу (0° — правый борт, 90° — верх). У A320 — верхняя половина по 2-5-0, нижняя зеркальна;
 // у 737 — полный оборот (нижний «пузырь» уже верхнего).

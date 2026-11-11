@@ -2,9 +2,8 @@ import "./style.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { CSS2DObject, CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
-import { A319CEO, A319NEO, A321CEO, A321NEO } from "../src/aircraft/a320family.ts";
-import { A320CEO, A320NEO } from "../src/aircraft/a320.ts";
-import { B737_8 } from "../src/aircraft/b737max.ts";
+import { A320CEO } from "../src/aircraft/a320.ts";
+import { AIRCRAFT, AIRCRAFT_CHOICES, AIRCRAFT_LABEL, aircraftForType, typeOf, variantsFor } from "./aircraftCatalog.ts";
 import { contextFor } from "../src/aircraft/contextFor.ts";
 import { type ConstraintResult } from "../src/constraints.ts";
 import { type AircraftDefinition } from "../src/definition.ts";
@@ -21,28 +20,6 @@ import { Environment, PHASES, type Phase } from "./scene/environment.ts";
 import { LIVERIES, NO_LIVERY, PLAIN_FIN, finLiveryTexture, liveryById } from "./scene/livery.ts";
 import { fuselageTexture, htailTexture, wingTexture } from "./scene/textures.ts";
 
-const AIRCRAFT: Record<string, AircraftDefinition> = {
-  a319ceo: A319CEO,
-  a319neo: A319NEO,
-  a320ceo: A320CEO,
-  a320neo: A320NEO,
-  a321ceo: A321CEO,
-  a321neo: A321NEO,
-  "b737-8": B737_8,
-};
-const AIRCRAFT_LABEL: Record<string, string> = {
-  a319ceo: "A319ceo",
-  a319neo: "A319neo",
-  a320ceo: "A320ceo",
-  a320neo: "A320neo",
-  a321ceo: "A321ceo",
-  a321neo: "A321neo",
-  "b737-8": "737-8",
-};
-/** id = тип + поколение: a321neo, b737-8. У 737 одно поколение — переключатель ceo/neo для него неактивен. */
-const typeOf = (id: string) => (id.startsWith("b737") ? "b737" : id.slice(0, 4));
-const genOf = (id: string) => id.slice(typeOf(id).length);
-const gensOf = (type: string) => Object.keys(AIRCRAFT).filter((k) => typeOf(k) === type).map(genOf);
 const FAMILY_LABEL: Record<Family, string> = {
   structure: "Конструкция",
   propulsion: "Силовая установка",
@@ -315,7 +292,7 @@ function buildScene(): void {
     });
     // Детали из чертежей AC — текстурами поверх формы.
     const detail: Record<string, () => THREE.Texture> = {
-      fuselage: () => cachedTexture(`fus|${ev.definition.shapeSet ?? "a320"}|${ev.definition.fuselage.lengthM}|none`, () => fuselageTexture(ev.definition)),
+      fuselage: () => cachedTexture(`fus|${ev.definition.id}|${ev.definition.fuselage.lengthM}|${ev.definition.fuselage.heightM}|none`, () => fuselageTexture(ev.definition)),
       "wing.box": () => cachedTexture(`wing|${ev.definition.shapeSet ?? "a320"}`, wingTexture),
       "wing.highLift": () => cachedTexture(`wing|${ev.definition.shapeSet ?? "a320"}`, wingTexture),
       htail: () => cachedTexture(`htail|${ev.definition.shapeSet ?? "a320"}`, htailTexture),
@@ -494,14 +471,14 @@ function applyLivery(natural: boolean): void {
     });
   };
   if (l) {
-    paint("fuselage", "#ffffff", cachedTexture(`fus|${def.shapeSet ?? "a320"}|${L}|${l.id}|${def.shortName}`, () => fuselageTexture(def, l)));
+    paint("fuselage", "#ffffff", cachedTexture(`fus|${def.id}|${L}|${def.fuselage.heightM}|${l.id}|${def.shortName}`, () => fuselageTexture(def, l)));
     const fin = model.finXY;
     paint("vtail", "#ffffff", cachedTexture(`fin|${def.shapeSet ?? "a320"}|${def.vtail.areaM2}|${def.vtail.spanM}|${l.id}`, () => finLiveryTexture(l, fin)));
     paint("nacelles", l.nacelle);
     paint("wingtips", l.fin[1]);
     for (const id of ["wing.box", "wing.highLift", "htail"]) paint(id, l.wing);
   } else {
-    paint("fuselage", null, cachedTexture(`fus|${def.shapeSet ?? "a320"}|${L}|none`, () => fuselageTexture(def)));
+    paint("fuselage", null, cachedTexture(`fus|${def.id}|${L}|${def.fuselage.heightM}|none`, () => fuselageTexture(def)));
     paint("vtail", null, cachedTexture(`fin|${def.shapeSet ?? "a320"}|${def.vtail.areaM2}|${def.vtail.spanM}|plain`, () => finLiveryTexture(PLAIN_FIN, model!.finXY)));
     for (const id of ["nacelles", "wingtips", "wing.box", "wing.highLift", "htail"]) paint(id, null);
   }
@@ -705,7 +682,12 @@ function renderScenarios(): void {
     b.addEventListener("click", () => applyScenario(b.dataset.scenario === state.scenarioId ? null : b.dataset.scenario!));
   const s = SCENARIOS.find((x) => x.id === state.scenarioId);
   const text = $("scenario-text");
-  text.textContent = s?.text ?? (fam === "boeing" ? "Сценарии про решения самого 737: что дал бы больший вентилятор, старое крыло, пилон." : "Сценарии — готовые наборы рычагов с объяснением. Нажмите ещё раз, чтобы снять.");
+  text.textContent = s?.text ?? (fam === "b737"
+    ? "Сценарии про решения самого 737: что дал бы больший вентилятор, старое крыло, пилон."
+    : fam === "b757"
+      ? "757-200: выберите RB211 или PW2037 и сравните расчёт. Исходная масса пока недооценена; это контрольный тип для модели масс."
+      : "Сценарии — готовые наборы рычагов с объяснением. Нажмите ещё раз, чтобы снять.");
+  document.querySelector(".scenario-label")!.textContent = fam === "b757" ? "757-200" : "Сценарии";
   text.classList.toggle("idle", !s);
   text.title = s ? "Нажмите, чтобы развернуть" : "";
   text.classList.remove("open");
@@ -735,10 +717,10 @@ function syncHeader(): void {
   document.title = `${nameNow} в разборе`;
   const type = typeOf(state.aircraftId);
   for (const o of document.querySelectorAll<HTMLButtonElement>("[data-type]")) o.setAttribute("aria-checked", String(o.dataset.type === type));
-  for (const o of document.querySelectorAll<HTMLButtonElement>("[data-gen]")) {
-    o.setAttribute("aria-checked", String(genOf(state.aircraftId) === o.dataset.gen));
-    o.disabled = !gensOf(type).includes(o.dataset.gen!);
-  }
+  const variants = variantsFor(type);
+  $("aircraft-variants").innerHTML = variants.map((id) =>
+    `<button role="radio" data-variant="${id}" aria-checked="${id === state.aircraftId}"${variants.length === 1 ? " disabled" : ""}>${AIRCRAFT_CHOICES[id].variantLabel}</button>`,
+  ).join("");
   for (const o of document.querySelectorAll<HTMLButtonElement>("[data-mode]")) o.setAttribute("aria-checked", String(o.dataset.mode === state.mode));
 }
 
@@ -1175,6 +1157,7 @@ function renderDetail(): void {
       ${factor !== undefined ? `<dt>Оценка по формуле</dt><dd>${fmtKg(n.rawKg)}</dd><dt>Поправка по аналогу</dt><dd>×${nf(factor, 2)}</dd>` : ""}
     </dl>
     <p class="source">${spec.source}</p>
+    ${n.id === "furnishings" ? "<p class=\"source\">Кресла, кухни и туалеты показаны условно для разбора массы. Это не точный план салона: проходы у промежуточных дверей и расстановка по классам пока не воспроизводятся.</p>" : ""}
     ${
       linkedGroups(n.id).length
         ? `<div class="linked-levers"><span>Рычаги:</span>${linkedGroups(n.id)
@@ -1205,7 +1188,8 @@ function engineExplainer(): string {
   const bypassShare = B / (1 + B);
   return `
   <div class="engine-explainer">
-    <h4>Как это работает</h4>
+    <h4>${e.architecture.spools === 3 ? "Упрощённая модель двигателя" : "Как это работает"}</h4>
+    ${e.architecture.spools === 3 ? "<p>RB211 имеет три вала. Здесь показан общий двухвальный разрез модели: отдельный вал среднего давления и смешение потоков RB211 пока не воспроизведены. Приведённая ниже связь агрегатов относится к этой упрощённой схеме.</p>" : ""}
     ${engineDiagram({
       bypassRatio: B,
       coreRadius: rc,
@@ -1283,7 +1267,7 @@ $("explode").addEventListener("input", (e) => {
   applyExplode();
 });
 
-// Выбор типа и поколения двигателей: id = тип + поколение (a321neo).
+// Выбор типа и поколения либо двигателя (у 757 — RB211 / PW2037).
 const pickAircraft = (id: string) => {
   if (state.aircraftId === id || !AIRCRAFT[id]) return;
   state.aircraftId = id;
@@ -1296,13 +1280,13 @@ const pickAircraft = (id: string) => {
 };
 for (const b of document.querySelectorAll<HTMLButtonElement>("[data-type]"))
   b.addEventListener("click", () => {
-    // Поколение сохраняется, если у типа оно есть; с 737-8 на Airbus — neo (то же поколение двигателей).
-    const t = b.dataset.type!;
-    const gens = gensOf(t);
-    const g = genOf(state.aircraftId);
-    pickAircraft(t + (gens.includes(g) ? g : gens.includes("neo") ? "neo" : gens[0]));
+    const id = aircraftForType(b.dataset.type!, state.aircraftId);
+    if (id) pickAircraft(id);
   });
-for (const b of document.querySelectorAll<HTMLButtonElement>("[data-gen]")) b.addEventListener("click", () => pickAircraft(typeOf(state.aircraftId) + b.dataset.gen!));
+$("aircraft-variants").addEventListener("click", (e) => {
+  const button = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-variant]");
+  if (button && !button.disabled) pickAircraft(button.dataset.variant!);
+});
 for (const b of document.querySelectorAll<HTMLButtonElement>("[data-aircraft]")) {
   b.addEventListener("click", () => {
     if (state.aircraftId === b.dataset.aircraft) return;

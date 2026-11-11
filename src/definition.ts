@@ -7,7 +7,7 @@ export interface WingDef {
   /** Конструктивный размах без законцовок. */
   spanM: number;
   /** Законцовки: дают эффективный размах для аэродинамики и собственную массу. */
-  tip: "fence" | "sharklet";
+  tip: "none" | "fence" | "sharklet";
   sharkletSpanM: number;
   taper: number;
   sweepQuarterDeg: number;
@@ -52,6 +52,9 @@ export interface FuselageDef {
   pressurizedVolumeM3: number;
   /** Raymer K_door: 1,06 — один боковой грузовой люк. */
   doorFactor: number;
+  /** Продольное положение крыла при переносе базового чертежа: длина варианта и передняя вставка.
+   * Дополнительное удлинение рычагом делится поровну; на расчёт масс/сопротивления это поле не влияет. */
+  shapeStretch?: { referenceLengthM: number; forwardM: number };
 }
 
 export interface GearDef {
@@ -88,7 +91,7 @@ export interface EngineDef {
   nacelleRaiseM: number;
   thrustReverser: boolean;
   /** Схема двигателя для визуализации: число лопаток вентилятора и ступеней. Ступени ТНД — от двухконтурности. */
-  architecture: { fanBlades: number; boosterStages: number; hpcStages: number; hptStages: number };
+  architecture: { fanBlades: number; boosterStages: number; hpcStages: number; hptStages: number; spools?: 2 | 3 };
 }
 
 export interface EngineCycleDef {
@@ -149,7 +152,7 @@ export interface AircraftDefinition {
   /** Название типа для надписи на борту («A320», «737-8»). */
   shortName?: string;
   /** Набор контуров для 3D-модели (вид сбоку, сверху, сечение); по умолчанию — A320. */
-  shapeSet?: "a320" | "b737";
+  shapeSet?: "a320" | "b737" | "b757";
   wing: WingDef;
   htail: TailDef;
   vtail: TailDef;

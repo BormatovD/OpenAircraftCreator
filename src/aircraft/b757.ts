@@ -15,10 +15,11 @@ const base: AircraftDefinition = {
   id: "b757-200",
   label: "Boeing 757-200",
   shortName: "757-200",
+  shapeSet: "b757",
   wing: {
     areaM2: 185.25, // 1 994 ft², Boeing (опорная площадь)
     spanM: 38.05, // 2.2.1
-    tip: "fence",
+    tip: "none", // исходный 757-200 по 2.2.1, без добавочных законцовок
     sharkletSpanM: 38.05,
     taper: 0.24, // допущение
     sweepQuarterDeg: 25, // Boeing
@@ -76,13 +77,14 @@ const RB211: EngineDef = {
   overallPressureRatio: 28,
   cycle: { t4K: 1450, coolingFrac: 0.18, fanEff: 0.885, compEff: 0.87, hptEff: 0.87, lptEff: 0.88, gearbox: false },
   nacelleLengthM: 5.4, // допущение: длинная гондола
-  nacelleWidthM: 2.45, // допущение
+  nacelleWidthM: 2.46, // наружная ширина RR: D6-58327 Rev H, 2.2.1 (PDF 20)
   installation: "pylon",
   nacelleRaiseM: 0,
   takeoffThrustKn: (40100 * LBF) / 1000,
   thrustScale: 1,
   thrustReverser: true,
-  architecture: { fanBlades: 22, boosterStages: 6, hpcStages: 6, hptStages: 1 },
+  // boosterStages здесь представляет компрессор СД; отдельный вал СД в общем разрезе ещё не построен.
+  architecture: { fanBlades: 22, boosterStages: 6, hpcStages: 6, hptStages: 1, spools: 3 },
 };
 
 /**
@@ -98,9 +100,9 @@ const PW2037: EngineDef = {
   overallPressureRatio: 27.6,
   cycle: { t4K: 1500, coolingFrac: 0.16, fanEff: 0.87, compEff: 0.875, hptEff: 0.875, lptEff: 0.885, gearbox: false },
   nacelleLengthM: 5.6,
-  nacelleWidthM: 2.55,
+  nacelleWidthM: 2.69, // наружная ширина PW: D6-58327 Rev H, 2.2.1 (PDF 20)
   takeoffThrustKn: (38250 * LBF) / 1000,
-  architecture: { fanBlades: 36, boosterStages: 4, hpcStages: 12, hptStages: 2 },
+  architecture: { fanBlades: 36, boosterStages: 4, hpcStages: 12, hptStages: 2, spools: 2 },
 };
 
 export const B757_RB211: AircraftDefinition = { ...base, id: "b757-200-rb", label: "Boeing 757-200, RB211-535E4", engine: RB211 };
