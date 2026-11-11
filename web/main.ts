@@ -981,6 +981,19 @@ function renderMetrics(): void {
     </div>
     ${cmp ? `<div class="kpi-compare">${AIRCRAFT_LABEL[scenario!.compareWith!]}: ${nf(cmp.fuelPerSeatPer100KmKg, 3)} кг/100 км, OEW ${fmtKg(cmp.oewKg)}</div>` : ""}`;
   metrics.querySelector<HTMLElement>(".kpi-strip")!.scrollLeft = scrollLeft;
+  // Невыполнимый рейс / ноль пассажиров: нельзя показывать NaN как реальный расход.
+  if (!Number.isFinite(ev.fuelPerSeatPer100KmKg)) {
+    const value = metrics.querySelector<HTMLElement>(".kpi-main .kpi-big");
+    if (value) value.innerHTML = "—<small> кг/100 км</small>";
+  }
+  if (!Number.isFinite(ev.fuelPerSeatPer100KmKg) || !Number.isFinite(result.base.fuelPerSeatPer100KmKg)) {
+    const delta = metrics.querySelector<HTMLElement>(".kpi-main .kpi-delta");
+    if (delta) delta.textContent = ev.missionResult.feasible ? "нет сопоставимой базы / пассажиров" : "рейс недостижим — см. ограничения";
+  }
+  if (cmp && !Number.isFinite(cmp.fuelPerSeatPer100KmKg)) {
+    const compare = metrics.querySelector<HTMLElement>(".kpi-compare");
+    if (compare) compare.textContent = `${AIRCRAFT_LABEL[scenario!.compareWith!]}: — кг/100 км, OEW ${fmtKg(cmp.oewKg)}`;
+  }
   $("kpi-limits").onclick = () => setRightTab("constraints");
   const d = result.ev.definition;
   $("mode-hint").innerHTML =

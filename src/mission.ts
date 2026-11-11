@@ -395,9 +395,13 @@ export interface MissionResult {
   tripFuelKg: number;
   reserves: Reserves;
   trip: TripResult;
-  /** Достаточно топлива на заданные резервы. Допустимость высоты и покрытие таблицы сообщаются отдельно. */
+  /** Достаточно топлива на резервы. Для проверки конкретной дистанции используйте solveMissionFuel. */
   feasible: boolean;
   reserveShortfallKg: number;
+  /** Запрошенная дальность (только при расчёте конкретного рейса). */
+  requestedRangeNm?: number;
+  /** Дефицит дальности по доступному топливу, неотрицательный. */
+  distanceShortfallNm?: number;
 }
 
 /**
@@ -432,4 +436,56 @@ export function rangeForFuel(
     feasible: reserveShortfallKg <= 0.5,
     reserveShortfallKg,
   };
+}
+
+/**
+ * Наименьшее взлётное топливо для ЗАДАННОЙ миссии, либо предел топлива, если
+ * миссия недостижима. Верхняя граница уже должна учитывать ёмкость баков и MTOW.
+ *
+ * В отличие от rangeForFuel, feasible означает одновременно: выполнена
+ * запрошенная дистанция И сохранены резервы. Не изменяет сравнительные
+ * payload/range-кривые, в которых запрошенной дистанции нет.
+ */
+export function solveMissionFuel(
+  aero: AeroConfig,
+  engine: EngineState,
+  as: MissionAssumptions,
+  zeroFuelMassKg: number,
+  maxTakeoffFuelKg: number,
+  requestedRangeNm: number,
+): { takeoffFuelKg: number; result: MissionResult } {
+  if (!Number.isFinite(zeroFuelMassKg) || zeroFuelMassKg <= 0 ||
+    !Number.isFinite(maxTakeoffFuelKg) || maxTakeoffFuelKg < 0 ||
+    !Number.isFinite(requestedRangeNm) || requestedRangeNm <= 0) {
+    throw new RangeError("Некорректны масса без топлива, доступное топливо или дальность рейса");
+  }
+  const evaluateFuel = (fuelKg: number) =>
+    rangeForFuel(aero, engine, as, zeroFuelMassKg + fuelKg, fuelKg);
+  // Допуск 0,0001 nm (~0,2 м): только округление бисекции, не эксплуатационный запас.
+  const toleranceNm = 0.0001;
+  const annotate = (r: MissionResult): MissionResult => {
+    const distanceShortfallNm = Math.max(0, requestedRangeNm - r.rangeNm);
+    return {
+      ...r,
+      requestedRangeNm,
+      distanceShortfallNm,
+      feasible: r.feasible && distanceShortfallNm <= toleranceNm,
+    };
+  };
+
+  const maxResult = evaluateFuel(maxTakeoffFuelKg);
+  if (!maxResult.feasible || maxResult.rangeNm + toleranceNm < requestedRangeNm) {
+    // Не выдавать «подобранное» топливо за достаточное, если достигнут предел.
+    return { takeoffFuelKg: maxTakeoffFuelKg, result: annotate(maxResult) };
+  }
+
+  let lo = 0;
+  let hi = maxTakeoffFuelKg;
+  for (let i = 0; i < 34; i++) {
+    const mid = (lo + hi) / 2;
+    const r = evaluateFuel(mid);
+    if (r.feasible && r.rangeNm >= requestedRangeNm) hi = mid;
+    else lo = mid;
+  }
+  return { takeoffFuelKg: hi, result: annotate(evaluateFuel(hi)) };
 }

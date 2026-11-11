@@ -6,7 +6,7 @@ import { G0 } from "./atmosphere.ts";
 import { type AircraftDefinition, aeroSpanM } from "./definition.ts";
 import { type Lever, applyDefinition, collectAero, collectMission, collectTsfcFactor } from "./levers.ts";
 import { type Calibration, type MassBreakdown, computeMasses } from "./mass/massTree.ts";
-import { DEFAULT_ASSUMPTIONS, type MissionAssumptions, type MissionResult, rangeForFuel } from "./mission.ts";
+import { DEFAULT_ASSUMPTIONS, type MissionAssumptions, type MissionResult, rangeForFuel, solveMissionFuel } from "./mission.ts";
 import { aspectRatioOf, dragBuildup, dragDivergenceMach, oswaldObert, waveDrag, waveParams } from "./drag.ts";
 import { clForWeight, inducedFactor } from "./aero.ts";
 import { flightLevelToM, isa } from "./atmosphere.ts";
@@ -60,6 +60,7 @@ export interface Evaluation {
   rangeFullTankNm: number;
   /** Дальность с нагрузкой миссии (180 пасс.), топлива — сколько позволяют баки и MTOW. */
   rangeWithMissionPayloadNm: number;
+  /** Взлётное топливо для запрошенной миссии; при недостижимости — всё доступное в пределах MTOW и баков. */
   missionFuelKg: number;
   /** Рейсовое топливо на миссию, без резервов. */
   tripFuelKg: number;
@@ -72,6 +73,7 @@ export interface Evaluation {
   payloadKg: number;
   /** Все места не помещаются в MZFW — нагрузка урезана, расход на место считается по помещающимся местам. */
   payloadLimitedByMzfw: boolean;
+  /** NaN, если миссия не выполнена либо число перевезённых пассажиров равно нулю. Успех — missionResult.feasible. */
   fuelPerSeatPer100KmKg: number;
   constraints: ConstraintResult[];
   /** Углы диаграммы нагрузка–дальность: макс. нагрузка, MTOW + полные баки, перегон. */
@@ -197,22 +199,23 @@ export function evaluateResolved(
   const oew = masses.oewKg;
   const w = def.weights;
 
-  const fuelCapKg = def.systems.fuelVolumeL * ctx.fuelDensityKgL - as.taxiFuelKg;
-  const fullTankFuel = Math.min(fuelCapKg, w.mtowKg - oew);
+  if (!Number.isFinite(mission.distanceNm) || mission.distanceNm <= 0 ||
+    !Number.isFinite(mission.massPerPaxKg) || mission.massPerPaxKg <= 0 ||
+    !Number.isInteger(mission.seats ?? def.systems.seats) || (mission.seats ?? def.systems.seats) < 0) {
+    throw new RangeError("Дальность и масса пассажира должны быть положительными, число мест — целым неотрицательным");
+  }
+  const fuelCapKg = Math.max(0, def.systems.fuelVolumeL * ctx.fuelDensityKgL - as.taxiFuelKg);
+  const fullTankFuel = Math.max(0, Math.min(fuelCapKg, w.mtowKg - oew));
   const rangeFullTankNm = rangeForFuel(aero, engine, as, w.mtowKg, fullTankFuel).rangeNm;
 
   const seats = mission.seats ?? def.systems.seats;
-  const payload = Math.min(seats * mission.massPerPaxKg, w.mzfwKg - oew);
-  const fuelWithPayload = Math.min(fuelCapKg, w.mtowKg - oew - payload);
+  const payload = Math.max(0, Math.min(seats * mission.massPerPaxKg, w.mzfwKg - oew));
+  const fuelWithPayload = Math.max(0, Math.min(fuelCapKg, w.mtowKg - oew - payload));
   const rangeWithMissionPayloadNm = rangeForFuel(aero, engine, as, oew + payload + fuelWithPayload, fuelWithPayload).rangeNm;
-  const missionFuelKg = bisect(
-    (fuel) => rangeForFuel(aero, engine, as, oew + payload + fuel, fuel).rangeNm,
-    1000,
-    fuelCapKg,
-    mission.distanceNm,
-  );
-  // Расход на место — только рейсовое топливо, без резервов.
-  const missionResult = rangeForFuel(aero, engine, as, oew + payload + missionFuelKg, missionFuelKg);
+  const solved = solveMissionFuel(aero, engine, as, oew + payload, fuelWithPayload, mission.distanceNm);
+  const missionFuelKg = solved.takeoffFuelKg;
+  // Расход на место доступен только для выполненной миссии, а не для обрезанного рейса.
+  const missionResult = solved.result;
   const trip = missionResult.tripFuelKg;
   const cruiseSample = missionResult.trip.cruiseSample;
   const km = mission.distanceNm * 1.852;
@@ -223,17 +226,35 @@ export function evaluateResolved(
   const maxPayload = Math.max(0, w.mzfwKg - oew);
   const fuelA = Math.min(fuelCapKg, w.mtowKg - oew - maxPayload);
   const payloadB = Math.max(0, Math.min(maxPayload, w.mtowKg - oew - fuelCapKg));
-  const fuelB = Math.min(fuelCapKg, w.mtowKg - oew - payloadB);
+  const fuelB = Math.max(0, Math.min(fuelCapKg, w.mtowKg - oew - payloadB));
   const payloadRange = [
     { rangeNm: 0, payloadKg: maxPayload },
     { rangeNm: rangeForFuel(aero, engine, as, oew + maxPayload + fuelA, fuelA).rangeNm, payloadKg: maxPayload },
     { rangeNm: rangeForFuel(aero, engine, as, oew + payloadB + fuelB, fuelB).rangeNm, payloadKg: payloadB },
-    { rangeNm: rangeForFuel(aero, engine, as, oew + fuelCapKg, fuelCapKg).rangeNm, payloadKg: 0 },
+    { rangeNm: rangeForFuel(aero, engine, as, oew + fullTankFuel, fullTankFuel).rangeNm, payloadKg: 0 },
   ];
   const thrust = thrustCurve(def, aero, w.mtowKg * TOC_MASS_FRACTION, as.cruiseMach);
   const highLift = highLiftPerf(def, ctx.highLiftAnchor);
   const oei = oeiSecondSegment(def, aero, highLift.clMaxTakeoff);
   const k = 1 / (Math.PI * ((aero.spanM * aero.spanM) / aero.wingAreaM2) * aero.oswald);
+  const constraints = checkConstraints(def, ctx.constraintsRef, { payloadLimitedByMzfw, ceilingFl: thrust.ceilingFl, oeiGradient: oei.gradient, highLift });
+  if (!missionResult.feasible) constraints.push({
+    id: "mission-distance",
+    label: "Достижение заданной дальности с резервами",
+    status: "violation",
+    value: `${missionResult.rangeNm.toFixed(1)} / ${mission.distanceNm.toFixed(1)} nm`,
+    limit: `≥ ${mission.distanceNm.toFixed(1)} nm`,
+    message: `Рейс недостижим: нехватка ${missionResult.distanceShortfallNm?.toFixed(1)} nm либо недостаточны резервы. ` +
+      `Доступное взлётное топливо ${fuelWithPayload.toFixed(0)} кг (MTOW и баки); расход на место не рассчитывается.`,
+  });
+  if (seatsCarried === 0) constraints.push({
+    id: "mission-no-passengers",
+    label: "Пассажиры для расчёта расхода на место",
+    status: "warning",
+    value: "0 мест",
+    limit: "≥ 1 перевезённое место",
+    message: "Нет пассажиров: расход на пассажира математически не определён.",
+  });
   return {
     definition: def,
     masses,
@@ -251,10 +272,10 @@ export function evaluateResolved(
     seats,
     payloadKg: payload,
     payloadLimitedByMzfw,
-    constraints: checkConstraints(def, ctx.constraintsRef, { payloadLimitedByMzfw, ceilingFl: thrust.ceilingFl, oeiGradient: oei.gradient, highLift }),
+    constraints,
     // Расход на место — по местам, которые реально помещаются в MZFW.
     seatsCarried,
-    fuelPerSeatPer100KmKg: (trip / seatsCarried / km) * 100,
+    fuelPerSeatPer100KmKg: missionResult.feasible && seatsCarried > 0 ? (trip / seatsCarried / km) * 100 : Number.NaN,
     payloadRange,
     cruiseDrag: cruiseDrag(def, aero, as, cruiseSample?.massKg ?? oew + payload + missionFuelKg / 2,
       ctx.aero, cruiseSample?.fl ?? as.cruiseFL, cruiseSample?.mach ?? as.cruiseMach),
