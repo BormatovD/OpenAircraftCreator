@@ -44,7 +44,8 @@ test("резервы положительны и разумны для A320", ()
 for (const [key, limitPct] of [["ceo_sharklet", 1.5], ["neo", 4]] as const) {
   test(`калибровка ${key}: каждый угол в пределах ${limitPct}%`, () => {
     const ac: AircraftData = data.aircraft[key];
-    const cal = calibrateTsfc(ac, aero(ac.spanM), DEFAULT_ASSUMPTIONS, data.fuelDensityKgPerL);
+    // Идеализированная поляра фазы 1: ограничение тяги намеренно не включено.
+    const cal = calibrateTsfc(ac, aero(ac.spanM), {}, DEFAULT_ASSUMPTIONS, data.fuelDensityKgPerL);
     assert.ok(maxAbsErrorPct(cal.rows) <= limitPct, `макс. ошибка ${maxAbsErrorPct(cal.rows).toFixed(2)}%`);
   });
 }

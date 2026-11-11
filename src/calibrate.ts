@@ -2,10 +2,11 @@
 // среднеквадратичную ошибку дальности по всем углам диаграмм одного типа.
 
 import { type AeroConfig } from "./aero.ts";
-import { type MissionAssumptions } from "./mission.ts";
+import { type EngineState, type MissionAssumptions } from "./mission.ts";
 import { type AircraftData, type CornerComparison, compareAircraft, rmsErrorPct } from "./payloadRange.ts";
 
 export interface CalibrationResult {
+  /** Эффективный TSFC калибруемого двигателя в его referenceMach, не автоматически опора другого двигателя. */
   tsfcCruise: number;
   rmsPct: number;
   rows: CornerComparison[];
@@ -16,16 +17,22 @@ export function tsfcToImperial(tsfc: number): number {
   return tsfc * 3600 * 9.80665;
 }
 
+/**
+ * Меняем только TSFC. Ограничение тяги и точка отсчёта скорости остаются теми же,
+ * что в прямом расчёте. Для намеренно идеализированного случая fixedEngine можно задать как {}.
+ */
 export function calibrateTsfc(
   ac: AircraftData,
   aero: AeroConfig,
+  fixedEngine: Omit<EngineState, "tsfcCruise">,
   as: MissionAssumptions,
   densityKgL: number,
   lo = 1.0e-5,
   hi = 2.4e-5,
 ): CalibrationResult {
-  const f = (tsfc: number) => rmsErrorPct(compareAircraft(ac, aero, { tsfcCruise: tsfc }, as, densityKgL));
-  // Золотое сечение: ошибка — унимодальная функция TSFC.
+  const rowsAt = (tsfc: number) => compareAircraft(ac, aero, { ...fixedEngine, tsfcCruise: tsfc }, as, densityKgL);
+  const f = (tsfc: number) => rmsErrorPct(rowsAt(tsfc));
+  // Золотое сечение по заданному интервалу; дискретный выбор эшелонов остаётся частью миссии.
   const phi = (Math.sqrt(5) - 1) / 2;
   let a = lo;
   let b = hi;
@@ -49,6 +56,6 @@ export function calibrateTsfc(
     }
   }
   const tsfc = (a + b) / 2;
-  const rows = compareAircraft(ac, aero, { tsfcCruise: tsfc }, as, densityKgL);
+  const rows = rowsAt(tsfc);
   return { tsfcCruise: tsfc, rmsPct: rmsErrorPct(rows), rows };
 }
