@@ -1,0 +1,1169 @@
+{
+  "kind": "source-specific reference budgets and model diagnostics; not new calibration",
+  "productionMissionChanged": false,
+  "a320": {
+    "source": {
+      "filename": "FCOM 3.pdf",
+      "sha256": "26343087d1c1feda1d618c2956d9cfd296bb91aa68637cfccafda8df8509d4f8",
+      "document": "Airbus / China Eastern Airlines (CES) A319/A320/A321 Flight Crew Operating Manual, Volume 3 — Flight Operations",
+      "revision": "041B",
+      "issueDate": "2007-07-06",
+      "pdfPageCount": 2089,
+      "pdfPageNumbering": "1-based; not the printed section page number",
+      "tablePageRevisions": {
+        "climb": 27,
+        "holding": 31,
+        "descent": 27
+      },
+      "relatedVolumes": {
+        "1": {
+          "filename": "FCOM 1.pdf",
+          "sha256": "2323159fd70b2985aca8322e16a4ad9caea2e3fac7b008e0019621f1fcd8adf1",
+          "pages": 1995,
+          "revision": "040C",
+          "issueDate": "2007-07-06",
+          "title": "Systems Description"
+        },
+        "2": {
+          "filename": "FCOM 2.pdf",
+          "sha256": "acc6cb05649393067eab2cc49b69b6df550f63cfc0c0a6816420defb9207c5bf",
+          "pages": 885,
+          "revision": "039",
+          "issueDate": "2007-05-01",
+          "title": "Flight Preparation"
+        },
+        "3": {
+          "filename": "FCOM 3.pdf",
+          "sha256": "26343087d1c1feda1d618c2956d9cfd296bb91aa68637cfccafda8df8509d4f8",
+          "pages": 2089,
+          "revision": "041B",
+          "issueDate": "2007-07-06",
+          "title": "Flight Operations"
+        },
+        "4": {
+          "filename": "FCOM 4.pdf",
+          "sha256": "2e88220d1e266a82d373a63f197e166984a9815bb0cf80ffc8495def4c84ab7f",
+          "pages": 1225,
+          "revision": "019B",
+          "issueDate": "2007-07-06",
+          "title": "FMGS Pilot's Guide"
+        }
+      },
+      "providedBy": "User-supplied PDFs; source manuals and raster pages are not included in this repository"
+    },
+    "applicability": {
+      "aircraftModel": "A320-214",
+      "engineModel": "CFM56-5B4/P",
+      "engineCount": 2,
+      "combustor": "SAC",
+      "wingtip": "fence",
+      "operator": "China Eastern Airlines",
+      "operatorCode": "CES",
+      "msnEffectivityAsPrinted": "0665-1108 1312-1361 1532 1542 1639 1906-2274 2437-2498 2562-2627 3170 3197",
+      "evidence": [
+        {
+          "volume": 1,
+          "pdfPage": 212,
+          "pageCode": "1.20.10 P1 SEQ105 REV34",
+          "meaning": "The A320 description and 180-seat maximum carry the same MSN effectivity as these performance tables."
+        },
+        {
+          "volume": 1,
+          "pdfPage": 215,
+          "pageCode": "1.20.20 P1 SEQ001 REV31",
+          "meaning": "A320 general arrangement: length 37.57 m, span 34.1 m, conventional wing-tip fences; same MSN effectivity."
+        },
+        {
+          "volume": 2,
+          "pdfPage": 655,
+          "pageCode": "2.05.15 P2 SEQ020 REV24",
+          "meaning": "Flight-planning databases explicitly identify CFM56-5-B/P SAC. The stated 3% non-/P correction is scoped to those flight-planning tables."
+        },
+        {
+          "volume": 3,
+          "pdfPages": [
+            96,
+            97,
+            102,
+            103
+          ],
+          "pageCode": "3.00.80 LEP",
+          "meaning": "SEQ170 climb/holding/descent entries specify CFM56-5-B4 and the A320 MSN group."
+        },
+        {
+          "volume": 3,
+          "pdfPages": [
+            1637,
+            1644,
+            1846
+          ],
+          "meaning": "The technical table footers explicitly identify A320-214 CFM56-5B4/P; headers and footer effectivity were checked visually."
+        }
+      ],
+      "notes": [
+        "This is one confirmed configuration in a multi-aircraft manual. CES ALL does not make a numerical table applicable to every Airbus model.",
+        "These rows do not directly apply to A319, A321, non-/P engines, sharklet variants, NEO or modified aircraft.",
+        "The numerical grid does not establish certified operating mass or altitude limits for any individual MSN.",
+        "Exact match to reference data is separate from the model's independent aerodynamic/propulsive predictions and calibration."
+      ]
+    },
+    "calibrationTsfcImperial": 0.586,
+    "reference": {
+      "request": {
+        "brakeReleaseMassKg": 60000,
+        "climbToFl": 350,
+        "climbIsaDeviationC": 0,
+        "descentReferenceMassKg": 60000,
+        "descentFromFl": 350,
+        "holdingReferenceMassKg": 60000,
+        "holdingFl": 15,
+        "holdingMinutes": 30
+      },
+      "boundaries": {
+        "initialClimbEndFl": 15,
+        "descentEndFl": 15,
+        "approachAndLandingFuelKg": 120
+      },
+      "corrections": {},
+      "departure": {
+        "source": {
+          "massKg": 60000,
+          "fl": 350,
+          "isaDeviationC": 0,
+          "timeMin": 18,
+          "fuelKg": 1417,
+          "distanceNm": 114,
+          "tasKt": 376
+        },
+        "sourceInitialClimb": {
+          "massKg": 60000,
+          "fl": 15,
+          "isaDeviationC": 0,
+          "timeMin": 2,
+          "fuelKg": 163,
+          "distanceNm": 3,
+          "tasKt": 121
+        },
+        "takeoffAndInitialClimbFuelKg": 163,
+        "climbAboveInitialFuelKg": 1254,
+        "totalFuelKg": 1417,
+        "distanceNm": 114,
+        "timeMin": 18
+      },
+      "arrival": {
+        "source": {
+          "massKg": 60000,
+          "fl": 350,
+          "isaDeviationC": 0,
+          "timeMin": 15.225,
+          "fuelKg": 150.5,
+          "distanceNm": 90.5
+        },
+        "descentFuelKg": 150.5,
+        "approachAndLandingFuelKg": 120,
+        "totalFuelKg": 270.5,
+        "descentDistanceNm": 90.5,
+        "descentTimeMin": 15.225
+      },
+      "holding": {
+        "source": {
+          "massKg": 60000,
+          "fl": 15,
+          "isaDeviationC": 0,
+          "n1Pct": 51.5,
+          "fuelFlowPerEngineKgH": 1128
+        },
+        "engineCount": 2,
+        "fuelFlowPerEngineKgH": 1128,
+        "fuelFlowTotalKgH": 2256,
+        "fuelKg": 1128
+      },
+      "tripNonCruiseFuelKg": 1687.5
+    },
+    "cruiseHoldout": [
+      {
+        "regime": "fixedMach",
+        "scope": "Selected 9 holdout nodes, not a full LRC interpolation grid. The model uses each source Mach; no fitted correction or source FF injection.",
+        "source": "Airbus / China Eastern Airlines A319/A320/A321 FCOM, Volume3 — Flight Operations, 3.05.15 P9 SEQ130 REV30, PDF 1707",
+        "rows": [
+          {
+            "massKg": 50000,
+            "fl": 290,
+            "mach": 0.78,
+            "referenceKgH": 1305,
+            "modelKgH": 1071.0975880808478,
+            "errorPct": -17.923556468900546
+          },
+          {
+            "massKg": 50000,
+            "fl": 350,
+            "mach": 0.78,
+            "referenceKgH": 1053,
+            "modelKgH": 938.1199416585284,
+            "errorPct": -10.909787116948866
+          },
+          {
+            "massKg": 50000,
+            "fl": 390,
+            "mach": 0.78,
+            "referenceKgH": 954,
+            "modelKgH": 887.4968458365117,
+            "errorPct": -6.970980520281788
+          },
+          {
+            "massKg": 60000,
+            "fl": 290,
+            "mach": 0.78,
+            "referenceKgH": 1356,
+            "modelKgH": 1154.0790976263315,
+            "errorPct": -14.89092200395785
+          },
+          {
+            "massKg": 60000,
+            "fl": 350,
+            "mach": 0.78,
+            "referenceKgH": 1135,
+            "modelKgH": 1049.8427527744147,
+            "errorPct": -7.502841165249807
+          },
+          {
+            "massKg": 60000,
+            "fl": 390,
+            "mach": 0.78,
+            "referenceKgH": 1097,
+            "modelKgH": 1025.861442745246,
+            "errorPct": -6.484827461691345
+          },
+          {
+            "massKg": 70000,
+            "fl": 290,
+            "mach": 0.78,
+            "referenceKgH": 1424,
+            "modelKgH": 1253.144825282347,
+            "errorPct": -11.998256651520578
+          },
+          {
+            "massKg": 70000,
+            "fl": 350,
+            "mach": 0.78,
+            "referenceKgH": 1267,
+            "modelKgH": 1184.325317004678,
+            "errorPct": -6.525231491343487
+          },
+          {
+            "massKg": 78000,
+            "fl": 350,
+            "mach": 0.78,
+            "referenceKgH": 1411,
+            "modelKgH": 1309.1740022049453,
+            "errorPct": -7.216583826722522
+          }
+        ],
+        "biasPct": -10.046998522957422,
+        "rmsPct": 10.788743941676122,
+        "sdPct": 3.9312614411591413,
+        "minPct": -17.923556468900546,
+        "maxPct": -6.484827461691345
+      },
+      {
+        "regime": "lrc",
+        "scope": "Selected 9 holdout nodes, not a full LRC interpolation grid. The model uses each source Mach; no fitted correction or source FF injection.",
+        "source": "Airbus / China Eastern Airlines A319/A320/A321 FCOM, Volume3 — Flight Operations, 3.05.15 P14 SEQ130 REV30, PDF 1724",
+        "rows": [
+          {
+            "massKg": 50000,
+            "fl": 290,
+            "mach": 0.662,
+            "referenceKgH": 976,
+            "modelKgH": 894.1686617078778,
+            "errorPct": -8.384358431569893
+          },
+          {
+            "massKg": 50000,
+            "fl": 350,
+            "mach": 0.722,
+            "referenceKgH": 932,
+            "modelKgH": 876.6950884608657,
+            "errorPct": -5.934003384027287
+          },
+          {
+            "massKg": 50000,
+            "fl": 390,
+            "mach": 0.771,
+            "referenceKgH": 938,
+            "modelKgH": 878.1071531504837,
+            "errorPct": -6.385164909330099
+          },
+          {
+            "massKg": 60000,
+            "fl": 290,
+            "mach": 0.694,
+            "referenceKgH": 1122,
+            "modelKgH": 1036.9229510044156,
+            "errorPct": -7.582624687663497
+          },
+          {
+            "massKg": 60000,
+            "fl": 350,
+            "mach": 0.771,
+            "referenceKgH": 1116,
+            "modelKgH": 1038.8412136957452,
+            "errorPct": -6.913869740524625
+          },
+          {
+            "massKg": 60000,
+            "fl": 390,
+            "mach": 0.788,
+            "referenceKgH": 1116,
+            "modelKgH": 1035.9877733536694,
+            "errorPct": -7.169554358990204
+          },
+          {
+            "massKg": 70000,
+            "fl": 290,
+            "mach": 0.739,
+            "referenceKgH": 1311,
+            "modelKgH": 1198.1594143080094,
+            "errorPct": -8.607214774369986
+          },
+          {
+            "massKg": 70000,
+            "fl": 350,
+            "mach": 0.786,
+            "referenceKgH": 1285,
+            "modelKgH": 1192.9208436611289,
+            "errorPct": -7.165693100301251
+          },
+          {
+            "massKg": 78000,
+            "fl": 350,
+            "mach": 0.782,
+            "referenceKgH": 1417,
+            "modelKgH": 1311.9186953274702,
+            "errorPct": -7.415758974772746
+          }
+        ],
+        "biasPct": -7.284249151283287,
+        "rmsPct": 7.328826493839294,
+        "sdPct": 0.8071010338423922,
+        "minPct": -8.607214774369986,
+        "maxPct": -5.934003384027287
+      }
+    ],
+    "comparison": {
+      "interpretation": "Independent reference points at equal stated mass; not three consecutive phases of one flight. The production engine is generic CFM56-5B, not an explicit /P installation model.",
+      "departure": {
+        "sourceFuelKg": 1417,
+        "modelFuelKg": 1308.4151371488647,
+        "differenceKg": -108.58486285113531,
+        "differencePct": -7.6630107869537945,
+        "sourceDistanceNm": 114,
+        "modelDistanceNm": 102.59179265658747,
+        "conditions": "ISA0 and FL350; source follows 250/300/.78 and CG33%, normal AC, anti-ice off. Production model uses its energy approximation, not this speed schedule."
+      },
+      "arrival": {
+        "sourcePureDescentKg": 150.5,
+        "sourceIfrArrivalKg": 120,
+        "sourceCombinedKg": 270.5,
+        "modelAllowanceKg": 300,
+        "differenceKg": 29.5,
+        "massReferenceTiming": "unspecified-by-source",
+        "sourceN1UndefinedBetweenNumericAndIdle": true
+      },
+      "holding": {
+        "sourceRaceTrackFlowKgH": 2256,
+        "sourceStraightLineFlowKgH": 2143.2,
+        "sourcePlanning30MinKg": 1128,
+        "modelInstantaneousFlowKgH": 1576.8067423799532,
+        "differenceVsRaceTrackPct": -30.106084114363775,
+        "differenceVsStraightLinePct": -26.427456962488183,
+        "conditions": "Source is green-dot at FL15, normal AC, anti-ice off. Production formula is max L/D with holdTsfcRatio=0.8 and no altitude-specific holding engine model. Its instantaneous flow is compared here, not integrated reserve fuel at a different mass."
+      }
+    },
+    "systemCases": [
+      {
+        "id": "normal",
+        "corrections": {},
+        "departureFuelKg": 1417,
+        "arrivalFuelKg": 270.5,
+        "holdingReserveFuelKg": 1128,
+        "tripNonCruiseFuelKg": 1687.5,
+        "extraTripNonCruiseFuelKg": 0,
+        "extraHoldingReserveFuelKg": 0
+      },
+      {
+        "id": "lowAirConditioning",
+        "corrections": {
+          "climbFuelPct": -0.6,
+          "descentFuelPct": -2,
+          "holdingFuelFlowPct": -0.3
+        },
+        "departureFuelKg": 1408.498,
+        "arrivalFuelKg": 267.49,
+        "holdingReserveFuelKg": 1124.6159999999998,
+        "tripNonCruiseFuelKg": 1675.988,
+        "extraTripNonCruiseFuelKg": -11.511999999999944,
+        "extraHoldingReserveFuelKg": -3.384000000000242
+      },
+      {
+        "id": "engineAntiIce",
+        "corrections": {
+          "climbFuelPct": 2.5,
+          "descentFuelPct": 28,
+          "holdingFuelFlowPct": 5
+        },
+        "departureFuelKg": 1452.425,
+        "arrivalFuelKg": 312.64,
+        "holdingReserveFuelKg": 1184.4,
+        "tripNonCruiseFuelKg": 1765.065,
+        "extraTripNonCruiseFuelKg": 77.56500000000005,
+        "extraHoldingReserveFuelKg": 56.40000000000009
+      },
+      {
+        "id": "totalAntiIce",
+        "corrections": {
+          "climbFuelPct": 5,
+          "descentFuelPct": 44,
+          "holdingFuelFlowPct": 9
+        },
+        "departureFuelKg": 1487.8500000000001,
+        "arrivalFuelKg": 336.72,
+        "holdingReserveFuelKg": 1229.52,
+        "tripNonCruiseFuelKg": 1824.5700000000002,
+        "extraTripNonCruiseFuelKg": 137.07000000000016,
+        "extraHoldingReserveFuelKg": 101.51999999999998
+      }
+    ],
+    "systemCasesScope": "Only tabulated FUEL/FF corrections at the same reference masses. Arrival's 120 kg stays separate. Descent time/distance corrections are not applied by this fuel-budget helper; no entire-mission or bleedless-aircraft savings are inferred."
+  },
+  "b757Pw2037": {
+    "packetId": "pi10-pw2037",
+    "diagnosticOnly": true,
+    "limitations": [
+      "The FCOM fleet rating is 37000 lbf per engine; the model definition remains 38250 lbf. This is not a fully matched installation validation.",
+      "The model is evaluated at each source LRC Mach. The ACAP validation profile stays fixed M0.80; it is not silently replaced by LRC.",
+      "All source grid cells are retained, including masses outside the current model's selected weight variant. Equal-weight grid statistics are not mission-weighted statistics or an operating-envelope approval.",
+      "FF is a reference check only, not injected into the mission and not used for fitting."
+    ],
+    "source": "D632N001-55NRW, Rev 10, PI.11.2; PDF 340; pi10-pw2037",
+    "rows": [
+      {
+        "massKg": 117934.0162,
+        "fl": 210,
+        "mach": 0.718,
+        "referenceKgH": 2170.89308282,
+        "modelKgH": 2102.5895792993906,
+        "errorPct": -3.1463319894079245
+      },
+      {
+        "massKg": 117934.0162,
+        "fl": 230,
+        "mach": 0.743,
+        "referenceKgH": 2166.35715912,
+        "modelKgH": 2106.4750194751005,
+        "errorPct": -2.7641859234893706
+      },
+      {
+        "massKg": 117934.0162,
+        "fl": 250,
+        "mach": 0.77,
+        "referenceKgH": 2168.62512097,
+        "modelKgH": 2135.520426713916,
+        "errorPct": -1.5265291329502162
+      },
+      {
+        "massKg": 117934.0162,
+        "fl": 270,
+        "mach": 0.789,
+        "referenceKgH": 2145.4919101,
+        "modelKgH": 2183.2102441459956,
+        "errorPct": 1.7580273255021206
+      },
+      {
+        "massKg": 117934.0162,
+        "fl": 290,
+        "mach": 0.796,
+        "referenceKgH": 2111.01888998,
+        "modelKgH": 2202.827678908199,
+        "errorPct": 4.349027351861756
+      },
+      {
+        "massKg": 117934.0162,
+        "fl": 310,
+        "mach": 0.798,
+        "referenceKgH": 2077.4530546,
+        "modelKgH": 2211.8772790650123,
+        "errorPct": 6.470626335808816
+      },
+      {
+        "massKg": 117934.0162,
+        "fl": 330,
+        "mach": 0.796,
+        "referenceKgH": 2064.29887587,
+        "modelKgH": 2214.6868606290673,
+        "errorPct": 7.285184646321441
+      },
+      {
+        "massKg": 108862.1688,
+        "fl": 210,
+        "mach": 0.7,
+        "referenceKgH": 2025.28993205,
+        "modelKgH": 1961.571794171268,
+        "errorPct": -3.146124259563987
+      },
+      {
+        "massKg": 108862.1688,
+        "fl": 230,
+        "mach": 0.719,
+        "referenceKgH": 2002.61031355,
+        "modelKgH": 1951.2003136927065,
+        "errorPct": -2.567149460354057
+      },
+      {
+        "massKg": 108862.1688,
+        "fl": 250,
+        "mach": 0.745,
+        "referenceKgH": 1997.16720511,
+        "modelKgH": 1956.1423854268862,
+        "errorPct": -2.054150477643868
+      },
+      {
+        "massKg": 108862.1688,
+        "fl": 270,
+        "mach": 0.773,
+        "referenceKgH": 2000.3423517,
+        "modelKgH": 1989.0707753404974,
+        "errorPct": -0.563482363402612
+      },
+      {
+        "massKg": 108862.1688,
+        "fl": 290,
+        "mach": 0.79,
+        "referenceKgH": 1973.58040187,
+        "modelKgH": 2028.0554461104887,
+        "errorPct": 2.76021408546987
+      },
+      {
+        "massKg": 108862.1688,
+        "fl": 310,
+        "mach": 0.796,
+        "referenceKgH": 1941.3753436,
+        "modelKgH": 2042.0416538086802,
+        "errorPct": 5.185308989348192
+      },
+      {
+        "massKg": 108862.1688,
+        "fl": 330,
+        "mach": 0.798,
+        "referenceKgH": 1910.98465481,
+        "modelKgH": 2051.921336473678,
+        "errorPct": 7.375081809732831
+      },
+      {
+        "massKg": 108862.1688,
+        "fl": 350,
+        "mach": 0.795,
+        "referenceKgH": 1903.27358452,
+        "modelKgH": 2051.0381769822534,
+        "errorPct": 7.76370741779191
+      },
+      {
+        "massKg": 99790.3214,
+        "fl": 210,
+        "mach": 0.668,
+        "referenceKgH": 1845.21376116,
+        "modelKgH": 1793.7034846328854,
+        "errorPct": -2.7915614771229835
+      },
+      {
+        "massKg": 99790.3214,
+        "fl": 230,
+        "mach": 0.699,
+        "referenceKgH": 1856.09997804,
+        "modelKgH": 1808.6934049591177,
+        "errorPct": -2.5540958807047986
+      },
+      {
+        "massKg": 99790.3214,
+        "fl": 250,
+        "mach": 0.719,
+        "referenceKgH": 1834.32754428,
+        "modelKgH": 1799.814872965777,
+        "errorPct": -1.8814890187875188
+      },
+      {
+        "massKg": 99790.3214,
+        "fl": 270,
+        "mach": 0.745,
+        "referenceKgH": 1828.88443584,
+        "modelKgH": 1803.9920049161788,
+        "errorPct": -1.3610718335184568
+      },
+      {
+        "massKg": 99790.3214,
+        "fl": 290,
+        "mach": 0.773,
+        "referenceKgH": 1831.60599006,
+        "modelKgH": 1833.27194103821,
+        "errorPct": 0.09095575070461326
+      },
+      {
+        "massKg": 99790.3214,
+        "fl": 310,
+        "mach": 0.79,
+        "referenceKgH": 1804.39044786,
+        "modelKgH": 1868.6935353775254,
+        "errorPct": 3.563701392555507
+      },
+      {
+        "massKg": 99790.3214,
+        "fl": 330,
+        "mach": 0.797,
+        "referenceKgH": 1776.26772092,
+        "modelKgH": 1886.8856797089527,
+        "errorPct": 6.227549906252827
+      },
+      {
+        "massKg": 99790.3214,
+        "fl": 350,
+        "mach": 0.798,
+        "referenceKgH": 1746.3306245,
+        "modelKgH": 1890.8159773534835,
+        "errorPct": 8.273653959132265
+      },
+      {
+        "massKg": 99790.3214,
+        "fl": 370,
+        "mach": 0.794,
+        "referenceKgH": 1758.57761849,
+        "modelKgH": 1887.3260087201936,
+        "errorPct": 7.321166201395379
+      },
+      {
+        "massKg": 90718.474,
+        "fl": 210,
+        "mach": 0.64,
+        "referenceKgH": 1682.8276927,
+        "modelKgH": 1636.554182284962,
+        "errorPct": -2.7497473814918405
+      },
+      {
+        "massKg": 90718.474,
+        "fl": 230,
+        "mach": 0.664,
+        "referenceKgH": 1676.93099189,
+        "modelKgH": 1639.684471841753,
+        "errorPct": -2.22111227166647
+      },
+      {
+        "massKg": 90718.474,
+        "fl": 250,
+        "mach": 0.696,
+        "referenceKgH": 1685.54924692,
+        "modelKgH": 1654.6009807137696,
+        "errorPct": -1.8360938585913256
+      },
+      {
+        "massKg": 90718.474,
+        "fl": 270,
+        "mach": 0.717,
+        "referenceKgH": 1667.40555212,
+        "modelKgH": 1647.8056009966672,
+        "errorPct": -1.1754759421553351
+      },
+      {
+        "massKg": 90718.474,
+        "fl": 290,
+        "mach": 0.743,
+        "referenceKgH": 1661.05525894,
+        "modelKgH": 1650.0606685145572,
+        "errorPct": -0.6619039533012905
+      },
+      {
+        "massKg": 90718.474,
+        "fl": 310,
+        "mach": 0.772,
+        "referenceKgH": 1662.41603605,
+        "modelKgH": 1676.5331266749397,
+        "errorPct": 0.8491911963555587
+      },
+      {
+        "massKg": 90718.474,
+        "fl": 330,
+        "mach": 0.79,
+        "referenceKgH": 1640.64360229,
+        "modelKgH": 1710.344478640102,
+        "errorPct": 4.248386197515042
+      },
+      {
+        "massKg": 90718.474,
+        "fl": 350,
+        "mach": 0.797,
+        "referenceKgH": 1612.97446772,
+        "modelKgH": 1725.6400741267287,
+        "errorPct": 6.984959071669983
+      },
+      {
+        "massKg": 90718.474,
+        "fl": 370,
+        "mach": 0.798,
+        "referenceKgH": 1598.91310425,
+        "modelKgH": 1729.8563314842531,
+        "errorPct": 8.18951492024167
+      },
+      {
+        "massKg": 90718.474,
+        "fl": 390,
+        "mach": 0.794,
+        "referenceKgH": 1621.59272275,
+        "modelKgH": 1727.5456682362083,
+        "errorPct": 6.53388141175959
+      },
+      {
+        "massKg": 81646.6266,
+        "fl": 210,
+        "mach": 0.619,
+        "referenceKgH": 1544.02842748,
+        "modelKgH": 1495.5457247279132,
+        "errorPct": -3.140013609154524
+      },
+      {
+        "massKg": 81646.6266,
+        "fl": 230,
+        "mach": 0.635,
+        "referenceKgH": 1517.72007002,
+        "modelKgH": 1484.7284447515817,
+        "errorPct": -2.1737622055682304
+      },
+      {
+        "massKg": 81646.6266,
+        "fl": 250,
+        "mach": 0.659,
+        "referenceKgH": 1507.74103788,
+        "modelKgH": 1486.933075128279,
+        "errorPct": -1.3800753729552029
+      },
+      {
+        "massKg": 81646.6266,
+        "fl": 270,
+        "mach": 0.69,
+        "referenceKgH": 1531.32784112,
+        "modelKgH": 1498.9892570252237,
+        "errorPct": -2.1118001793217656
+      },
+      {
+        "massKg": 81646.6266,
+        "fl": 290,
+        "mach": 0.713,
+        "referenceKgH": 1517.26647765,
+        "modelKgH": 1495.13364874441,
+        "errorPct": -1.4587305019662877
+      },
+      {
+        "massKg": 81646.6266,
+        "fl": 310,
+        "mach": 0.739,
+        "referenceKgH": 1492.77248967,
+        "modelKgH": 1495.8676421245048,
+        "errorPct": 0.20734254388550255
+      },
+      {
+        "massKg": 81646.6266,
+        "fl": 330,
+        "mach": 0.768,
+        "referenceKgH": 1495.94763626,
+        "modelKgH": 1514.7001899844474,
+        "errorPct": 1.2535568271179853
+      },
+      {
+        "massKg": 81646.6266,
+        "fl": 350,
+        "mach": 0.789,
+        "referenceKgH": 1479.61831094,
+        "modelKgH": 1549.1746447855392,
+        "errorPct": 4.700964656307227
+      },
+      {
+        "massKg": 81646.6266,
+        "fl": 370,
+        "mach": 0.796,
+        "referenceKgH": 1465.1033551,
+        "modelKgH": 1561.3473890907298,
+        "errorPct": 6.569095187428653
+      },
+      {
+        "massKg": 81646.6266,
+        "fl": 390,
+        "mach": 0.798,
+        "referenceKgH": 1461.92820851,
+        "modelKgH": 1569.0573972347029,
+        "errorPct": 7.3279377264283685
+      },
+      {
+        "massKg": 81646.6266,
+        "fl": 410,
+        "mach": 0.795,
+        "referenceKgH": 1480.07190331,
+        "modelKgH": 1568.7574702639206,
+        "errorPct": 5.9919769273091505
+      },
+      {
+        "massKg": 72574.7792,
+        "fl": 210,
+        "mach": 0.6,
+        "referenceKgH": 1425.64081891,
+        "modelKgH": 1361.731283845297,
+        "errorPct": -4.4828637211416495
+      },
+      {
+        "massKg": 72574.7792,
+        "fl": 230,
+        "mach": 0.614,
+        "referenceKgH": 1397.97168434,
+        "modelKgH": 1347.2116421941735,
+        "errorPct": -3.630977845577099
+      },
+      {
+        "massKg": 72574.7792,
+        "fl": 250,
+        "mach": 0.629,
+        "referenceKgH": 1368.94177266,
+        "modelKgH": 1334.460471878752,
+        "errorPct": -2.5188288844635864
+      },
+      {
+        "massKg": 72574.7792,
+        "fl": 270,
+        "mach": 0.65,
+        "referenceKgH": 1354.42681682,
+        "modelKgH": 1331.583129446917,
+        "errorPct": -1.686594439020106
+      },
+      {
+        "massKg": 72574.7792,
+        "fl": 290,
+        "mach": 0.68,
+        "referenceKgH": 1358.05555578,
+        "modelKgH": 1340.6879591847228,
+        "errorPct": -1.2788575932228485
+      },
+      {
+        "massKg": 72574.7792,
+        "fl": 310,
+        "mach": 0.707,
+        "referenceKgH": 1339.00467624,
+        "modelKgH": 1342.9100540948687,
+        "errorPct": 0.29166274951595295
+      },
+      {
+        "massKg": 72574.7792,
+        "fl": 330,
+        "mach": 0.731,
+        "referenceKgH": 1331.74719832,
+        "modelKgH": 1339.4601662196562,
+        "errorPct": 0.5791615638002456
+      },
+      {
+        "massKg": 72574.7792,
+        "fl": 350,
+        "mach": 0.761,
+        "referenceKgH": 1334.01516017,
+        "modelKgH": 1351.6309816518526,
+        "errorPct": 1.3205113410860836
+      },
+      {
+        "massKg": 72574.7792,
+        "fl": 370,
+        "mach": 0.787,
+        "referenceKgH": 1337.64389913,
+        "modelKgH": 1388.4782535035379,
+        "errorPct": 3.8002905262454645
+      },
+      {
+        "massKg": 72574.7792,
+        "fl": 390,
+        "mach": 0.795,
+        "referenceKgH": 1332.20079069,
+        "modelKgH": 1400.2243900735411,
+        "errorPct": 5.106107116803993
+      },
+      {
+        "massKg": 72574.7792,
+        "fl": 410,
+        "mach": 0.798,
+        "referenceKgH": 1328.11845936,
+        "modelKgH": 1407.246668564016,
+        "errorPct": 5.9579180340695315
+      },
+      {
+        "massKg": 63502.9318,
+        "fl": 210,
+        "mach": 0.573,
+        "referenceKgH": 1284.11999947,
+        "modelKgH": 1215.0700723177501,
+        "errorPct": -5.377217641711763
+      },
+      {
+        "massKg": 63502.9318,
+        "fl": 230,
+        "mach": 0.592,
+        "referenceKgH": 1265.5227123,
+        "modelKgH": 1211.5725471891435,
+        "errorPct": -4.263073636411141
+      },
+      {
+        "massKg": 63502.9318,
+        "fl": 250,
+        "mach": 0.606,
+        "referenceKgH": 1236.03920825,
+        "modelKgH": 1197.3039940349663,
+        "errorPct": -3.1338175970870297
+      },
+      {
+        "massKg": 63502.9318,
+        "fl": 270,
+        "mach": 0.621,
+        "referenceKgH": 1210.18444316,
+        "modelKgH": 1185.1610493565347,
+        "errorPct": -2.0677338851030735
+      },
+      {
+        "massKg": 63502.9318,
+        "fl": 290,
+        "mach": 0.638,
+        "referenceKgH": 1188.4120094,
+        "modelKgH": 1175.8799181524266,
+        "errorPct": -1.0545241169264585
+      },
+      {
+        "massKg": 63502.9318,
+        "fl": 310,
+        "mach": 0.664,
+        "referenceKgH": 1171.17549934,
+        "modelKgH": 1178.7012427122202,
+        "errorPct": 0.6425803286067122
+      },
+      {
+        "massKg": 63502.9318,
+        "fl": 330,
+        "mach": 0.698,
+        "referenceKgH": 1180.70093911,
+        "modelKgH": 1190.288915573586,
+        "errorPct": 0.8120580026652169
+      },
+      {
+        "massKg": 63502.9318,
+        "fl": 350,
+        "mach": 0.72,
+        "referenceKgH": 1170.2683146,
+        "modelKgH": 1183.7928601246215,
+        "errorPct": 1.1556790315428112
+      },
+      {
+        "massKg": 63502.9318,
+        "fl": 370,
+        "mach": 0.749,
+        "referenceKgH": 1195.66948732,
+        "modelKgH": 1189.239932749326,
+        "errorPct": -0.5377367775007191
+      },
+      {
+        "massKg": 63502.9318,
+        "fl": 390,
+        "mach": 0.778,
+        "referenceKgH": 1216.53473634,
+        "modelKgH": 1215.174872149519,
+        "errorPct": -0.11178178064791267
+      },
+      {
+        "massKg": 63502.9318,
+        "fl": 410,
+        "mach": 0.792,
+        "referenceKgH": 1216.53473634,
+        "modelKgH": 1234.6996269946421,
+        "errorPct": 1.493166624184683
+      },
+      {
+        "massKg": 54431.0844,
+        "fl": 210,
+        "mach": 0.537,
+        "referenceKgH": 1127.63063182,
+        "modelKgH": 1054.1969258825475,
+        "errorPct": -6.512212764114988
+      },
+      {
+        "massKg": 54431.0844,
+        "fl": 230,
+        "mach": 0.557,
+        "referenceKgH": 1114.02286072,
+        "modelKgH": 1055.0034526439767,
+        "errorPct": -5.29786328064027
+      },
+      {
+        "massKg": 54431.0844,
+        "fl": 250,
+        "mach": 0.577,
+        "referenceKgH": 1098.60072014,
+        "modelKgH": 1053.7155308876459,
+        "errorPct": -4.085669017824256
+      },
+      {
+        "massKg": 54431.0844,
+        "fl": 270,
+        "mach": 0.595,
+        "referenceKgH": 1080.00343297,
+        "modelKgH": 1047.6068151532145,
+        "errorPct": -2.999677299885528
+      },
+      {
+        "massKg": 54431.0844,
+        "fl": 290,
+        "mach": 0.61,
+        "referenceKgH": 1055.05585262,
+        "modelKgH": 1035.659459823557,
+        "errorPct": -1.8384233164790542
+      },
+      {
+        "massKg": 54431.0844,
+        "fl": 310,
+        "mach": 0.625,
+        "referenceKgH": 1030.56186464,
+        "modelKgH": 1023.9075955883504,
+        "errorPct": -0.6456933135182696
+      },
+      {
+        "massKg": 54431.0844,
+        "fl": 330,
+        "mach": 0.646,
+        "referenceKgH": 1016.95409354,
+        "modelKgH": 1019.9667336527813,
+        "errorPct": 0.2962415050903999
+      },
+      {
+        "massKg": 54431.0844,
+        "fl": 350,
+        "mach": 0.676,
+        "referenceKgH": 1020.5828325,
+        "modelKgH": 1025.7855567696859,
+        "errorPct": 0.5097797164529405
+      },
+      {
+        "massKg": 54431.0844,
+        "fl": 370,
+        "mach": 0.706,
+        "referenceKgH": 1033.28341886,
+        "modelKgH": 1030.6858222569883,
+        "errorPct": -0.2513924597645767
+      },
+      {
+        "massKg": 54431.0844,
+        "fl": 390,
+        "mach": 0.731,
+        "referenceKgH": 1160.74287483,
+        "modelKgH": 1030.325894164114,
+        "errorPct": -11.235647747136635
+      },
+      {
+        "massKg": 54431.0844,
+        "fl": 410,
+        "mach": 0.762,
+        "referenceKgH": 1184.32967807,
+        "modelKgH": 1042.970530993079,
+        "errorPct": -11.935793697856322
+      }
+    ],
+    "biasPct": 0.3209602624206273,
+    "rmsPct": 4.286851201558831,
+    "sdPct": 4.274819029415548,
+    "minPct": -11.935793697856322,
+    "maxPct": 8.273653959132265,
+    "chartLevels": {
+      "description": "Only FL350/390 from the ACAP profile, source masses between published model-variant OEW and MTOW (1 kg rounding tolerance). Still LRC Mach and a different engine rating, not a direct ACAP-point validation.",
+      "count": 10,
+      "biasPct": 4.905561995187432,
+      "rmsPct": 5.702382585755644,
+      "rows": [
+        {
+          "massKg": 108862.1688,
+          "fl": 350,
+          "mach": 0.795,
+          "referenceKgH": 1903.27358452,
+          "modelKgH": 2051.0381769822534,
+          "errorPct": 7.76370741779191
+        },
+        {
+          "massKg": 99790.3214,
+          "fl": 350,
+          "mach": 0.798,
+          "referenceKgH": 1746.3306245,
+          "modelKgH": 1890.8159773534835,
+          "errorPct": 8.273653959132265
+        },
+        {
+          "massKg": 90718.474,
+          "fl": 350,
+          "mach": 0.797,
+          "referenceKgH": 1612.97446772,
+          "modelKgH": 1725.6400741267287,
+          "errorPct": 6.984959071669983
+        },
+        {
+          "massKg": 90718.474,
+          "fl": 390,
+          "mach": 0.794,
+          "referenceKgH": 1621.59272275,
+          "modelKgH": 1727.5456682362083,
+          "errorPct": 6.53388141175959
+        },
+        {
+          "massKg": 81646.6266,
+          "fl": 350,
+          "mach": 0.789,
+          "referenceKgH": 1479.61831094,
+          "modelKgH": 1549.1746447855392,
+          "errorPct": 4.700964656307227
+        },
+        {
+          "massKg": 81646.6266,
+          "fl": 390,
+          "mach": 0.798,
+          "referenceKgH": 1461.92820851,
+          "modelKgH": 1569.0573972347029,
+          "errorPct": 7.3279377264283685
+        },
+        {
+          "massKg": 72574.7792,
+          "fl": 350,
+          "mach": 0.761,
+          "referenceKgH": 1334.01516017,
+          "modelKgH": 1351.6309816518526,
+          "errorPct": 1.3205113410860836
+        },
+        {
+          "massKg": 72574.7792,
+          "fl": 390,
+          "mach": 0.795,
+          "referenceKgH": 1332.20079069,
+          "modelKgH": 1400.2243900735411,
+          "errorPct": 5.106107116803993
+        },
+        {
+          "massKg": 63502.9318,
+          "fl": 350,
+          "mach": 0.72,
+          "referenceKgH": 1170.2683146,
+          "modelKgH": 1183.7928601246215,
+          "errorPct": 1.1556790315428112
+        },
+        {
+          "massKg": 63502.9318,
+          "fl": 390,
+          "mach": 0.778,
+          "referenceKgH": 1216.53473634,
+          "modelKgH": 1215.174872149519,
+          "errorPct": -0.11178178064791267
+        }
+      ]
+    }
+  }
+}

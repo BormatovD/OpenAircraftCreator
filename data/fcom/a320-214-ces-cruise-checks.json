@@ -1,0 +1,367 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "filename": "FCOM 3.pdf",
+    "sha256": "26343087d1c1feda1d618c2956d9cfd296bb91aa68637cfccafda8df8509d4f8",
+    "document": "Airbus / China Eastern Airlines A319/A320/A321 FCOM, Volume3 — Flight Operations",
+    "revision": "041B",
+    "issueDate": "2007-07-06",
+    "pdfPageCount": 2089,
+    "pdfPageNumbering": "1-based PDF pages",
+    "sourceTables": [
+      {
+        "regime": "fixedMach",
+        "pdfPage": 1707,
+        "pageCode": "3.05.15 P9 SEQ130 REV30",
+        "title": "CRUISE — M.78"
+      },
+      {
+        "regime": "lrc",
+        "pdfPage": 1724,
+        "pageCode": "3.05.15 P14 SEQ130 REV30",
+        "title": "LONG RANGE CRUISE"
+      }
+    ]
+  },
+  "applicability": {
+    "aircraftModel": "A320-214",
+    "engineModel": "CFM56-5B4/P",
+    "engineCount": 2,
+    "combustor": "SAC",
+    "wingtip": "fence",
+    "operatorCode": "CES",
+    "msnEffectivityAsPrinted": "0665-1108 1312-1361 1532 1542 1639 1906-2274 2437-2498 2562-2627 3170 3197",
+    "evidence": [
+      {
+        "volume": 1,
+        "pdfPages": [
+          212,
+          215
+        ],
+        "meaning": "A320 airframe and conventional 34.1m wing, same effectivity."
+      },
+      {
+        "volume": 2,
+        "pdfPage": 655,
+        "meaning": "CFM56-5-B/P SAC database identification."
+      },
+      {
+        "volume": 3,
+        "pdfPages": [
+          98,
+          99,
+          100
+        ],
+        "meaning": "LEP links cruise SEQ130 to CODE0370/CFM56-5-B4 and the A320 MSN group."
+      },
+      {
+        "volume": 3,
+        "pdfPages": [
+          1637,
+          1644,
+          1846
+        ],
+        "meaning": "A320-214 CFM56-5B4/P identification in technical performance-table footers for the same fleet group."
+      }
+    ]
+  },
+  "conditions": {
+    "referenceIsaDeviationC": 0,
+    "cgPercentMac": 33,
+    "airConditioning": "NORMAL",
+    "antiIce": "OFF",
+    "thrustLimit": "MAX CRUISE THRUST LIMITS",
+    "altitudeDatum": "Pressure altitude expressed as FL"
+  },
+  "units": {
+    "massKg": "kg",
+    "fl": "hundreds of feet",
+    "isaDeviationC": "degC relative to ISA",
+    "mach": "dimensionless",
+    "n1Pct": "percent",
+    "fuelFlowPerEngineKgH": "kg/h/engine",
+    "iasKt": "KT IAS",
+    "tasKt": "KT TAS",
+    "specificRangeNmPer1000Kg": "NM/1000KG, aircraft-total fuel basis consistent with two-engine FF and TAS within source rounding"
+  },
+  "corrections": [
+    {
+      "regime": "fixedMach",
+      "pdfPage": 1707,
+      "sourceQuantity": "deltaFUEL percent",
+      "lowAirConditioningPct": -0.5,
+      "engineAntiIceOnPct": 2.0,
+      "totalAntiIceOnPct": 4.5
+    },
+    {
+      "regime": "lrc",
+      "pdfPage": 1724,
+      "sourceQuantity": "deltaFUEL percent",
+      "lowAirConditioningPct": -0.5,
+      "engineAntiIceOnPct": 2.5,
+      "totalAntiIceOnPct": 5.0
+    }
+  ],
+  "notes": [
+    "Selected independent validation nodes, not a complete interpolation table. No missing cells are filled and no Mach profile is automatically connected to the mission.",
+    "All18 entries were read from page images. FF is per engine, while SR is consistent with total fuel for the two engines; values retain the source's independent rounding.",
+    "LRC Mach varies with mass and altitude and may lie above or below M0.78. For example, at60t/FL390 it is0.788; at50t/FL290 it is0.662.",
+    "Fuel flow is a validation reference and must not replace the model's FF in the same independent check or be fitted to the holdout points.",
+    "Air-conditioning and anti-ice corrections are source-specific metadata, not an estimate of the benefit of a bleedless architecture.",
+    "The phase dataset and these cruise controls share aircraft applicability but remain separate numerical products."
+  ],
+  "checks": [
+    {
+      "regime": "fixedMach",
+      "massKg": 50000,
+      "fl": 290,
+      "isaDeviationC": 0,
+      "mach": 0.78,
+      "n1Pct": 80.8,
+      "fuelFlowPerEngineKgH": 1305,
+      "iasKt": 302,
+      "tasKt": 462,
+      "specificRangeNmPer1000Kg": 176.9,
+      "pdfPage": 1707,
+      "pageCode": "3.05.15 P9 SEQ130 REV30"
+    },
+    {
+      "regime": "fixedMach",
+      "massKg": 50000,
+      "fl": 350,
+      "isaDeviationC": 0,
+      "mach": 0.78,
+      "n1Pct": 80.4,
+      "fuelFlowPerEngineKgH": 1053,
+      "iasKt": 264,
+      "tasKt": 450,
+      "specificRangeNmPer1000Kg": 213.5,
+      "pdfPage": 1707,
+      "pageCode": "3.05.15 P9 SEQ130 REV30"
+    },
+    {
+      "regime": "fixedMach",
+      "massKg": 50000,
+      "fl": 390,
+      "isaDeviationC": 0,
+      "mach": 0.78,
+      "n1Pct": 82.0,
+      "fuelFlowPerEngineKgH": 954,
+      "iasKt": 241,
+      "tasKt": 447,
+      "specificRangeNmPer1000Kg": 234.6,
+      "pdfPage": 1707,
+      "pageCode": "3.05.15 P9 SEQ130 REV30"
+    },
+    {
+      "regime": "fixedMach",
+      "massKg": 60000,
+      "fl": 290,
+      "isaDeviationC": 0,
+      "mach": 0.78,
+      "n1Pct": 81.6,
+      "fuelFlowPerEngineKgH": 1356,
+      "iasKt": 302,
+      "tasKt": 462,
+      "specificRangeNmPer1000Kg": 170.2,
+      "pdfPage": 1707,
+      "pageCode": "3.05.15 P9 SEQ130 REV30"
+    },
+    {
+      "regime": "fixedMach",
+      "massKg": 60000,
+      "fl": 350,
+      "isaDeviationC": 0,
+      "mach": 0.78,
+      "n1Pct": 82.1,
+      "fuelFlowPerEngineKgH": 1135,
+      "iasKt": 264,
+      "tasKt": 450,
+      "specificRangeNmPer1000Kg": 198.1,
+      "pdfPage": 1707,
+      "pageCode": "3.05.15 P9 SEQ130 REV30"
+    },
+    {
+      "regime": "fixedMach",
+      "massKg": 60000,
+      "fl": 390,
+      "isaDeviationC": 0,
+      "mach": 0.78,
+      "n1Pct": 84.7,
+      "fuelFlowPerEngineKgH": 1097,
+      "iasKt": 241,
+      "tasKt": 447,
+      "specificRangeNmPer1000Kg": 203.9,
+      "pdfPage": 1707,
+      "pageCode": "3.05.15 P9 SEQ130 REV30"
+    },
+    {
+      "regime": "fixedMach",
+      "massKg": 70000,
+      "fl": 290,
+      "isaDeviationC": 0,
+      "mach": 0.78,
+      "n1Pct": 82.6,
+      "fuelFlowPerEngineKgH": 1424,
+      "iasKt": 302,
+      "tasKt": 462,
+      "specificRangeNmPer1000Kg": 162.1,
+      "pdfPage": 1707,
+      "pageCode": "3.05.15 P9 SEQ130 REV30"
+    },
+    {
+      "regime": "fixedMach",
+      "massKg": 70000,
+      "fl": 350,
+      "isaDeviationC": 0,
+      "mach": 0.78,
+      "n1Pct": 84.2,
+      "fuelFlowPerEngineKgH": 1267,
+      "iasKt": 264,
+      "tasKt": 450,
+      "specificRangeNmPer1000Kg": 177.4,
+      "pdfPage": 1707,
+      "pageCode": "3.05.15 P9 SEQ130 REV30"
+    },
+    {
+      "regime": "fixedMach",
+      "massKg": 78000,
+      "fl": 350,
+      "isaDeviationC": 0,
+      "mach": 0.78,
+      "n1Pct": 86.5,
+      "fuelFlowPerEngineKgH": 1411,
+      "iasKt": 264,
+      "tasKt": 450,
+      "specificRangeNmPer1000Kg": 159.3,
+      "pdfPage": 1707,
+      "pageCode": "3.05.15 P9 SEQ130 REV30"
+    },
+    {
+      "regime": "lrc",
+      "massKg": 50000,
+      "fl": 290,
+      "isaDeviationC": 0,
+      "mach": 0.662,
+      "n1Pct": 74.8,
+      "fuelFlowPerEngineKgH": 976,
+      "iasKt": 253,
+      "tasKt": 392,
+      "specificRangeNmPer1000Kg": 200.6,
+      "pdfPage": 1724,
+      "pageCode": "3.05.15 P14 SEQ130 REV30"
+    },
+    {
+      "regime": "lrc",
+      "massKg": 50000,
+      "fl": 350,
+      "isaDeviationC": 0,
+      "mach": 0.722,
+      "n1Pct": 78.4,
+      "fuelFlowPerEngineKgH": 932,
+      "iasKt": 243,
+      "tasKt": 416,
+      "specificRangeNmPer1000Kg": 223.4,
+      "pdfPage": 1724,
+      "pageCode": "3.05.15 P14 SEQ130 REV30"
+    },
+    {
+      "regime": "lrc",
+      "massKg": 50000,
+      "fl": 390,
+      "isaDeviationC": 0,
+      "mach": 0.771,
+      "n1Pct": 81.8,
+      "fuelFlowPerEngineKgH": 938,
+      "iasKt": 238,
+      "tasKt": 442,
+      "specificRangeNmPer1000Kg": 235.7,
+      "pdfPage": 1724,
+      "pageCode": "3.05.15 P14 SEQ130 REV30"
+    },
+    {
+      "regime": "lrc",
+      "massKg": 60000,
+      "fl": 290,
+      "isaDeviationC": 0,
+      "mach": 0.694,
+      "n1Pct": 78.0,
+      "fuelFlowPerEngineKgH": 1122,
+      "iasKt": 266,
+      "tasKt": 411,
+      "specificRangeNmPer1000Kg": 183.0,
+      "pdfPage": 1724,
+      "pageCode": "3.05.15 P14 SEQ130 REV30"
+    },
+    {
+      "regime": "lrc",
+      "massKg": 60000,
+      "fl": 350,
+      "isaDeviationC": 0,
+      "mach": 0.771,
+      "n1Pct": 81.8,
+      "fuelFlowPerEngineKgH": 1116,
+      "iasKt": 261,
+      "tasKt": 444,
+      "specificRangeNmPer1000Kg": 199.0,
+      "pdfPage": 1724,
+      "pageCode": "3.05.15 P14 SEQ130 REV30"
+    },
+    {
+      "regime": "lrc",
+      "massKg": 60000,
+      "fl": 390,
+      "isaDeviationC": 0,
+      "mach": 0.788,
+      "n1Pct": 85.0,
+      "fuelFlowPerEngineKgH": 1116,
+      "iasKt": 244,
+      "tasKt": 452,
+      "specificRangeNmPer1000Kg": 202.5,
+      "pdfPage": 1724,
+      "pageCode": "3.05.15 P14 SEQ130 REV30"
+    },
+    {
+      "regime": "lrc",
+      "massKg": 70000,
+      "fl": 290,
+      "isaDeviationC": 0,
+      "mach": 0.739,
+      "n1Pct": 81.3,
+      "fuelFlowPerEngineKgH": 1311,
+      "iasKt": 285,
+      "tasKt": 437,
+      "specificRangeNmPer1000Kg": 166.8,
+      "pdfPage": 1724,
+      "pageCode": "3.05.15 P14 SEQ130 REV30"
+    },
+    {
+      "regime": "lrc",
+      "massKg": 70000,
+      "fl": 350,
+      "isaDeviationC": 0,
+      "mach": 0.786,
+      "n1Pct": 84.4,
+      "fuelFlowPerEngineKgH": 1285,
+      "iasKt": 267,
+      "tasKt": 453,
+      "specificRangeNmPer1000Kg": 176.3,
+      "pdfPage": 1724,
+      "pageCode": "3.05.15 P14 SEQ130 REV30"
+    },
+    {
+      "regime": "lrc",
+      "massKg": 78000,
+      "fl": 350,
+      "isaDeviationC": 0,
+      "mach": 0.782,
+      "n1Pct": 86.5,
+      "fuelFlowPerEngineKgH": 1417,
+      "iasKt": 265,
+      "tasKt": 451,
+      "specificRangeNmPer1000Kg": 159.0,
+      "pdfPage": 1724,
+      "pageCode": "3.05.15 P14 SEQ130 REV30"
+    }
+  ]
+}

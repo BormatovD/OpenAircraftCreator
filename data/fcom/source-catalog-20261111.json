@@ -1,0 +1,227 @@
+{
+  "schemaVersion": 1,
+  "batch": "2026-11-11",
+  "source": "Nine user-supplied PDFs; complete manuals and extracted full text are not distributed with the repository",
+  "totalFiles": 9,
+  "totalPdfPages": 14871,
+  "pageNumbering": "1-based PDF positions; printed section/page codes retained in each numerical dataset",
+  "processingScope": {
+    "allPagesIndexed": true,
+    "allPagesManuallyRead": false,
+    "allRasterPagesOcred": false,
+    "numericalExtraction": "Selected normal-performance tables; exact scope in dataset metadata and review documents",
+    "productionMissionChanged": false
+  },
+  "indexingTool": "tools/fcom_index.py",
+  "documents": [
+    {
+      "id": "airbus-ces-1",
+      "filename": "FCOM 1.pdf",
+      "localCitationAlias": "airbus-ces-volume-1.pdf",
+      "sha256": "2323159fd70b2985aca8322e16a4ad9caea2e3fac7b008e0019621f1fcd8adf1",
+      "bytes": 31157345,
+      "pdfPages": 1995,
+      "operatorOrPublisher": "China Eastern Airlines",
+      "aircraftScope": "A319/A320/A321",
+      "volumePurpose": "Systems Description",
+      "revision": "Revision 040C; 2007-07-06; individual table/page revisions retained separately",
+      "documentNumber": null,
+      "documentStatus": "operator-specific multi-aircraft manual",
+      "textLayer": {
+        "pagesWithAtLeast200TextCharacters": 150,
+        "pagesWithLessThan200TextCharactersAndImages": 1845,
+        "interpretation": "navigation diagnostic, not a claim that all images or all tables were OCRed"
+      },
+      "review": "docs/FCOM_AIRBUS_CES.md"
+    },
+    {
+      "id": "airbus-ces-2",
+      "filename": "FCOM 2.pdf",
+      "localCitationAlias": "airbus-ces-volume-2.pdf",
+      "sha256": "acc6cb05649393067eab2cc49b69b6df550f63cfc0c0a6816420defb9207c5bf",
+      "bytes": 20933249,
+      "pdfPages": 885,
+      "operatorOrPublisher": "China Eastern Airlines",
+      "aircraftScope": "A319/A320/A321",
+      "volumePurpose": "Flight Preparation",
+      "revision": "Revision 039; 2007-05-01; individual table/page revisions retained separately",
+      "documentNumber": null,
+      "documentStatus": "operator-specific multi-aircraft manual",
+      "textLayer": {
+        "pagesWithAtLeast200TextCharacters": 51,
+        "pagesWithLessThan200TextCharactersAndImages": 834,
+        "interpretation": "navigation diagnostic, not a claim that all images or all tables were OCRed"
+      },
+      "review": "docs/FCOM_AIRBUS_CES.md"
+    },
+    {
+      "id": "airbus-ces-3",
+      "filename": "FCOM 3.pdf",
+      "localCitationAlias": "airbus-ces-volume-3.pdf",
+      "sha256": "26343087d1c1feda1d618c2956d9cfd296bb91aa68637cfccafda8df8509d4f8",
+      "bytes": 39510924,
+      "pdfPages": 2089,
+      "operatorOrPublisher": "China Eastern Airlines",
+      "aircraftScope": "A319/A320/A321",
+      "volumePurpose": "Flight Operations",
+      "revision": "Revision 041B; 2007-07-06; individual table/page revisions retained separately",
+      "documentNumber": null,
+      "documentStatus": "operator-specific multi-aircraft manual",
+      "textLayer": {
+        "pagesWithAtLeast200TextCharacters": 155,
+        "pagesWithLessThan200TextCharactersAndImages": 1934,
+        "interpretation": "navigation diagnostic, not a claim that all images or all tables were OCRed"
+      },
+      "review": "docs/FCOM_AIRBUS_CES.md"
+    },
+    {
+      "id": "airbus-ces-4",
+      "filename": "FCOM 4.pdf",
+      "localCitationAlias": "airbus-ces-volume-4.pdf",
+      "sha256": "2e88220d1e266a82d373a63f197e166984a9815bb0cf80ffc8495def4c84ab7f",
+      "bytes": 23304370,
+      "pdfPages": 1225,
+      "operatorOrPublisher": "China Eastern Airlines",
+      "aircraftScope": "A319/A320/A321",
+      "volumePurpose": "FMGS Pilot's Guide",
+      "revision": "Revision 019B; 2007-07-06; individual table/page revisions retained separately",
+      "documentNumber": null,
+      "documentStatus": "operator-specific multi-aircraft manual",
+      "textLayer": {
+        "pagesWithAtLeast200TextCharacters": 61,
+        "pagesWithLessThan200TextCharactersAndImages": 1164,
+        "interpretation": "navigation diagnostic, not a claim that all images or all tables were OCRed"
+      },
+      "review": "docs/FCOM_AIRBUS_CES.md"
+    },
+    {
+      "id": "b737ng-tbc-2008",
+      "filename": "_737-TBC_OM_TBC_C_080515_V1V2_B8P-C.pdf",
+      "localCitationAlias": "boeing-737ng-tbc-2008.pdf",
+      "sha256": "47445fbc4dd0f6d6a96c221aa96c12d7aac4ede26778997d82188afb16c72cac",
+      "bytes": 26909569,
+      "pdfPages": 2358,
+      "operatorOrPublisher": "The Boeing Company",
+      "aircraftScope": "737-600/-700/-800/-900",
+      "volumePurpose": "NG systems and performance",
+      "revision": "Revision 22; 2008-05-15",
+      "documentNumber": "D6-27370-TBC",
+      "documentStatus": "sample of typical FCOM layout and structure",
+      "textLayer": {
+        "pagesWithAtLeast200TextCharacters": 2348,
+        "pagesWithLessThan200TextCharactersAndImages": 0,
+        "interpretation": "navigation diagnostic, not a claim that all images or all tables were OCRed"
+      },
+      "review": "docs/FCOM_BOEING_737_REVIEW.md"
+    },
+    {
+      "id": "b737classic-tbce-2007",
+      "filename": "737-300-400-500 Flight Crew Operational Manual.pdf",
+      "localCitationAlias": "boeing-737classic-tbce-2007.pdf",
+      "sha256": "d3cc1e01c8062c6a87f69e1542a4f591a71da7d594be6731c57f22ef6fbf9f7e",
+      "bytes": 19670118,
+      "pdfPages": 1098,
+      "operatorOrPublisher": "The Boeing Company",
+      "aircraftScope": "737-300/-400/-500",
+      "volumePurpose": "Classic systems and performance dispatch",
+      "revision": "Revision 20; 2007-12-07",
+      "documentNumber": "D6-27370-400E-TBCE",
+      "documentStatus": "sample of typical FCOM layout and structure",
+      "textLayer": {
+        "pagesWithAtLeast200TextCharacters": 1093,
+        "pagesWithLessThan200TextCharactersAndImages": 0,
+        "interpretation": "navigation diagnostic, not a claim that all images or all tables were OCRed"
+      },
+      "review": "docs/FCOM_BOEING_737_REVIEW.md"
+    },
+    {
+      "id": "b757-nordwind-2014",
+      "filename": "B757 FCOM 10MAY14.rev10.pdf.pdf",
+      "localCitationAlias": "boeing-757-nordwind-2014.pdf",
+      "sha256": "eafcade91517e8e507e31b70552eafd4e0b59ee819259901fe9533ea5b106a86",
+      "bytes": 12875112,
+      "pdfPages": 1702,
+      "operatorOrPublisher": "Nord Wind Airlines",
+      "aircraftScope": "757-200; PW2037/PW2040; plain and winglet variants",
+      "volumePurpose": "Five distinct performance packages",
+      "revision": "Revision 10; 2014-05-15 (cover, not filename)",
+      "documentNumber": "D632N001-55NRW",
+      "documentStatus": "operator-specific multi-aircraft manual",
+      "textLayer": {
+        "pagesWithAtLeast200TextCharacters": 1701,
+        "pagesWithLessThan200TextCharactersAndImages": 0,
+        "interpretation": "navigation diagnostic, not a claim that all images or all tables were OCRed"
+      },
+      "review": "docs/FCOM_757_NORDWIND.md"
+    },
+    {
+      "id": "b777-continental-2002",
+      "filename": "B777_FCOM.pdf",
+      "localCitationAlias": "boeing-777-continental.pdf",
+      "sha256": "91a72f3e68766db0f53bb78ab8a06a60cec3d0b2519ade603469a5d277c3b34f",
+      "bytes": 30248657,
+      "pdfPages": 1913,
+      "operatorOrPublisher": "Continental Airlines",
+      "aircraftScope": "777-224 IGW; GE90-90B",
+      "volumePurpose": "Flight manual, systems and performance",
+      "revision": "mixed revisions 1999–2002; introduction revision 9, 2002-11-01",
+      "documentNumber": null,
+      "documentStatus": "operator-specific flight manual",
+      "textLayer": {
+        "pagesWithAtLeast200TextCharacters": 1664,
+        "pagesWithLessThan200TextCharactersAndImages": 103,
+        "interpretation": "navigation diagnostic, not a claim that all images or all tables were OCRed"
+      },
+      "review": "docs/FCOM_WIDEBODY_REVIEW.md"
+    },
+    {
+      "id": "b747-tbc-2009",
+      "filename": "Boeing_747-400_Flight_Crew_Operations_Manual_FCOM__2009.pdf",
+      "localCitationAlias": "boeing-747-400-tbc-2009.pdf",
+      "sha256": "8ca54dd6ebeba35f3fff385b2d0c4848783a792741f849c4b489cf5b0d4c3c59",
+      "bytes": 20817996,
+      "pdfPages": 1606,
+      "operatorOrPublisher": "The Boeing Company",
+      "aircraftScope": "747-400/PW4056 and 747-400F/CF6-80C2B1F performance packages",
+      "volumePurpose": "Two distinct performance packages",
+      "revision": "Revision 23; 2009-10-01",
+      "documentNumber": "D6-30151-400",
+      "documentStatus": "sample of typical FCOM layout and structure",
+      "textLayer": {
+        "pagesWithAtLeast200TextCharacters": 1605,
+        "pagesWithLessThan200TextCharactersAndImages": 0,
+        "interpretation": "navigation diagnostic, not a claim that all images or all tables were OCRed"
+      },
+      "review": "docs/FCOM_WIDEBODY_REVIEW.md"
+    }
+  ],
+  "numericalProducts": [
+    {
+      "path": "data/fcom/a320-214-ces-phases.json",
+      "kind": "complete selected ISA0 phase grids",
+      "records": 413
+    },
+    {
+      "path": "data/fcom/a320-214-ces-cruise-checks.json",
+      "kind": "selected validation nodes, not complete cruise grids",
+      "records": 18
+    },
+    {
+      "path": "data/fcom/b737-800-cfm56-7b26-sample-2008.json",
+      "kind": "selected NG performance grids, including 12 N1 corrections",
+      "records": 842
+    },
+    {
+      "path": "data/fcom/b737-300-cfm56-3-22k-sample-2007.json",
+      "kind": "selected Classic dispatch grids",
+      "records": 323
+    },
+    {
+      "path": "data/fcom/b757-nordwind-performance.json",
+      "kind": "35 tables across five performance packets",
+      "records": 1464
+    }
+  ],
+  "totalNumericalRecords": 3060,
+  "recordCountDefinition": "A record is one tabulated state/correction, not one scalar value. Some records contain multiple independent values; duplicates across distinct source methods are retained, e.g. NG PI/PD holding."
+}

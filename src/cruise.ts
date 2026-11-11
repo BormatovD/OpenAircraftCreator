@@ -1,4 +1,5 @@
-/** Таблица FCOM LRC: масса в тоннах, высота в футах; ячейка [%N1, Mach, KIAS, FF/ENG кг/ч]. */
+/** Таблица FCOM LRC: масса в тоннах, высота в футах; ячейка [engine control, Mach, KIAS, FF/ENG кг/ч].
+ * engine control — исходный N1% или EPR (определяется источником); интерполятор использует только Mach. */
 export interface LrcTable {
   _source: string;
   altitudesFt: number[];
