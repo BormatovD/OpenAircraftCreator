@@ -37,21 +37,23 @@
       <p class="scenario-text" id="scenario-text"></p>
     </nav>
 
-    <aside class="panel left" aria-label="Сценарии и агрегаты">
-      <section>
-        <h2>Пересчёт</h2>
+    <aside class="panel left" id="left-panel" aria-label="Пересчёт и агрегаты">
+      <section class="recalc-card" aria-labelledby="recalc-heading">
+        <h2 id="recalc-heading">Пересчёт</h2>
         <div class="segmented wide" role="radiogroup" aria-label="Режим пересчёта">
           <button role="radio" data-mode="fixed" aria-checked="true">Та же геометрия</button>
           <button role="radio" data-mode="redesign" aria-checked="false">Под ту же миссию</button>
         </div>
         <p class="mode-hint" id="mode-hint"></p>
       </section>
-      <section class="summary">
-        <div class="section-head">
-          <h2>Агрегаты</h2>
-          <span class="hint-inline">нажмите — разбор и рычаги</span>
+      <section class="summary" aria-labelledby="assemblies-heading">
+        <div class="summary-overview">
+          <div class="section-head">
+            <h2 id="assemblies-heading">Агрегаты</h2>
+            <span class="hint-inline">Нажмите на агрегат — разбор и рычаги</span>
+          </div>
+          <ul class="legend" id="legend" aria-label="Состав пустого снаряжённого самолёта"></ul>
         </div>
-        <ul class="legend" id="legend"></ul>
         <ol class="tree" id="tree"></ol>
       </section>
     </aside>
@@ -59,14 +61,6 @@
     <main id="viewport" aria-label="3D-модель самолёта">
       <div class="busy-note" aria-live="polite">Перепроектирую…</div>
       <section id="metrics" class="kpi" aria-live="polite"></section>
-      <div class="view-tools" aria-label="Вид">
-        <div class="segmented vertical" role="radiogroup" aria-label="Фаза полёта" id="phases"></div>
-        <label class="tool-label" for="explode">Разбор всего самолёта</label>
-        <input id="explode" type="range" min="0" max="1" step="0.001" value="0" />
-        <label class="spin-toggle"><input type="checkbox" id="spin" checked /> Полёт и роторы</label>
-        <label class="tool-label" for="livery">Окраска</label>
-        <select id="livery" class="select"></select>
-      </div>
       <section id="drawer" class="drawer" data-open="false" aria-label="Агрегат и рычаги">
         <div class="drawer-head">
           <button class="drawer-toggle" id="drawer-toggle" aria-expanded="false">Рычаги</button>
@@ -76,39 +70,54 @@
         </div>
         <div class="tabs" role="tablist" id="drawer-tabs"></div>
         <div class="drawer-body">
-          <div id="levers" class="lever-grid"></div>
+          <div id="levers" class="lever-grid" role="group" aria-label="Рычаги — вертикальная прокрутка" tabindex="0"></div>
           <div id="detail" class="detail" hidden></div>
         </div>
       </section>
     </main>
 
-    <aside class="panel right" aria-label="Показатели">
-      <div class="tabs" role="tablist" id="right-tabs">
-        <button role="tab" data-rtab="pr" aria-selected="true">Дальность</button>
-        <button role="tab" data-rtab="drag" aria-selected="false">Сопротивление</button>
-        <button role="tab" data-rtab="thrust" aria-selected="false">Тяга</button>
-        <button role="tab" data-rtab="tol" aria-selected="false">Взлёт</button>
-        <button role="tab" data-rtab="constraints" aria-selected="false">Ограничения</button>
+    <aside class="panel right" aria-label="Показатели и вид самолёта">
+      <div class="right-content">
+        <div class="tabs" role="tablist" id="right-tabs">
+          <button role="tab" data-rtab="pr" aria-selected="true">Дальность</button>
+          <button role="tab" data-rtab="drag" aria-selected="false">Сопротивление</button>
+          <button role="tab" data-rtab="thrust" aria-selected="false">Тяга</button>
+          <button role="tab" data-rtab="tol" aria-selected="false">Взлёт</button>
+          <button role="tab" data-rtab="constraints" aria-selected="false">Ограничения</button>
+        </div>
+        <section data-rpanel="pr">
+          <h2>Нагрузка — дальность</h2>
+          <div id="pr" class="pr"></div>
+        </section>
+        <section data-rpanel="drag" hidden>
+          <h2>Сопротивление в крейсере</h2>
+          <div id="drag" class="drag"></div>
+        </section>
+        <section data-rpanel="thrust" hidden>
+          <h2>Тяга на наборе</h2>
+          <div id="thrust" class="pr"></div>
+        </section>
+        <section data-rpanel="tol" hidden>
+          <h2>Взлёт и посадка</h2>
+          <div id="tol"></div>
+        </section>
+        <section data-rpanel="constraints" hidden>
+          <h2>Ограничения</h2>
+          <ul class="constraints" id="constraints"></ul>
+        </section>
       </div>
-      <section data-rpanel="pr">
-        <h2>Нагрузка — дальность</h2>
-        <div id="pr" class="pr"></div>
-      </section>
-      <section data-rpanel="drag" hidden>
-        <h2>Сопротивление в крейсере</h2>
-        <div id="drag" class="drag"></div>
-      </section>
-      <section data-rpanel="thrust" hidden>
-        <h2>Тяга на наборе</h2>
-        <div id="thrust" class="pr"></div>
-      </section>
-      <section data-rpanel="tol" hidden>
-        <h2>Взлёт и посадка</h2>
-        <div id="tol"></div>
-      </section>
-      <section data-rpanel="constraints" hidden>
-        <h2>Ограничения</h2>
-        <ul class="constraints" id="constraints"></ul>
+      <section class="view-tools" aria-label="Вид самолёта">
+        <h2>Вид самолёта</h2>
+        <div class="segmented phase-options" role="radiogroup" aria-label="Фаза полёта" id="phases"></div>
+        <label class="tool-label" for="explode">Разбор всего самолёта</label>
+        <input id="explode" type="range" min="0" max="1" step="0.001" value="0" />
+        <div class="view-options">
+          <label class="spin-toggle"><input type="checkbox" id="spin" checked /> Полёт и роторы</label>
+          <div class="livery-field">
+            <label class="tool-label" for="livery">Окраска</label>
+            <select id="livery" class="select"></select>
+          </div>
+        </div>
       </section>
     </aside>
 

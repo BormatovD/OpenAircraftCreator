@@ -19,6 +19,7 @@ import { type AircraftModel, type Family, FAMILY, buildAircraft, partCenter } fr
 import { Environment, PHASES, type Phase } from "./scene/environment.ts";
 import { LIVERIES, NO_LIVERY, PLAIN_FIN, finLiveryTexture, liveryById } from "./scene/livery.ts";
 import { fuselageTexture, htailTexture, wingTexture } from "./scene/textures.ts";
+import { SELECTED_EXPLODE_FRACTION, fitAircraftFrame, meshFramePoints, type SceneFrameArea } from "./scene/framing.ts";
 
 const FAMILY_LABEL: Record<Family, string> = {
   structure: "Конструкция",
@@ -160,9 +161,9 @@ viewport.appendChild(labelRenderer.domElement);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(32, 1, 0.5, 2500);
-camera.position.set(-42, 16, 56);
+// Только исходный ракурс: центр и расстояние определятся по геометрии выбранного типа.
+camera.position.set(-60, 17.5, 56);
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(18, -1.5, 0);
 controls.enableDamping = !reduceMotion;
 controls.update();
 
@@ -340,6 +341,7 @@ function buildScene(): void {
 
   applySelection();
   renderTree();
+  requestCameraFrame();
   // Контурные линии — самая дорогая часть сборки сцены; пока тянут ползунок, их не строим.
   clearTimeout(edgesTimer);
   const built = model;
@@ -382,14 +384,14 @@ const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 
  * Положение каждой детали: разбор (k), выпуск механизации и уборка шасси по фазе полёта.
  * Вызывается каждый кадр — фаза меняется плавно.
  */
-function pose(): void {
+function pose(phase: { gear: number; flaps: number } = env.current): void {
   if (!model) return;
   const k = ease(state.explode);
-  const gearUp = (1 - env.current.gear) * (1 - k);
-  const flaps = env.current.flaps;
+  const gearUp = (1 - phase.gear) * (1 - k);
+  const flaps = phase.flaps;
   for (const part of model.parts.values()) {
-    // Выбранный агрегат раскладывается сам, даже когда самолёт собран.
-    const kp = part.id === selPart ? Math.max(k, ease(selK)) : k;
+    // Выбор слегка отделяет агрегат; полного разлёта добиваются общим ползунком.
+    const kp = part.id === selPart ? Math.max(k, ease(selK) * SELECTED_EXPLODE_FRACTION) : k;
     part.group.position.copy(part.explode).multiplyScalar(kp);
     for (const o of part.group.children) {
       if (!(o instanceof THREE.Mesh)) continue;
@@ -594,44 +596,109 @@ function applySelection(): void {
 function select(id: string | null): void {
   state.selected = state.selected === id ? null : id;
   if (state.selected) {
-    // Агрегат раскладывается, камера переводит взгляд на него, снизу открываются его рычаги.
+    // Небольшой разбор агрегата и его рычаги; камера сохраняет в кадре весь самолёт.
     if (selPart !== state.selected) selK = 0;
     selPart = state.selected;
+    const family = $("tree").querySelector<HTMLDetailsElement>(`details[data-family="${familyOf(state.selected)}"]`);
+    if (family) family.open = true;
     const groups = linkedGroups(state.selected);
     state.drawerOpen = true;
     state.drawerTab = groups[0] ?? ABOUT_TAB;
   } else state.drawerOpen = false;
-  aimCamera();
   applySelection();
   renderLevers();
+  requestCameraFrame();
 }
 
-/** Плавный перевод точки обзора: на выбранный агрегат в разобранном виде или обратно на самолёт. */
-const HOME_TARGET = new THREE.Vector3(18, -1.5, 0);
-let aim: { from: THREE.Vector3; to: THREE.Vector3; t: number } | null = null;
-function aimCamera(): void {
-  let to = HOME_TARGET.clone();
-  if (state.selected && model) {
-    const part = model.parts.get(state.selected);
-    if (part) to = partCenter(part).add(part.explode);
+/** Рамка считается только после изменения модели/выбора/макета, не на ручной zoom/orbit. */
+let cameraFramePending = false;
+let cameraFrameReady = false;
+let cameraInteracting = false;
+let aim: {
+  fromTarget: THREE.Vector3; toTarget: THREE.Vector3;
+  direction: THREE.Vector3; fromDistance: number; toDistance: number; t: number;
+} | null = null;
+function requestCameraFrame(): void {
+  cameraFramePending = true;
+}
+controls.addEventListener("start", () => {
+  cameraInteracting = true;
+  cameraFramePending = false;
+  aim = null;
+});
+controls.addEventListener("end", () => { cameraInteracting = false; });
+
+/** Свободная область сцены по реальным плашкам, включая закрытую панель и KPI compare. */
+function sceneFrameArea(): SceneFrameArea {
+  const rect = viewport.getBoundingClientRect();
+  const inset = 14;
+  let top = inset;
+  let bottom = inset;
+  const intersects = (r: DOMRect) => r.width > 0 && r.height > 0 && r.right > rect.left
+    && r.left < rect.right && r.bottom > rect.top && r.top < rect.bottom;
+  const metrics = $("metrics");
+  if (getComputedStyle(metrics).position === "absolute") {
+    for (const el of [metrics, ...metrics.querySelectorAll<HTMLElement>(".kpi-compare")]) {
+      const r = el.getBoundingClientRect();
+      if (intersects(r)) top = Math.max(top, r.bottom - rect.top + inset);
+    }
   }
-  aim = { from: controls.target.clone(), to, t: 0 };
+  const drawer = $("drawer");
+  if (getComputedStyle(drawer).position === "absolute") {
+    const r = drawer.getBoundingClientRect();
+    if (intersects(r)) bottom = Math.max(bottom, rect.bottom - r.top + inset);
+  }
+  return { width: rect.width, height: rect.height, top, bottom, left: inset, right: inset };
 }
-/** Открытая нижняя панель закрывает низ сцены — центр изображения поднимается на половину её высоты. */
-let viewShift = 0;
-function shiftView(dt: number): void {
-  const d = $("drawer");
-  const want = state.drawerOpen && getComputedStyle(d).position === "absolute" ? d.offsetHeight / 2 : 0;
-  const next = reduceMotion ? want : viewShift + (want - viewShift) * Math.min(1, dt * 8);
-  if (Math.abs(next - viewShift) < 0.3 && Math.abs(want - next) < 0.3 && viewShift === want) return;
-  viewShift = Math.abs(want - next) < 0.3 ? want : next;
-  const { clientWidth: w, clientHeight: h } = viewport;
-  if (viewShift > 0.5) camera.setViewOffset(w, h, 0, viewShift, w, h);
-  else camera.clearViewOffset();
+
+function frameCamera(): void {
+  if (!model || cameraInteracting) return;
+  const area = sceneFrameArea();
+  const points = meshFramePoints(model.root);
+  // Вписываем текущую и конечную позу выбора/фазы: кадр не догоняет детали и шасси.
+  const previous = selK;
+  const next = state.selected ? 1 : 0;
+  const phase = PHASES[state.phase];
+  if (next !== previous || phase.gear !== env.current.gear || phase.flaps !== env.current.flaps) {
+    selK = next;
+    pose(phase);
+    points.push(...meshFramePoints(model.root));
+    selK = previous;
+    pose();
+  }
+  const frame = fitAircraftFrame(points, camera.position.clone().sub(controls.target), camera.up,
+    camera.fov, camera.zoom, camera.near, area);
+  if (!frame) return;
+  cameraFramePending = false;
+  camera.setViewOffset(area.width, area.height, frame.offsetX, frame.offsetY, area.width, area.height);
   camera.updateProjectionMatrix();
+  camera.updateMatrixWorld(true);
+  const projected = new THREE.Vector3();
+  const currentFits = points.every((point) => {
+    projected.copy(point).project(camera);
+    const x = (projected.x + 1) * area.width / 2;
+    const y = (1 - projected.y) * area.height / 2;
+    return x >= area.left && x <= area.width - area.right && y >= area.top
+      && y <= area.height - area.bottom && projected.z > -1 && projected.z < 1;
+  });
+  // Если новая панель уже перекрывает самолёт, вписываем сразу. Плавное приближение
+  // безопасно, когда весь самолёт помещается и в начальный, и в конечный кадр.
+  if (!cameraFrameReady || reduceMotion || !currentFits) {
+    controls.target.copy(frame.target);
+    camera.position.copy(frame.position);
+    aim = null;
+  } else {
+    aim = {
+      fromTarget: controls.target.clone(), toTarget: frame.target,
+      direction: frame.direction, fromDistance: camera.position.distanceTo(controls.target),
+      toDistance: frame.distance, t: 0,
+    };
+  }
+  cameraFrameReady = true;
 }
+
 function stepCamera(dt: number): void {
-  shiftView(dt);
+  if (cameraFramePending) frameCamera();
   // Разбор выбранного агрегата: 0,6 с туда и обратно.
   const want = state.selected ? 1 : 0;
   const was = selK;
@@ -639,11 +706,12 @@ function stepCamera(dt: number): void {
   if (selK === 0 && !state.selected) selPart = null;
   if (was !== selK) applyExplode();
   if (!aim) return;
-  aim.t = reduceMotion ? 1 : Math.min(1, aim.t + dt / 0.7);
-  const p = aim.from.clone().lerp(aim.to, ease(aim.t));
-  // Камера смещается вместе с точкой обзора — ракурс и расстояние сохраняются.
-  camera.position.add(p.clone().sub(controls.target));
+  aim.t = reduceMotion ? 1 : Math.min(1, aim.t + dt / 0.45);
+  const k = ease(aim.t);
+  const p = aim.fromTarget.clone().lerp(aim.toTarget, k);
+  const distance = THREE.MathUtils.lerp(aim.fromDistance, aim.toDistance, k);
   controls.target.copy(p);
+  camera.position.copy(p).addScaledVector(aim.direction, distance);
   if (aim.t >= 1) aim = null;
 }
 
@@ -728,17 +796,20 @@ function controlRow(c: Control, def: AircraftDefinition): string {
   const v = state.values[c.id];
   const disabled = c.id === "mach" && state.values.lrc === true;
   const changed = !disabled && isChanged(c, def, v);
+  const hint = disabled ? "Отключите LRC, чтобы задать постоянный Мах. Фактические скорости показаны справа."
+    : `${c.hint}${changed && c.kind === "range" ? ` · база ${c.format(c.base(def) as number)}` : ""}`;
+  const hintTitle = hint.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
   if (c.kind === "toggle")
     return `<label class="lever toggle${changed ? " changed" : ""}" data-row="${c.id}">
       <input type="checkbox" data-ctrl="${c.id}" ${v ? "checked" : ""} />
-      <span class="lever-text"><span class="lever-label">${c.label}</span><span class="lever-hint">${c.hint}</span></span>
+      <span class="lever-text"><span class="lever-label">${c.label}</span><span class="lever-hint" title="${hintTitle}">${hint}</span></span>
     </label>`;
   const baseV = c.base(def);
   return `<div class="lever range${changed ? " changed" : ""}" data-row="${c.id}">
-    <div class="lever-top"><label class="lever-label" for="ctrl-${c.id}">${c.label}</label><output id="out-${c.id}">${disabled ? "M по таблице LRC" : c.format(v as number)}</output></div>
+    <div class="lever-top"><label class="lever-label" for="ctrl-${c.id}">${c.label}</label><output id="out-${c.id}">${disabled ? "LRC" : c.format(v as number)}</output></div>
     <input id="ctrl-${c.id}" type="range" data-ctrl="${c.id}" min="${c.min}" max="${c.max}" step="${c.step}" value="${v}"
       ${disabled ? "disabled" : ""} style="--base:${((baseV - c.min) / (c.max - c.min)) * 100}%" />
-    <span class="lever-hint">${disabled ? "Отключите LRC, чтобы задать постоянный Мах. Фактические скорости показаны справа." : c.hint}${changed ? ` · база ${c.format(baseV)}` : ""}</span>
+    <span class="lever-hint" title="${hintTitle}">${hint}</span>
   </div>`;
 }
 
@@ -783,6 +854,7 @@ function renderLevers(): void {
       renderLevers();
     };
   const about = state.drawerTab === ABOUT_TAB;
+  drawer.dataset.content = about ? "detail" : "levers";
   $("detail").hidden = !about;
   $("levers").hidden = about;
   if (about) {
@@ -790,19 +862,22 @@ function renderLevers(): void {
     return;
   }
   const list = visible.filter((c) => c.group === state.drawerTab && (!sel || c.parts.includes(sel)));
+  const contentKey = `${state.aircraftId}|${sel ?? ""}|${state.drawerTab}|${list.map((c) => c.id).join()}`;
+  const box = $("levers");
+  const scrollTop = leversBuilt === contentKey ? box.scrollTop : 0;
   const html = list.map((c) => controlRow(c, def)).join("");
   // Пока ползунок тянут, разметку не пересобираем — иначе он потеряет захват.
   const active = document.activeElement as HTMLInputElement | null;
-  if (active?.dataset.ctrl && active.type === "range" && leversBuilt === state.drawerTab + "|" + list.map((c) => c.id).join()) {
+  if (active?.dataset.ctrl && active.type === "range" && leversBuilt === contentKey) {
     for (const c of list) {
       const out = document.getElementById(`out-${c.id}`);
-      if (out && c.kind === "range") out.textContent = c.id === "mach" && state.values.lrc === true ? "M по таблице LRC" : c.format(state.values[c.id] as number);
+      if (out && c.kind === "range") out.textContent = c.id === "mach" && state.values.lrc === true ? "LRC" : c.format(state.values[c.id] as number);
     }
     return;
   }
-  leversBuilt = state.drawerTab + "|" + list.map((c) => c.id).join();
-  const box = $("levers");
+  leversBuilt = contentKey;
   box.innerHTML = html;
+  box.scrollTop = scrollTop;
   for (const input of box.querySelectorAll<HTMLInputElement>("input[data-ctrl]")) {
     const c = CONTROLS.find((x) => x.id === input.dataset.ctrl)!;
     input.addEventListener(c.kind === "toggle" ? "change" : "input", () => {
@@ -885,7 +960,10 @@ function renderMetrics(): void {
     `<div class="kpi-tile" title="${note}"><div class="kpi-label">${label}</div><div class="kpi-value">${value}</div><div class="kpi-delta">${delta}</div></div>`;
   const bad = ev.constraints.filter((c) => c.status === "violation").length;
   const warn = ev.constraints.filter((c) => c.status === "warning").length;
-  $("metrics").innerHTML = `
+  const metrics = $("metrics");
+  const scrollLeft = metrics.querySelector<HTMLElement>(".kpi-strip")?.scrollLeft ?? 0;
+  metrics.innerHTML = `
+    <div class="kpi-strip" role="group" aria-label="Показатели рейса" tabindex="0">
     <div class="kpi-main" title="Рейс ${nf(Math.round(km))} км, ${seatsNote}">
       <div class="kpi-label">Топливо на место · ${nf(Math.round(km))} км</div>
       <div class="kpi-big">${nf(ev.fuelPerSeatPer100KmKg, 3)}<small> кг/100 км</small></div>
@@ -900,7 +978,9 @@ function renderMetrics(): void {
       <div class="kpi-value">${bad ? `✕ ${bad}` : warn ? `! ${warn}` : "✓"}</div>
       <div class="kpi-delta">${bad ? "нарушено" : warn ? "на грани" : "в норме"}</div>
     </button>
+    </div>
     ${cmp ? `<div class="kpi-compare">${AIRCRAFT_LABEL[scenario!.compareWith!]}: ${nf(cmp.fuelPerSeatPer100KmKg, 3)} кг/100 км, OEW ${fmtKg(cmp.oewKg)}</div>` : ""}`;
+  metrics.querySelector<HTMLElement>(".kpi-strip")!.scrollLeft = scrollLeft;
   $("kpi-limits").onclick = () => setRightTab("constraints");
   const d = result.ev.definition;
   $("mode-hint").innerHTML =
@@ -1095,34 +1175,49 @@ function leaves(): MassNode[] {
 }
 
 function renderTree(): void {
+  const tree = $("tree");
+  const panel = $("left-panel");
+  const scrollTop = panel.scrollTop;
+  const expanded = new Map([...tree.querySelectorAll<HTMLDetailsElement>("details[data-family]")]
+    .map((group) => [group.dataset.family!, group.open]));
+  const active = document.activeElement as HTMLElement | null;
+  const focusedFamily = active && tree.contains(active) && active.matches("summary")
+    ? active.parentElement?.dataset.family : null;
+  const focusedPart = active && tree.contains(active) ? active.dataset.id : null;
   const masses = result.ev.masses;
   const baseMasses = result.base.masses;
   const byFamily = new Map<Family, number>();
   for (const n of leaves()) byFamily.set(familyOf(n.id), (byFamily.get(familyOf(n.id)) ?? 0) + n.kg);
   $("legend").innerHTML =
     FAMILY_ORDER.map(
-      (f) => `<li><span class="swatch" style="background:var(--${f})"></span>${FAMILY_LABEL[f]}<span class="kg">${Math.round(((byFamily.get(f) ?? 0) / masses.oewKg) * 100)}%</span></li>`,
+      (f) => `<li><span class="swatch" style="background:var(--${f})"></span><span class="legend-label">${FAMILY_LABEL[f]}</span><span class="kg">${Math.round(((byFamily.get(f) ?? 0) / masses.oewKg) * 100)}%</span></li>`,
     ).join("") +
     (tint.size
-      ? `<li><span class="swatch" style="background:var(--composite)"></span>Композит</li><li><span class="swatch" style="background:var(--warn)"></span>Ограничение</li>`
+      ? `<li><span class="swatch" style="background:var(--composite)"></span><span class="legend-label">Композит</span></li><li><span class="swatch" style="background:var(--warn)"></span><span class="legend-label">Ограничение</span></li>`
       : "");
 
   const max = Math.max(...leaves().map((n) => n.kg));
-  $("tree").innerHTML = FAMILY_ORDER.map((f) => {
+  tree.innerHTML = FAMILY_ORDER.map((f) => {
     const items = leaves()
       .filter((n) => familyOf(n.id) === f)
       .sort((a, b) => b.kg - a.kg)
       .map((n) => {
         const d = fmtDeltaKg(n.kg - (baseMasses.byId.get(n.id)?.kg ?? 0));
-        return `<li><button data-id="${n.id}" aria-pressed="false"><span class="swatch" style="background:var(--${f})"></span><span>${n.label}</span><span class="kg">${fmtKg(n.kg)}${
+        return `<li><button data-id="${n.id}" aria-pressed="false"><span class="swatch" style="background:var(--${f})"></span><span class="part-label">${n.label}</span><span class="kg">${fmtKg(n.kg)}${
           d ? ` <em class="${d.startsWith("−") ? "good" : "bad"}">${d}</em>` : ""
         }</span><span class="bar-fill" style="width:${(n.kg / max) * 100}%;background:var(--${f})"></span></button></li>`;
       })
       .join("");
-    return `<li><div class="group-row"><span>${FAMILY_LABEL[f]}</span><span>${fmtKg(byFamily.get(f) ?? 0)}</span></div><ol class="tree">${items}</ol></li>`;
+    return `<li><details class="family-card" data-family="${f}" style="--family:var(--${f})"${(expanded.get(f) ?? true) ? " open" : ""}>
+      <summary class="group-row"><span>${FAMILY_LABEL[f]}</span><span class="group-mass">${fmtKg(byFamily.get(f) ?? 0)}</span></summary>
+      <ol class="tree">${items}</ol>
+    </details></li>`;
   }).join("");
-  for (const b of $("tree").querySelectorAll<HTMLButtonElement>("button")) b.addEventListener("click", () => select(b.dataset.id!));
+  for (const b of tree.querySelectorAll<HTMLButtonElement>("button")) b.addEventListener("click", () => select(b.dataset.id!));
   applySelection();
+  if (focusedFamily) tree.querySelector<HTMLElement>(`details[data-family="${focusedFamily}"] > summary`)?.focus({ preventScroll: true });
+  else if (focusedPart) tree.querySelector<HTMLElement>(`button[data-id="${focusedPart}"]`)?.focus({ preventScroll: true });
+  panel.scrollTop = scrollTop;
 }
 
 function renderDetail(): void {
@@ -1265,6 +1360,7 @@ window.addEventListener("keydown", (e) => {
 $("explode").addEventListener("input", (e) => {
   state.explode = parseFloat((e.target as HTMLInputElement).value);
   applyExplode();
+  requestCameraFrame();
 });
 
 // Выбор типа и поколения либо двигателя (у 757 — RB211 / PW2037).
@@ -1333,6 +1429,7 @@ function renderPhases(): void {
       state.phase = b.dataset.phase as Phase;
       env.setPhase(state.phase);
       renderPhases();
+      requestCameraFrame();
     });
 }
 renderPhases();
@@ -1406,13 +1503,20 @@ function applyTheme(): void {
 
 function resize(): void {
   const { clientWidth: w, clientHeight: h } = viewport;
+  if (w <= 0 || h <= 0) return;
   renderer.setSize(w, h);
   labelRenderer.setSize(w, h);
   camera.aspect = w / h;
-  if (viewShift > 0.5) camera.setViewOffset(w, h, 0, viewShift, w, h);
+  camera.clearViewOffset();
   camera.updateProjectionMatrix();
+  requestCameraFrame();
 }
 window.addEventListener("resize", resize);
+// Перенос строк шапки, смена вкладки и открытие панели меняют сцену без window.resize.
+new ResizeObserver(resize).observe(viewport);
+const panelObserver = new ResizeObserver(requestCameraFrame);
+panelObserver.observe($("metrics"));
+panelObserver.observe($("drawer"));
 
 try {
   const saved = localStorage.getItem("oac-theme");
