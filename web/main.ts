@@ -279,6 +279,13 @@ function buildScene(): void {
           const m = mat.clone();
           const light = LIGHTS[tone];
           m.color = new THREE.Color(light ?? css(`--${tone}`));
+          // Корпус топливного бака остаётся полупрозрачным, но его насосы, шпангоуты
+          // и магистрали должны быть видны внутри во время инженерного разбора.
+          if (part.ghost && tone.startsWith("detail")) {
+            m.opacity = 0.88;
+            m.transparent = true;
+            m.depthWrite = false;
+          }
           if (tone === "hot") m.emissive = new THREE.Color(css("--hot"));
           if (light) {
             m.emissive = new THREE.Color(light);

@@ -8,11 +8,13 @@ import { useShapes } from "./shapeSet.ts";
 import { cockpitGlazing } from "./cockpit.ts";
 import { cabinOpenings } from "./features.ts";
 import { fuselageFittings, wingtipLights } from "./fittings.ts";
+import { avionicsRack, instrumentPanel, electricalBay, hydraulicBay, airConditioningPacks, fuelDetails, engineAccessories } from "./systemDetails.ts";
 import { type AircraftDefinition, aeroSpanM } from "../../src/definition.ts";
 import {
   type FuselageShape,
   type SurfaceShape,
   engineCutaway,
+  coreRadiusFor,
   fuselageGeometry,
   fuselageHalfWidthAt,
   fuselageSection,
@@ -387,7 +389,8 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
     ...both((s) => surfaceGeometry(wingShape(s, { chordFrom: 0.15, chordTo: 0.6, spanFrom: 0.09, spanTo: 0.82, thicknessRoot: 0.07, thicknessTip: 0.05 }), 16, 10)),
     hullBox(f, wingRoot.x + 0.9, wingRoot.x + 3.6, -1.85, -1.1, -1.6, 1.6),
   ];
-  add("fuel", tankGeoms, v3(0, -6.5 + 3.2, 0), v3(0, 1.2, 7), true, 3);
+  // Насосы, перегородки и линии внутри прозрачных баков — визуальное развитие той же ATA 28.
+  add("fuel", [...tankGeoms, ...fuelDetails((sd) => wingShape(sd), wingRoot.x)], v3(0, -6.5 + 3.2, 0), v3(0, 1.2, 7), true, 3);
 
   // Противообледенение: передняя кромка внешних секций.
   add("antiIce", both((s) => surfaceGeometry(wingShape(s, { chordTo: 0.06, spanFrom: 0.3, spanTo: 0.95 }), 14, 6)), v3(-2.6, -6.5, 0), v3(-1, 0.6, 11), false, 3);
@@ -583,20 +586,28 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   // Двигатель — разрез: детали построены вокруг своей оси, чтобы роторы могли вращаться.
   // Положение оси хранится в basePos, разлёт деталей вдоль оси — в offset.
   const engineGeoms: THREE.BufferGeometry[] = [];
+  const engineBareLength = e.fanDiameterM * (1.7 + (0.09 * Math.max(0, e.bypassRatio - 5.7)) / 5.3);
   const pieces = engineCutaway({
     fanDiameterM: e.fanDiameterM,
     bypassRatio: e.bypassRatio,
     // Длина «голого» двигателя по AC: CFM56-5B 2,94 м (1,70 диаметра вентилятора), LEAP-1A 3,55 м (1,79).
-    lengthM: e.fanDiameterM * (1.7 + (0.09 * Math.max(0, e.bypassRatio - 5.7)) / 5.3),
+    lengthM: engineBareLength,
     ...e.architecture,
     gearbox: e.cycle.gearbox,
   });
-  for (const side of [1, -1] as const)
+  for (const side of [1, -1] as const) {
+    const basePos = v3(nacX + nacelleFanFace(style, lengthK) - 0.1, axisY, side * engZ);
     for (const p of pieces) {
       const g = p.geometry.clone();
-      g.userData = { side, tone: p.tone, spin: p.spin, offset: p.offset, basePos: v3(nacX + nacelleFanFace(style, lengthK) - 0.1, axisY, side * engZ) };
+      g.userData = { side, tone: p.tone, spin: p.spin, offset: p.offset, basePos };
       engineGeoms.push(g);
     }
+    // Внешние кольца ядра, коллектор подачи и коробка приводов — неподвижные детали.
+    for (const accessory of engineAccessories(engineBareLength, coreRadiusFor(e.fanDiameterM / 2, e.bypassRatio))) {
+      accessory.userData = { side, tone: accessory.userData.tone, spin: null, offset: v3(0, 0, 0), basePos };
+      engineGeoms.push(accessory);
+    }
+  }
   add("engines", engineGeoms, v3(-6.5, -10.5, 0), v3(-2.5, -2.4, 2), false, 3);
 
   // ——— Шасси ———
@@ -744,9 +755,9 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   add("gear.nose", [noseLeg], v3(-2.5, -8, 0), v3(-1.5, -1.4, -1.5));
 
   // ——— Бортовые системы (внутри фюзеляжа, при разлёте поднимаются над ним ярусами) ———
-  add("avionics", [hullBox(f, 2.9, 4.6, -1.5, -0.75, -0.8, 0.8)], v3(0, 6.5, 0), v3(-1, 1, -1.5));
-  add("instruments", [boxAt(2.9, 3.4, -0.1, 0.45, -0.75, 0.75)], v3(-1.5, 8.2, 0), v3(-1.2, 1, 1.5));
-  add("electrical.generation", [hullBox(f, 5.4, 6.8, -1.6, -1.0, -0.7, 0.7)], v3(0, 6.5, 0), v3(0, 1, 1.8));
+  add("avionics", avionicsRack(2.95), v3(0, 6.5, 0), v3(-1, 1, -1.5));
+  add("instruments", instrumentPanel(3.0), v3(-1.5, 8.2, 0), v3(-1.2, 1, 1.5));
+  add("electrical.generation", electricalBay(5.4), v3(0, 6.5, 0), v3(0, 1, 1.8));
   // Бортовая кабельная сеть: трассы жгутов (над потолком салона, под полом, в крыло к двигателю, в киль, в нос),
   // каждый жгут — пучок отдельных проводов с хомутами. Число проводов в пучке ∝ массе сети: облегчение убирает
   // дублирующие провода. Все точки трасс вписаны внутрь обшивки.
@@ -816,13 +827,8 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   harness.push(bundle([v3(aftEnd - 2.5, 1.4, 0.3), v3(aftEnd - 1.5, 1.85, 0.05), finPt(2.6), finPt(4.5), finPt(7.0)], false));
   harness.push(bundle([v3(4.0, 0.8, 0), v3(2.5, 0.2, 0), v3(1.0, -0.4, 0)]));
   add("electrical.harness", harness, v3(0, 10.5, 0), v3(2, 1.2, -2));
-  add("hydraulics", [hullBox(f, mainX - 2.2, mainX - 0.8, -1.75, -1.25, -0.9, 0.9)], v3(0, 6.5, 0), v3(0.5, 1, 1.8));
-  add(
-    "airConditioning",
-    [hullBox(f, wingRoot.x + 0.8, wingRoot.x + 3.0, -1.9, -1.4, 0.4, 1.5), hullBox(f, wingRoot.x + 0.8, wingRoot.x + 3.0, -1.9, -1.4, -1.5, -0.4)],
-    v3(0, 6.5, 0),
-    v3(-0.5, 1, -2),
-  );
+  add("hydraulics", hydraulicBay(mainX - 2.2), v3(0, 6.5, 0), v3(0.5, 1, 1.8));
+  add("airConditioning", airConditioningPacks(wingRoot.x + 0.8), v3(0, 6.5, 0), v3(-0.5, 1, -2));
   // ВСУ (AC 2-12-0, отсек между шпангоутами 80 и 84 хвостового конуса): корпус с генератором, воздухозаборный
   // канал вверх к створке на правом борту, глушитель выхлопа — к срезу на кончике хвоста.
   const apuX = L - 3.4;

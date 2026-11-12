@@ -24,6 +24,14 @@
   --hot: #ff6a3d;
   --glass: #0e1720;
   --glassFrame: #7d8d98;
+  /* Physical subcomponents of the existing mass groups (not new groups). */
+  --detailSteel: #aebac3;
+  --detailDark: #536877;
+  --detailPanel: #d5dde2;
+  --detailHydraulic: #c39d60;
+  --detailFuel: #7ba9a0;
+  --detailElectrical: #d1a761;
+  --detailAir: #91b8c6;
   --antenna: #8a959e;
   --exhaust: #1a1d20;
   --good: #8fd18a;
@@ -49,6 +57,13 @@
   --hot: #e2502a;
   --glass: #1d2a36;
   --glassFrame: #aab5bc;
+  --detailSteel: #8c9daa;
+  --detailDark: #4d5d69;
+  --detailPanel: #bdc8d0;
+  --detailHydraulic: #a0783a;
+  --detailFuel: #4c9185;
+  --detailElectrical: #ba8746;
+  --detailAir: #769cad;
   --antenna: #7d8892;
   --exhaust: #2a2e33;
   --good: #2e7d32;
