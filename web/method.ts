@@ -25,11 +25,22 @@ import { MAX_CERT_FL, TAKEOFF_POLAR, TOC_MASS_FRACTION, thrustLapse } from "../s
 import { AIRFOIL_CLMAX, DOUBLE_SLOTTED_MASS, FLAP_DCL, HIGHLIFT_MASS_SHARES, LANDING_FLAP_DEG, SLAT_DCL, TAKEOFF_SHARE, VAPP_FACTOR, highLiftPerf, highLiftRaw } from "../src/highlift.ts";
 import { coreRadiusFor, lptStagesFor } from "./scene/shapes.ts";
 
-const tex = (s: string, display = true) => katex.renderToString(s, { output: "mathml", displayMode: display, throwOnError: false });
+/** Единый путь рендера всех формул, включая численные подстановки.
+ * throwOnError:false раньше выводил ошибочный LaTeX как красный сырой текст.
+ * Теперь математические ошибки нельзя принять за нормально рассчитанные формулы. */
+const tex = (s: string, display = true): string => {
+  const normalized = s.replace(/\\ (?=\\text)/g, String.raw`\,`);
+  try {
+    return katex.renderToString(normalized, { output: "mathml", displayMode: display, throwOnError: true, strict: "ignore" });
+  } catch (error) {
+    console.error("Не удалось отобразить формулу:", normalized, error);
+    return '<span class="math-render-fallback">Формула недоступна — проверьте запись в методике.</span>';
+  }
+};
 const t = (s: string) => tex(s, false);
 const nf = (v: number, d = 0) => v.toLocaleString("ru-RU", { minimumFractionDigits: d, maximumFractionDigits: d }).replace("-", "−");
 /** Число для формулы: запятая — в фигурных скобках, разряды — тонкой шпацией. */
-const L = (v: number, d = 0) => nf(v, d).replace(/\s/g, "\\,").replace(",", "{,}");
+const L = (v: number, d = 0) => nf(v, d).replace("−", "-").replace(/\s/g, "\\,").replace(",", "{,}");
 /** Подстановка значений текущего варианта под формулой — мелко и серым, рядом с теорией. */
 let NOW = "";
 const now = (latex: string, note = "") =>
@@ -102,6 +113,12 @@ export const SOURCES: Source[] = [
     title: "Пермские моторы. Авиационный двигатель ПС-90А",
     url: "https://perm-motors.ru/production/ps-90a/",
     note: "Взлётная тяга 16000 кгс, сухая масса 2950 кг, диаметр вентилятора 1900 мм; смешение контуров и крейсерский TSFC 0,595 кг/(кгс·ч). КПД и крейсерский T4 — допущения.",
+  },
+  {
+    id: "tu214-ps90a-emergency",
+    title: "Росавиация. ПС-90А — КДСТ FATA-02074, чрезвычайный одноразовый режим",
+    url: "https://favt.gov.ru/public/ododoc/%D0%9E%D0%94%D0%9A-%D0%90%D0%92%D0%98%D0%90%D0%94%D0%92%D0%98%D0%93%D0%90%D0%A2%D0%95%D0%9B%D0%AC/%D0%9F%D0%A1-90%D0%90/%D0%9A%D0%94%D0%A1%D0%A2_FATA-02074_%D0%B8%D0%B7%D0%B4.2.pdf",
+    note: "Чрезвычайная тяга 17 500 кгс не более 3 минут; не является крейсерской и не используется в обычной миссии. Применимость к сертификационной OEI-проверке Ту-214 требует подтверждения.",
   },
   {
     id: "tu214-uiga",
@@ -240,7 +257,7 @@ function massSection(current: Evaluation): string {
     1960–90-х, поэтому сами по себе дают завышенную массу; их задача — <b>чувствительность</b>: как масса меняется при изменении размаха,
     площади, MTOW. Пример — крыло (фунты и футы, как в оригинале):</p>
     ${tex(String.raw`W_{\text{крыло}} = 0{,}0051\,(W_{dg} N_z)^{0{,}557}\, S_w^{0{,}649}\, A^{0{,}5}\, (t/c)_{\text{корень}}^{-0{,}4}\,(1+\lambda)^{0{,}1}\,(\cos\Lambda)^{-1}\, S_{csw}^{0{,}1}`)}
-    ${now(String.raw`W^R_{\text{кессон}} = ${L(wb.rawKg)}\ \text{кг},\quad W^R_{\text{мех}} = ${L(wh.rawKg)}\ \text{кг}\qquad (MTOW = ${L(current.definition.weights.mtowKg)}\ \text{кг},\ S = ${L(current.definition.wing.areaM2, 1)}\ \text{м}^2,\ b = ${L(current.definition.wing.spanM, 2)}\ \text{м})`)}
+    ${now(String.raw`W^R_{\mathrm{box}} = ${L(wb.rawKg)}\,\mathrm{kg},\quad W^R_{\mathrm{flaps}} = ${L(wh.rawKg)}\,\mathrm{kg}`, `Кессон и механизация; MTOW ${nf(current.definition.weights.mtowKg)} кг, S ${nf(current.definition.wing.areaM2, 1)} м², b ${nf(current.definition.wing.spanM, 2)} м`)}
     <p>${t(String.raw`W_{dg}`)} — расчётная масса (MTOW), ${t(String.raw`N_z = 1{,}5 \cdot 2{,}5`)} — расчётная перегрузка, ${t("S_w")} — площадь,
     ${t("A")} — удлинение, ${t(String.raw`\lambda`)} — сужение, ${t(String.raw`\Lambda`)} — стреловидность по ¼ хорды, ${t("S_{csw}")} — площадь механизации.</p>
 
@@ -249,7 +266,7 @@ function massSection(current: Evaluation): string {
     Boeing 737-200 ${ref("nasa-737")}, — а итог приводится к OEW A320ceo из Airbus AC ${ref("ac-a320")}: ${nf(AC_OEW_KG.a320ceo)} кг.
     Для группы ${t("g")} аналога множитель один на все её узлы:</p>
     ${tex(String.raw`k_g = \frac{\left(OEW_{AC} - W_{\text{фикс}}\right)\, s_g / \sum_h s_h}{\sum_{j \in g} W^{R}_j},\qquad W_i = k_{g(i)}\, W^{R}_i \cdot f_i + \Delta_i`)}
-    ${now(String.raw`k_{\text{кессон}} = ${L(kw, 3)}\ \Rightarrow\ W_{\text{кессон}} = ${L(wb.kg)}\ \text{кг},\quad OEW = ${L(current.oewKg)}\ \text{кг}`)}
+    ${now(String.raw`k_{\mathrm{box}} = ${L(kw, 3)}\ \Longrightarrow\ W_{\mathrm{box}} = ${L(wb.kg)}\,\mathrm{kg},\quad OEW = ${L(current.oewKg)}\,\mathrm{kg}`, "Коэффициент кессона, масса кессона и итоговая OEW")}
     <p>${t(String.raw`W_{\text{фикс}}`)} — узлы с собственными данными (двигатели, оборудование эксплуатанта), ${t("s_g")} — доля группы у 737-200,
     ${t("W^R_i")} — оценка Raymer, ${t("f_i")} и ${t(String.raw`\Delta_i`)} — множители и добавки рычагов. Множители считаются один раз для A320ceo
     и дальше не меняются: A320neo получает OEW <b>${nf(neo)} кг</b> без подгонки при ${nf(AC_OEW_KG.a320neo)} кг по AC
@@ -492,6 +509,9 @@ function thrustSection(current: Evaluation): string {
     Механизация даёт ${t(String.raw`C_{L\max,\text{взл}} = ${nf(current.highLift.clMaxTakeoff, 2).replace(",", "{,}")}`)} (см. «Механизация»); допущения: ${t(String.raw`\Delta C_{D,\text{мех}} = ${nf(p.flapCd0, 3).replace(",", "{,}")}`)}, ${t(String.raw`\Delta C_{D,\text{отказ}} = ${nf(p.oeiCd0, 3).replace(",", "{,}")}`)}
     (авторотация и отклонённый руль направления). МСА, уровень моря, MTOW. Сейчас: V2 = ${nf(o.v2Ms * 1.944, 0)} уз, L/D = ${nf(o.ld, 1)}, ${t(String.raw`\gamma = ${nf(o.gradient * 100, 1).replace(",", "{,}")}\%`)}.
     </p>
+    ${current.oeiEmergency ? `<p><b>ПС-90А, кратковременный чрезвычайный режим:</b> штатная оценка ${nf(o.gradient * 100, 2)}%, при 17 500 кгс — ${nf(current.oeiEmergency.gradient * 100, 2)}%;
+    порог второго сегмента 2,4%. Режим одноразовый и ограничен 3 минутами ${ref("tu214-ps90a-emergency")}. Это <b>условная</b> инженерная проверка,
+    не решение о сертификационной применимости режима. Основная тяга в расчёте миссии по-прежнему 16 000 кгс.</p>` : ""}
 
     <h3>Рычаг тяги</h3>
     <p>Тот же цикл, другой размер: тяга × ${t("k")}, сухая масса × ${t("k")}, диаметр вентилятора и гондола × ${t(String.raw`\sqrt{k}`)} (тяга пропорциональна расходу воздуха, расход — площади).
@@ -854,7 +874,7 @@ export function renderMethod(current: Evaluation, name = "Сейчас"): string
       <p>Всё, что показывает модель, считается одним конвейером на TypeScript. Числа на этой странице не вписаны вручную — их считает то же ядро.
       Где значение не из источника, а допущение, это сказано прямо.</p>
     </header>
-    ${current.definition.id === "tu214-ps90a" ? `<p class="drag-note"><b>Ту-214 — инженерная β-модель, не прошедшая валидацию по РЛЭ.</b> Контуры — по предоставленному чертежу Ту-204-200 и УИ ГА. Числа ОАК относятся к иным условиям расчёта дальности. Расход ПС-90А получен по приближённому циклу с раздельными потоками вместо смешанного сопла. См. ${ref("tu214-oak")}, ${ref("tu214-ps90a")}, ${ref("tu214-uiga")}, docs/TU214_MODEL.md.</p>` : ""}
+    ${current.definition.shapeSet === "tu214" ? `<p class="drag-note"><b>Ту-214 — инженерная оценка, ещё не сверенная по полной таблице РЛЭ.</b> Контуры — по предоставленному чертежу Ту-204-200 и УИ ГА. Числа ОАК относятся к иным условиям расчёта дальности. Расход ПС-90А получен по приближённому циклу с раздельными потоками вместо смешанного сопла. См. ${ref("tu214-oak")}, ${ref("tu214-ps90a")}, ${ref("tu214-uiga")}, docs/TU214_MODEL.md.</p>` : ""}
     <section id="m-pipeline">
       <h2>Схема расчёта</h2>
       <ol class="pipeline">${steps.map((s) => `<li>${s}</li>`).join("")}</ol>

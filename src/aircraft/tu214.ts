@@ -37,13 +37,13 @@ export const TU214_ADDITIONAL_EQUIPMENT_KG =
 
 export const TU214_PS90A: AircraftDefinition = {
   id: "tu214-ps90a",
-  label: "Ту-214 / ПС-90А · эксплуатационная комплектация (β)",
+  label: "Ту-214 / ПС-90А · эксплуатационная комплектация",
   shortName: "Ту-214",
   shapeSet: "tu214",
   wing: {
     areaM2: TU214_REFERENCE.wingAreaGrossM2, // площадь полной геометрии; расчетная 168.63 хранится отдельно
     spanM: TU214_REFERENCE.wingSpanM,
-    tip: "fence", // законцовки по виду спереди; графический шаблон упрощён
+    tip: "blended", // собственные загнутые законцовки Ту-214; не A320 fences/sharklets, пока без отдельной аэродинамической поправки
     sharkletSpanM: TU214_REFERENCE.wingSpanM,
     taper: 1 / 3.93,
     sweepQuarterDeg: 28,
@@ -126,7 +126,7 @@ export const TU214_PS90A: AircraftDefinition = {
 export const TU214_FACTORY: AircraftDefinition = {
   ...TU214_PS90A,
   id: "tu214-ps90a-factory",
-  label: "Ту-214 / ПС-90А · заводская комплектация (β)",
+  label: "Ту-214 / ПС-90А · заводская комплектация",
   weights: {
     ...TU214_PS90A.weights,
     maxPayloadKg: TU214_REFERENCE.factoryMaxPayloadKg,

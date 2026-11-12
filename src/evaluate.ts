@@ -15,7 +15,7 @@ import { type EngineDef } from "./definition.ts";
 import { tsfcFactor, tsfcMachFactor } from "./propulsion.ts";
 import { type ConstraintReference, type ConstraintResult, checkConstraints } from "./constraints.ts";
 import { type HighLiftPerf, highLiftPerf } from "./highlift.ts";
-import { type OeiClimb, type ThrustCurve, TOC_MASS_FRACTION, oeiSecondSegment, takeoffThrustN, thrustCurve } from "./thrust.ts";
+import { type OeiClimb, type ThrustCurve, TOC_MASS_FRACTION, oeiSecondSegment, emergencyOeiSecondSegment, takeoffThrustN, thrustCurve } from "./thrust.ts";
 
 export interface BaselineAero {
   cd0: number;
@@ -91,6 +91,8 @@ export interface Evaluation {
   thrust: ThrustCurve;
   /** Второй сегмент взлёта с отказавшим двигателем. */
   oei: OeiClimb;
+  /** Чрезвычайный PS-90A OEI только для проверки ограничения, не для миссии. */
+  oeiEmergency?: OeiClimb;
   /** Механизация: CLmax по конфигурациям, V2, скорость захода. */
   highLift: HighLiftPerf;
 }
@@ -253,8 +255,9 @@ export function evaluateResolved(
   const thrust = thrustCurve(def, aero, w.mtowKg * TOC_MASS_FRACTION, as.cruiseMach);
   const highLift = highLiftPerf(def, ctx.highLiftAnchor);
   const oei = oeiSecondSegment(def, aero, highLift.clMaxTakeoff);
+  const oeiEmergency = emergencyOeiSecondSegment(def, aero, highLift.clMaxTakeoff);
   const k = 1 / (Math.PI * ((aero.spanM * aero.spanM) / aero.wingAreaM2) * aero.oswald);
-  const constraints = checkConstraints(def, ctx.constraintsRef, { payloadLimitedByMzfw, ceilingFl: thrust.ceilingFl, oeiGradient: oei.gradient, highLift });
+  const constraints = checkConstraints(def, ctx.constraintsRef, { payloadLimitedByMzfw, ceilingFl: thrust.ceilingFl, oeiGradient: oei.gradient, oeiEmergencyGradient: oeiEmergency?.gradient, highLift });
   if (!missionResult.feasible) constraints.push({
     id: "mission-distance",
     label: "Достижение заданной дальности с резервами",
@@ -300,6 +303,7 @@ export function evaluateResolved(
       ctx.aero, cruiseSample?.fl ?? as.cruiseFL, cruiseSample?.mach ?? as.cruiseMach),
     thrust,
     oei,
+    oeiEmergency,
     highLift,
   };
 }

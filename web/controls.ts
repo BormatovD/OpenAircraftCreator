@@ -122,7 +122,8 @@ export const CONTROLS: Control[] = [
     kind: "toggle",
     label: "Шарклеты",
     hint: "вместо «заборчиков»: размах 35,8 м, +200 кг",
-    appliesTo: (d) => d.wing.tip !== "none",
+    // Самолёты с собственными фиксированными законцовками не используют A320-only переключатель.
+    appliesTo: (d) => d.wing.tip !== "none" && d.wing.tip !== "blended",
     parts: ["wingtips"],
     base: (d) => d.wing.tip === "sharklet",
     toLever: (on) => wingTip(on ? "sharklet" : "fence"),

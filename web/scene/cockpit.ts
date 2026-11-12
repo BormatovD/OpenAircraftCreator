@@ -61,17 +61,23 @@ function tessellate(poly: P2[], levels = 3): P2[][] {
   return out;
 }
 
-function decal(poly: P2[], map: (a: number, b: number) => THREE.Vector3, axisOf: (p: THREE.Vector3) => THREE.Vector3): THREE.BufferGeometry {
+function decal(
+  poly: P2[],
+  map: (a: number, b: number) => THREE.Vector3,
+  axisOf: (p: THREE.Vector3) => THREE.Vector3,
+  border = FRAME / 2,
+  offset = 0.012,
+): THREE.BufferGeometry {
   const pos: number[] = [];
   const nor: number[] = [];
   const e = 1e-3;
-  for (const tri of tessellate(inset(poly, FRAME / 2))) {
+  for (const tri of tessellate(inset(poly, border))) {
     for (const [a, b] of tri) {
       const p = map(a, b);
       const n = map(a + e, b).sub(p).cross(map(a, b + e).sub(p)).normalize();
       // Нормаль — наружу от оси фюзеляжа; она же — нормаль вершины (гладкое стекло без граней).
       if (n.dot(p.clone().sub(axisOf(p))) < 0) n.negate();
-      p.addScaledVector(n, 0.012);
+      p.addScaledVector(n, offset);
       pos.push(p.x, p.y, p.z);
       nor.push(n.x, n.y, n.z);
     }
@@ -97,9 +103,22 @@ export function cockpitGlazing(f: FuselageShape): THREE.BufferGeometry[] {
   };
   const sideMap = (side: 1 | -1) => (x: number, y: number) => new THREE.Vector3(x, y, side * fuselageHalfWidthAt(f, x, y));
   const out: THREE.BufferGeometry[] = [];
+  const ownCockpit = S().id === "tu214";
+  const window = (poly: P2[], mapping: (a: number, b: number) => THREE.Vector3) => {
+    if (ownCockpit) {
+      // Обод плотно прилегает к форме обшивки; стекло внутри рамы чуть выше по нормали.
+      // Для других типов их ранее проверенные геометрия и материалы не меняются.
+      const rim = decal(poly, mapping, axis, 0.006, 0.011);
+      rim.userData.tone = "glassFrame";
+      out.push(rim);
+      const glass = decal(poly, mapping, axis, 0.065, 0.018);
+      glass.userData.tone = "glass";
+      out.push(glass);
+    } else out.push(decal(poly, mapping, axis));
+  };
   for (const side of [1, -1] as const) {
-    out.push(decal(S().cockpit.windscreen, front(side), axis));
-    for (const w of S().cockpit.side) out.push(decal(w, sideMap(side), axis));
+    window(S().cockpit.windscreen, front(side));
+    for (const w of S().cockpit.side) window(w, sideMap(side));
   }
   return out;
 }

@@ -23,7 +23,7 @@
           <button role="radio" data-type="a321" aria-checked="false">A321</button>
           <button role="radio" data-type="b737" aria-checked="false" title="Boeing 737-8 (MAX 8), LEAP-1B">737-8</button>
           <button role="radio" data-type="b757" aria-checked="false" title="Boeing 757-200, RB211-535E4 или PW2037">757-200</button>
-          <button role="radio" data-type="tu214" aria-checked="false" title="Ту-214 / ПС-90А — предварительный инженерный прогноз">Ту-214 β</button>
+          <button role="radio" data-type="tu214" aria-checked="false" title="Ту-214 / ПС-90А — предварительный инженерный прогноз">Ту-214</button>
         </div>
         <div class="segmented" id="aircraft-variants" role="radiogroup" aria-label="Вариант самолёта и двигателя">
           <button role="radio" data-variant="a320ceo" aria-checked="true">ceo</button>
@@ -80,6 +80,11 @@
 
     <aside class="panel right" aria-label="Показатели и вид самолёта">
       <div class="right-content">
+        <details class="aircraft-passport" id="aircraft-passport">
+          <summary>Паспорт базового типа <span class="passport-name" aria-hidden="true"></span></summary>
+          <div class="passport-caption">Исходные характеристики до изменения рычагов. Расчётные величины обозначены.</div>
+          <dl id="passport-body" class="passport-grid"></dl>
+        </details>
         <div class="tabs" role="tablist" id="right-tabs">
           <button role="tab" data-rtab="pr" aria-selected="true">Дальность</button>
           <button role="tab" data-rtab="drag" aria-selected="false">Сопротивление</button>

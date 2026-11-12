@@ -24,8 +24,8 @@ export const AIRCRAFT_CHOICES: Record<string, AircraftChoice> = {
   "b737-8": { type: "b737", variant: "neo", variantLabel: "LEAP-1B", label: "737-8", definition: B737_8 },
   "b757-200-rb": { type: "b757", variant: "rb", variantLabel: "RB211-535E4", label: "757-200 / RB211", definition: B757_RB211 },
   "b757-200-pw": { type: "b757", variant: "pw", variantLabel: "PW2037", label: "757-200 / PW2037", definition: B757_PW2037 },
-  "tu214-ps90a": { type: "tu214", variant: "operational", variantLabel: "Эксплуатац. · 61,83 т", label: "Ту-214 / ПС-90А · эксплуатационный β", definition: TU214_PS90A },
-  "tu214-ps90a-factory": { type: "tu214", variant: "factory", variantLabel: "Заводской · 59,0 т", label: "Ту-214 / ПС-90А · заводской β", definition: TU214_FACTORY },
+  "tu214-ps90a": { type: "tu214", variant: "operational", variantLabel: "Эксплуатац. · 61,83 т", label: "Ту-214 / ПС-90А · эксплуатационный", definition: TU214_PS90A },
+  "tu214-ps90a-factory": { type: "tu214", variant: "factory", variantLabel: "Заводской · 59,0 т", label: "Ту-214 / ПС-90А · заводской", definition: TU214_FACTORY },
 };
 
 export const AIRCRAFT: Record<string, AircraftDefinition> = Object.fromEntries(Object.entries(AIRCRAFT_CHOICES).map(([id, a]) => [id, a.definition]));

@@ -6,8 +6,8 @@ export interface WingDef {
   areaM2: number;
   /** Конструктивный размах без законцовок. */
   spanM: number;
-  /** Законцовки: дают эффективный размах для аэродинамики и собственную массу. */
-  tip: "none" | "fence" | "sharklet";
+  /** Законцовки: blended = штатный загнутый наконечник Ту-214, без отдельной прибавки размаха/массы A320. */
+  tip: "none" | "fence" | "sharklet" | "blended";
   sharkletSpanM: number;
   taper: number;
   sweepQuarterDeg: number;

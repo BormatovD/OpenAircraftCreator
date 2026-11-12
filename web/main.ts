@@ -12,6 +12,7 @@ import { type MassNode, NODES } from "../src/mass/massTree.ts";
 import { designMissionOf, redesign } from "../src/redesign.ts";
 import { engineCycle, tsfcFactor } from "../src/propulsion.ts";
 import { renderMethod } from "./method.ts";
+import { passportRows } from "./passport.ts";
 import { engineDiagram } from "./engineDiagram.ts";
 import { coreRadiusFor, lptStagesFor } from "./scene/shapes.ts";
 import { scenarioFamily, CONTROLS, type Control, type Mode, SCENARIOS, type Values, controlsFor, defaults, isChanged, leversFor } from "./controls.ts";
@@ -31,7 +32,8 @@ const FAMILY_ORDER: Family[] = ["structure", "propulsion", "systems", "cabin"];
 /** Какие агрегаты подкрашивать, если ограничение не выполнено. */
 const CONSTRAINT_PARTS: Record<string, string[]> = {
   "nacelle-clearance": ["nacelles", "engines"],
-  "span-code": ["wingtips", "wing.box"],
+  // Код аэродрома D — характеристика размеров, а не дефект крыла: не перекрашиваем обшивку.
+  "span-code": [],
   "tail-strike": ["gear.main"],
   "bpr-range": ["engines"],
   mzfw: ["furnishings"],
@@ -139,6 +141,7 @@ function run(): void {
   timing.scene = performance.now() - t;
   t = performance.now();
   renderMetrics();
+  renderPassport();
   renderPayloadRange();
   renderDrag();
   renderThrust();
@@ -757,7 +760,7 @@ function renderScenarios(): void {
     : fam === "b757"
       ? "757-200: выберите RB211 или PW2037 и сравните расчёт. Исходная масса пока недооценена; это контрольный тип для модели масс."
       : "Сценарии — готовые наборы рычагов с объяснением. Нажмите ещё раз, чтобы снять.");
-  document.querySelector(".scenario-label")!.textContent = fam === "b757" ? "757-200" : fam === "tu214" ? "Ту-214 / прогноз" : "Сценарии";
+  document.querySelector(".scenario-label")!.textContent = fam === "b757" ? "757-200" : fam === "tu214" ? "Ту-214" : "Сценарии";
   text.classList.toggle("idle", !s);
   text.title = s ? "Нажмите, чтобы развернуть" : "";
   text.classList.remove("open");
@@ -957,7 +960,8 @@ function renderMetrics(): void {
   const cmp = scenario?.compareWith ? baseOf(scenario.compareWith) : null;
   const seatsNote = ev.seatsCarried < ev.seats ? `${ev.seatsCarried} из ${ev.seats} мест — лимит нагрузки` : `${ev.seats} мест`;
   const name = AIRCRAFT_LABEL[state.aircraftId];
-  const same = Math.abs(ev.fuelPerSeatPer100KmKg / base.fuelPerSeatPer100KmKg - 1) < 5e-4;
+  const same = Number.isFinite(ev.fuelPerSeatPer100KmKg) && Number.isFinite(base.fuelPerSeatPer100KmKg) &&
+    Math.abs(ev.fuelPerSeatPer100KmKg / base.fuelPerSeatPer100KmKg - 1) < 5e-4;
   const tile = (label: string, value: string, delta: string, note: string) =>
     `<div class="kpi-tile" title="${note}"><div class="kpi-label">${label}</div><div class="kpi-value">${value}</div><div class="kpi-delta">${delta}</div></div>`;
   const bad = ev.constraints.filter((c) => c.status === "violation").length;
@@ -969,7 +973,7 @@ function renderMetrics(): void {
     <div class="kpi-main" title="Рейс ${nf(Math.round(km))} км, ${seatsNote}">
       <div class="kpi-label">Топливо на место · ${nf(Math.round(km))} км</div>
       <div class="kpi-big">${nf(ev.fuelPerSeatPer100KmKg, 3)}<small> кг/100 км</small></div>
-      <div class="kpi-delta">${same ? `как у ${name}` : `${deltaPct(ev.fuelPerSeatPer100KmKg, base.fuelPerSeatPer100KmKg)} к ${name}`} · ${seatsNote}</div>
+      <div class="kpi-delta">${same ? "как у базы" : deltaPct(ev.fuelPerSeatPer100KmKg, base.fuelPerSeatPer100KmKg)} · ${seatsNote}</div>
     </div>
     ${tile("Топливо на рейс", fmtKg(ev.tripFuelKg), deltaPct(ev.tripFuelKg, base.tripFuelKg), "без резервов")}
     ${tile("Пустой снаряжённый", fmtKg(ev.oewKg), deltaPct(ev.oewKg, base.oewKg), "OEW")}
@@ -1002,6 +1006,16 @@ function renderMetrics(): void {
     state.mode === "fixed"
       ? "Геометрия, MTOW и MZFW выбранного самолёта. Меняются массы, расход и дальность."
       : `Самолёт масштабируется под ту же нагрузку и ${nf(Math.round(rd!.designRangeNm))} nm: площадь крыла ${nf(d.wing.areaM2, 1)} м², размах ${nf(d.wing.spanM, 2)} м, тяга ×${nf(d.engine.thrustScale, 3)}.${rd!.converged ? "" : " <b>Итерации не сошлись.</b>"}`;
+}
+
+/** Свернутый паспорт исходной конфигурации; не зависит от рычагов и не меняет состояние details. */
+function renderPassport(): void {
+  const base = baseOf(state.aircraftId);
+  const def = AIRCRAFT[state.aircraftId];
+  const title = document.querySelector<HTMLElement>("#aircraft-passport .passport-name");
+  if (title) title.textContent = def.shortName ?? def.label;
+  $("passport-body").innerHTML = passportRows(def, base.oewKg, base.missionAssumptions.cruiseMach)
+    .map(({ label, value }) => `<dt>${label}</dt><dd>${value}</dd>`).join("");
 }
 
 /** Правая панель — вкладки вместо длинной прокрутки. */
@@ -1108,7 +1122,7 @@ function renderPayloadRange(): void {
       <text x="4" y="${P.t + 4}">т</text>
     </svg>
     <div class="pr-legend"><span><i class="k-cur"></i>сейчас</span><span><i class="k-base"></i>${AIRCRAFT_LABEL[state.aircraftId]}</span><span><i class="k-mission"></i>рейс ${nf(Math.round(DEFAULT_MISSION.distanceNm * 1.852))} км</span></div>
-    ${ev.definition.id === "tu214-ps90a" ? `<p class="drag-note"><b>Ту-214 — прогноз, не валидация.</b> ПС-90А имеет смешанное сопло, которого пока нет в цикле. Максимальная нагрузка 25,2 т — ограничение ОАК; дальность, коэффициенты цикла и ВПП не подтверждены по РЛЭ.</p>` : ""}
+    ${ev.definition.shapeSet === "tu214" ? `<p class="drag-note"><b>Ту-214 — инженерная оценка.</b> Дальность и взлётные характеристики требуют сверки по РЛЭ; ПС-90А с соплом смешения моделируется приближённо. Ограничение коммерческой нагрузки зависит от весовой комплектации.</p>` : ""}
     ${missionProfileNote(ev)}`;
 }
 
@@ -1128,7 +1142,11 @@ function renderTakeoffLanding(): void {
       ${row("V2 при MTOW", `${nf(h.v2Kt, 0)} уз`, kt(h.v2Kt, hb.v2Kt), "Безопасная скорость взлёта: 1,13 скорости сваливания во взлётной конфигурации.")}
       ${row("Заход при MLW", `${nf(h.vAppKt, 0)} уз`, kt(h.vAppKt, hb.vAppKt), "1,23 скорости сваливания в посадочной конфигурации. По ней ИКАО делит самолёты на категории: C — до 140 уз.")}
       ${row("ВПП при MTOW", `${nf(tofl(ev))} м`, deltaPct(tofl(ev), tofl(base)))}
-      ${row("Набор с отказом двигателя", `${nf(ev.oei.gradient * 100, 1)}%`, `<span class="delta ${ev.oei.gradient >= base.oei.gradient - 1e-4 ? (Math.abs(ev.oei.gradient - base.oei.gradient) < 5e-4 ? "zero" : "good") : "bad"}">${Math.abs(ev.oei.gradient - base.oei.gradient) < 5e-4 ? "как у базы" : `${ev.oei.gradient > base.oei.gradient ? "+" : "−"}${nf(Math.abs(ev.oei.gradient - base.oei.gradient) * 100, 1)} п.п.`}</span>`, "Второй сегмент взлёта: шасси убрано, один двигатель. Норма — не меньше 2,4%. Больше CLmax — ниже V2, но выше индуктивное сопротивление, поэтому мощная механизация градиент слегка снижает.")}
+      ${row("Набор с отказом двигателя", ev.oeiEmergency
+        ? `${nf(ev.oei.gradient * 100, 1)}% штат. / ${nf(ev.oeiEmergency.gradient * 100, 1)}% ЧР`
+        : `${nf(ev.oei.gradient * 100, 1)}%`,
+        ev.oeiEmergency ? "ПС-90А: одноразовая ЧР, не более 3 мин" : deltaPct(ev.oei.gradient, base.oei.gradient, false),
+        "Второй сегмент: V₂, шасси убрано, один двигатель. Для ПС-90А отдельно показана кратковременная чрезвычайная тяга; она не используется в расчёте расхода и дальности. Требование ≥2,4% проверяется по одобренным данным самолёта.")}
     </table>`;
 }
 
@@ -1208,8 +1226,11 @@ function renderTree(): void {
     FAMILY_ORDER.map(
       (f) => `<li><span class="swatch" style="background:var(--${f})"></span><span class="legend-label">${FAMILY_LABEL[f]}</span><span class="kg">${Math.round(((byFamily.get(f) ?? 0) / masses.oewKg) * 100)}%</span></li>`,
     ).join("") +
-    (tint.size
-      ? `<li><span class="swatch" style="background:var(--composite)"></span><span class="legend-label">Композит</span></li><li><span class="swatch" style="background:var(--warn)"></span><span class="legend-label">Ограничение</span></li>`
+    ([...tint.values()].some((v) => v === "composite")
+      ? `<li><span class="swatch" style="background:var(--composite)"></span><span class="legend-label">Композит</span></li>`
+      : "") +
+    ([...tint.values()].some((v) => v === "warn" || v === "bad")
+      ? `<li><span class="swatch" style="background:var(--warn)"></span><span class="legend-label">Ограничение</span></li>`
       : "");
 
   const max = Math.max(...leaves().map((n) => n.kg));

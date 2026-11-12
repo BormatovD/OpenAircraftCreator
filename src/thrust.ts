@@ -106,3 +106,30 @@ export function oeiSecondSegment(def: AircraftDefinition, aero: AeroConfig, clMa
   const thrust = availableThrustN(def, 0, v2 / atm.speedOfSoundMs, def.engine.count - 1);
   return { gradient: thrust / w - cd / cl, v2Ms: v2, ld: cl / cd, thrustN: thrust };
 }
+
+/**
+ * ПС-90А: отдельная условная проверка чрезвычайного ОДНОРАЗОВОГО режима исправного
+ * двигателя (17 500 кгс, не более 3 минут). Не изменяет основную взлётную тягу,
+ * крейсер, калибровку или расход в миссии. Не заменяет утверждённый AFM/RLE OEI.
+ * Масштабирование по thrustScale сохраняется при конструкторских изменениях, но
+ * само допущение 17 500/16 000 следует перепроверить для изменённого двигателя.
+ */
+export const PS90A_EMERGENCY_OEI = {
+  takeoffKgf: 16000,
+  emergencyKgf: 17500,
+  maxMinutes: 3,
+} as const;
+
+export function emergencyOeiSecondSegment(
+  def: AircraftDefinition,
+  aero: AeroConfig,
+  clMaxTakeoff: number,
+): OeiClimb | undefined {
+  if (def.shapeSet !== "tu214" || def.engine.name !== "ПС-90А" || def.engine.count !== 2) return undefined;
+  const ratio = PS90A_EMERGENCY_OEI.emergencyKgf / PS90A_EMERGENCY_OEI.takeoffKgf;
+  const limitedRating: AircraftDefinition = {
+    ...def,
+    engine: { ...def.engine, takeoffThrustKn: def.engine.takeoffThrustKn * ratio },
+  };
+  return oeiSecondSegment(limitedRating, aero, clMaxTakeoff);
+}

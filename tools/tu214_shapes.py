@@ -85,7 +85,7 @@ fin_tes = [round(fin_te['slope']*y + fin_te['x0'], 6) for y in fin_ys]
 shape = {
   'schema': 'aircraft-designer/shape-set/v1',
   'source': 'Tu-204-200 / Tu-214 three-view supplied by project owner, dimensions checked against UIGA 2024',
-  'modelStatus': 'traced-planform; provisional doors/cockpit/sections/gear and installed nacelles',
+  'modelStatus': 'traced-planform; cockpit glazing photo-based provisional, doors/sections/gear and nacelles still provisional',
   'baseLengthM': L,
   'halfWidth': HALF_W, 'halfHeight': HALF_H,
   'fuselage': {
@@ -93,11 +93,14 @@ shape = {
     'bottom':[v[2] for v in sections], 'half_width':[v[3] for v in sections]},
   'section': {'deg': section_angles, 'r': radial},
   'features': features,
+  # Cockpit window silhouette: visual reconstruction from the Tu-214 photo supplied by the owner.
+  # NOT a dimensioned source. The front windshield is traced in (lateral z, vertical y),
+  # the two side panels in (longitudinal x, vertical y); all glass is projected onto the hull.
   'cockpit': {
-    'windscreen':[[0.15,0.65],[0.15,0.14],[0.87,0.14],[0.73,0.69]],
+    'windscreen':[[0.10,0.83],[0.16,1.10],[0.67,1.23],[0.91,0.82]],
     'side': [
-      [[1.55,0.69],[2.28,0.85],[2.38,0.32],[1.71,0.28]],
-      [[2.45,0.88],[3.17,0.92],[3.25,0.34],[2.44,0.32]],
+      [[2.00,0.83],[2.38,1.20],[2.90,1.27],[2.89,0.78],[2.34,0.72]],
+      [[2.99,0.78],[2.99,1.27],[3.52,1.29],[3.68,1.11],[3.69,0.72]],
     ],
   },
   'wing': {

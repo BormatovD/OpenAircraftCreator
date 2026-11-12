@@ -158,7 +158,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   fairing.scale(SH.fairing.sx, SH.fairing.sy, SH.fairing.sz);
   fairing.translate(modelX(L, SH.fairing.x), SH.fairing.y, 0);
   const glazing = cockpitGlazing(f);
-  for (const g of glazing) g.userData.tone = "glass";
+  for (const g of glazing) if (!g.userData.tone) g.userData.tone = "glass";
   const fittings = fuselageFittings(f).map((ft) => {
     ft.geometry.userData.tone = ft.tone;
     return ft.geometry;
@@ -343,6 +343,25 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
       side,
     });
     add("wingtips", both((s) => surfaceGeometry(sharklet(s), 8, 14)), v3(0, -6.5, 0), v3(0, 1.8, 2), false, 4.5);
+  } else if (w.tip === "blended" && SH.id === "tu214") {
+    // Ту-214: загнутые кверху законцовки без нижней пластины A320. Взят внешний силуэт
+    // с фотографии пользователя; точный радиус сопряжения и площадь пока оценочные.
+    // Почти вертикальная консоль не увеличивает расчётный размах и не меняет OEW.
+    const blended = (side: 1 | -1): SurfaceShape => {
+      const tip = surfacePoint(wingShape(side), 1, 0, true);
+      return {
+        root: tip,
+        rootChordM: ct,
+        tipChordM: ct * 0.34,
+        semiSpanM: 1.8,
+        leadingEdgeSweepDeg: 34,
+        dihedralDeg: 88,
+        thicknessRoot: 0.11,
+        thicknessTip: 0.065,
+        side,
+      };
+    };
+    add("wingtips", both((s) => surfaceGeometry(blended(s), 16, 18)), v3(0, -6.5, 0), v3(0, 1.8, 2), false, 4.5);
   } else if (w.tip === "fence") {
     const tipLe = surfacePoint(wingShape(1), 1, 0, true);
     // Законцовка-«забор» A320ceo: наконечник стрелы, выступающий над и под крылом.

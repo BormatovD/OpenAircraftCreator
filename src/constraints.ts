@@ -47,7 +47,7 @@ const ICAO_CODE_C_MAX_SPAN_M = 36; // ICAO Annex 14: код C — до 36 м, к
 export function checkConstraints(
   def: AircraftDefinition,
   ref: ConstraintReference,
-  opts: { payloadLimitedByMzfw: boolean; ceilingFl: number; oeiGradient: number; highLift: HighLiftPerf },
+  opts: { payloadLimitedByMzfw: boolean; ceilingFl: number; oeiGradient: number; oeiEmergencyGradient?: number; highLift: HighLiftPerf },
 ): ConstraintResult[] {
   const out: ConstraintResult[] = [];
 
@@ -122,18 +122,29 @@ export function checkConstraints(
 
   // 5. Второй сегмент взлёта с отказавшим двигателем (CS 25.121(b)).
   const g = opts.oeiGradient;
+  const emergencyG = opts.oeiEmergencyGradient;
+  const emergencyPasses = emergencyG !== undefined && emergencyG >= 0.024;
+  const normalPasses = g >= 0.024;
   out.push({
     id: "oei-climb",
     label: "Набор с отказавшим двигателем",
-    status: g >= 0.03 ? "ok" : g >= 0.024 ? "warning" : "violation",
-    value: `${(g * 100).toFixed(1)}%`,
-    limit: "≥ 2,4% (CS 25.121(b)); МСА, уровень моря, MTOW; < 3% — условный порог запаса",
-    message:
-      g >= 0.03
-        ? "Запас есть"
-        : g >= 0.024
-          ? "Запас мал: в жару и на высокогорных аэродромах придётся снижать взлётную массу"
-          : "Не выполняется требование норм: нужна большая тяга, больше крыло или меньше MTOW",
+    // Чрезвычайный кратковременный режим допускает лишь условную оценку — не зелёную
+    // отметку сертификационного соответствия. Для остальных ВС оставляем старые пороги.
+    status: normalPasses ? (g >= 0.03 ? "ok" : "warning") : emergencyPasses ? "warning" : "violation",
+    value: emergencyG === undefined ? `${(g * 100).toFixed(1)}%` :
+      `${(g * 100).toFixed(1)}% штат. / ${(emergencyG * 100).toFixed(1)}% ЧР`,
+    limit: emergencyG === undefined
+      ? "≥ 2,4% (CS 25.121(b)); МСА, уровень моря, MTOW; < 3% — условный порог запаса"
+      : "≥ 2,4% (второй сегмент); ЧР ПС-90А ≤ 3 мин, одноразовый",
+    message: emergencyG === undefined
+      ? g >= 0.03 ? "Запас есть" : g >= 0.024
+        ? "Запас мал: в жару и на высокогорных аэродромах придётся снижать взлётную массу"
+        : "Не выполняется требование норм: нужна большая тяга, больше крыло или меньше MTOW"
+      : normalPasses
+        ? "Оценка на штатной тяге проходит порог; чрезвычайный режим в миссии не используется."
+        : emergencyPasses
+          ? "Штатная тяга недостаточна по упрощённой модели; с учётом кратковременной ЧР исправного ПС-90А порог достигается. Требуется подтверждение применимости по РЛЭ/сертификационному расчёту, не вывод о сертификации."
+          : "Даже чрезвычайный режим не достигает 2,4% в упрощённой модели. Проверить взлётные данные, ограничения режима и расчётную аэродинамику.",
   });
 
   // 6. Длина ВПП: TOFL ∝ W² / (S · CLmax,взл · T) (Raymer, параметр взлёта).
