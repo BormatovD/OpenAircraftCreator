@@ -30,3 +30,15 @@ For `A20N` the current Aircraft Designer only models `LEAP-1A`.
 PW1127G-JM is NOT interchangeable and should be shown as unavailable until modelled.
 
 Do not claim that a postMessage acknowledgement or copy-to-clipboard means that the FlightCost database has saved the design.
+
+## Stage 1.1 correction / non-module option
+
+For a server-rendered FlightCost page that must NOT introduce JavaScript modules,
+serve `flightcost-embed.nomodule.js` as an ordinary script. It registers
+`window.AircraftDesignerFlightCost.mount(options)`. See
+`INTEGRATE_WITHOUT_MODULES.md`. Do not confuse this file with the older ESM
+`flightcost-embed.js`; both implement the same cross-origin protocol.
+
+FlightCost's Tu-214 ICAO type code is `T204` (former Stage-1 `T214` deep links
+are accepted as an alias); Tu-214 engine `PS-90A` is an alternate spelling of
+Designer `ПС-90А` only. A320ceo/ A321ceo high-density neo layouts are removed.

@@ -23,6 +23,8 @@ export interface AircraftPreset {
   aircraftId: string;
   icao: string;
   engine: string;
+  /** Equivalent spelling of the same engine in an external catalog, never a different model. */
+  engineAliases?: string[];
   weightProfile: string;
   defaultLayoutId: string;
   layouts: CabinLayout[];
@@ -51,13 +53,15 @@ export function resolveFlightCostAircraft(params: URLSearchParams): {
   preset: AircraftPreset;
   layout: CabinLayout;
 } | { error: string } {
-  const icao = (params.get("ac") ?? "").trim().toUpperCase();
+  const incomingIcao = (params.get("ac") ?? "").trim().toUpperCase();
+  // Tu-214 has ICAO type designator T204. Accept former deep links using T214.
+  const icao = incomingIcao === "T214" ? "T204" : incomingIcao;
   const engine = (params.get("engine") ?? "").trim().toUpperCase();
   const chosen = (params.get("aircraft") ?? "").trim();
   const profile = (params.get("profile") ?? "").trim().toLowerCase();
   const candidates = PRESETS.filter((p) => (!icao || p.icao === icao) && (!chosen || p.aircraftId === chosen) && (!profile || p.weightProfile === profile));
   if (!candidates.length) return { error: `Тип ${icao || chosen || "(не выбран)"} не поддерживается конструктором.` };
-  const preset = candidates.find((p) => !engine || p.engine.toUpperCase() === engine);
+  const preset = candidates.find((p) => !engine || p.engine.toUpperCase() === engine || p.engineAliases?.some((a) => a.toUpperCase() === engine));
   if (!preset) return { error: `${icao}: двигатель ${engine} ещё не реализован в Aircraft Designer. Нельзя подменить его другой моделью.` };
   const layout = layoutFor(preset.aircraftId, params.get("layout") || undefined);
   if (!layout) return { error: `${icao}: неизвестная компоновка ${params.get("layout")}.` };

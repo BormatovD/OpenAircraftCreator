@@ -8,3 +8,6 @@ This is the **second-repository** task list, not a claim that it is already depl
 4. Return a real saved identifier and calculate a user-chosen route using that identifier. The exact URL shape will be determined by inspecting FlightCost's workspace parser; no endpoints were invented here.
 5. Test concurrent guests, CSRF rejection, cross-origin spoofed messages, unknown engines, invalid rows, workspace retention after reference-data publication, and all 3 supported languages.
 6. Preserve existing `/<lang>/type/<ICAO>` SEO/canonicals/sitemap and IndexNow. Embed should be enhancement, not replace server-rendered type content.
+
+7. Treat Tu-214 as FlightCost `T204`, with Designer `ПС-90А` (`PS-90A` spelling accepted); never render a `T214` FlightCost link or silently replace an engine.
+8. If FlightCost should remain module-free, use `flightcost-embed.nomodule.js` with a normal script include; follow `INTEGRATE_WITHOUT_MODULES.md`.

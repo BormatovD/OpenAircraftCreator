@@ -74,3 +74,23 @@ test("Sane trailing partial rows 194, 178, 225 and 239 are not rounded up", () =
     assert.equal(seats, expected);
   }
 });
+
+
+test("FlightCost T204 and legacy T214 use the same Tu-214 model and engine", () => {
+  for (const code of ["T204", "T214"]) {
+    const selected = resolveFlightCostAircraft(new URLSearchParams(`ac=${code}&engine=PS-90A&layout=t214-194`));
+    assert.ok("preset" in selected);
+    if ("preset" in selected) {
+      assert.equal(selected.preset.icao, "T204");
+      assert.equal(selected.preset.engine, "ПС-90А");
+      assert.equal(seatsInLayout(selected.layout), 194);
+    }
+  }
+});
+
+test("High-density neo layouts are not silently offered for ceo versions", () => {
+  assert.equal(layoutFor("a320ceo", "a320-194"), undefined);
+  assert.equal(layoutFor("a321ceo", "a321-244"), undefined);
+  assert.equal(seatsInLayout(layoutFor("a320neo", "a320-194")!), 194);
+  assert.equal(seatsInLayout(layoutFor("a321neo", "a321-244")!), 244);
+});
