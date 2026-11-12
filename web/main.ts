@@ -292,6 +292,11 @@ function buildScene(): void {
             m.emissiveIntensity = 1;
             m.map = null;
           }
+          if (tone === "glassFrame") {
+            // Одинаковая яркость на передних и боковых стёклах даже при разных нормалях.
+            m.metalness = 0.04;
+            m.roughness = 0.88;
+          }
           if (tone === "glass") {
             m.roughness = 0.15;
             m.metalness = 0.6;
@@ -585,6 +590,9 @@ function applySelection(): void {
         } else if (o.userData.tone === "hot") {
           m.emissive.set(css("--hot"));
           m.emissiveIntensity = 0.5;
+        } else if (o.userData.tone === "glassFrame") {
+          m.emissive.set(css("--glassFrame"));
+          m.emissiveIntensity = 0.48;
         } else {
           m.emissive.setRGB(0, 0, 0);
           m.emissiveIntensity = 0;

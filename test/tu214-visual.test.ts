@@ -42,7 +42,7 @@ test("Ту-214: собственные окна кабины — выпуклы�
     assert.ok(window.every(([x, y]) => Number.isFinite(x) && Number.isFinite(y)));
     inside(window);
   }
-  assert.ok(s.cockpit.windscreen.every(([z, y]: number[]) => z >= 0.04 && z <= 1 && y > 0.35 && y < 1.1));
+  assert.ok(s.cockpit.windscreen.every(([z, y]: number[]) => z >= 0.04 && z <= 1 && y > 0.24 && y < 0.85));
   for (const poly of s.cockpit.side)
     assert.ok(poly.every(([x, y]: number[]) => x >= 1.9 && x <= 3.8 && y >= 0.2 && y <= 1.1));
 });
