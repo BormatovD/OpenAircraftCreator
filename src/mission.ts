@@ -7,6 +7,7 @@ import { G0, NM, flightLevelToM, isa } from "./atmosphere.ts";
 import { requiredThrustN } from "./thrust.ts";
 import { type LrcTable, interpolateLrcMach } from "./cruise.ts";
 import { tsfcMachFactor } from "./propulsion.ts";
+import { type PhaseTableDataset, lookupClimb } from "./phaseTables.ts";
 
 export const LHV_JET_A = 43.2e6; // Дж/кг, теплотворная способность керосина
 
@@ -26,6 +27,10 @@ export interface MissionAssumptions {
   cruiseMach: number;
   /** В LRC скорость интерполируется по массе и высоте; cruiseMach остаётся явно помеченным резервным допущением вне таблицы. */
   cruiseSpeedMode?: "fixedMach" | "lrc";
+  /** Только опорный A320ceo / CFM56-5B4/P / fence, ISA0, 250/300 kt / M0.78.
+   * В остальных случаях эта позиция не назначается. Нет экстраполяции за границы FCOM. */
+  fcomClimb?: PhaseTableDataset;
+  fcomClimbIsaDeviationC?: number;
   /** Таблица скорости базового типа. Расход FF из неё в миссию не подставляется. */
   lrcTable?: LrcTable;
   /** Эшелон для режима "fixed". */
@@ -87,6 +92,12 @@ export interface TripResult {
   distanceM: number;
   takeoffFuelKg: number;
   climbFuelKg: number;
+  /** Источник набора: таблица FCOM либо прежняя физическая оценка. */
+  climbSource?: "fcom" | "energy" | "energy-short-route" | "energy-uncovered";
+  /** Накопленная дистанция набора, в отличие от общего результата миссии. */
+  climbDistanceNm?: number;
+  /** Накопленное время набора, если подтверждено таблицей. */
+  climbTimeMin?: number;
   /** Только горизонтальный крейсер; топливо ступеней показано отдельно. */
   cruiseFuelKg: number;
   stepClimbFuelKg: number;
@@ -204,14 +215,39 @@ export function simulateTrip(
   const climbEnergy = m * (G0 * h + 0.5 * speedMs * speedMs + (G0 * climbDist) / ldClimb);
   const climbFuel = climbEnergy / (etaClimb * LHV_JET_A);
 
-  const fixedFuel = as.takeoffFuelKg + climbFuel + as.descentFuelKg;
+  const fcomEligible = cruiseFL === undefined && as.fcomClimb !== undefined &&
+    as.cruiseSpeedMode !== "lrc" && Math.abs(as.cruiseMach - 0.78) < 1e-9 &&
+    (as.fcomClimbIsaDeviationC ?? 0) === 0;
+  const fullClimb = fcomEligible
+    ? lookupClimb(as.fcomClimb!, takeoffMassKg, fl, 0) : undefined;
+  const initialClimb = fullClimb
+    ? lookupClimb(as.fcomClimb!, takeoffMassKg, 15, 0) : undefined;
+  const tableValid = fullClimb && initialClimb &&
+    fullClimb.fuelKg >= initialClimb.fuelKg &&
+    fullClimb.distanceNm >= initialClimb.distanceNm &&
+    fullClimb.timeMin >= initialClimb.timeMin;
+  const initialFuel = tableValid ? initialClimb.fuelKg : as.takeoffFuelKg;
+  const climbBurn = tableValid ? fullClimb.fuelKg - initialClimb.fuelKg : climbFuel;
+  const climbDistance = tableValid ? fullClimb.distanceNm * NM : climbDist;
+  const climbSource: TripResult["climbSource"] = tableValid ? "fcom"
+    : fcomEligible ? "energy-uncovered" : "energy";
+  const fixedFuel = initialFuel + climbBurn + as.descentFuelKg;
+  // Фаза FCOM — ПОЛНЫЙ набор от brake release. На очень коротком рейсе нельзя пропорционально
+  // использовать её без физической модели частичного набора; сохраняем прежнюю оценку.
+  if (tableValid && tripFuelKg <= fixedFuel) {
+    const fallback = simulateTrip(aero, engine, { ...as, fcomClimb: undefined }, takeoffMassKg, tripFuelKg, cruiseFL);
+    return { ...fallback, climbSource: "energy-short-route" };
+  }
   if (tripFuelKg <= fixedFuel) {
     // Очень короткий рейс: дистанцию считаем пропорционально, без крейсерского участка.
     const share = Math.max(0, tripFuelKg / fixedFuel);
     return {
-      distanceM: share * (climbDist + as.descentDistanceKm * 1000),
-      takeoffFuelKg: as.takeoffFuelKg * share,
-      climbFuelKg: climbFuel * share,
+      distanceM: share * (climbDistance + as.descentDistanceKm * 1000),
+      takeoffFuelKg: initialFuel * share,
+      climbFuelKg: climbBurn * share,
+      climbSource,
+      climbDistanceNm: (share * climbDistance) / NM,
+      climbTimeMin: tableValid ? (share * fullClimb.timeMin) : undefined,
       cruiseFuelKg: 0,
       stepClimbFuelKg: 0,
       descentFuelKg: as.descentFuelKg * share,
@@ -227,8 +263,10 @@ export function simulateTrip(
     };
   }
 
-  m -= climbFuel;
-  distance += climbDist;
+  // m после взлёта изначально уменьшено на старые 90 кг; для табличного режима
+  // восстанавливаем точный баланс от brake release, без двойного счёта взлёта.
+  m = takeoffMassKg - initialFuel - climbBurn;
+  distance += climbDistance;
   const initialFL = fl;
 
   // Крейсер: Бреге пошагово по массе; скорость LRC пересчитывается на каждом шаге и на каждом эшелоне.
@@ -293,8 +331,11 @@ export function simulateTrip(
 
   return {
     distanceM: distance,
-    takeoffFuelKg: as.takeoffFuelKg,
-    climbFuelKg: climbFuel,
+    takeoffFuelKg: initialFuel,
+    climbFuelKg: climbBurn,
+    climbSource,
+    climbDistanceNm: climbDistance / NM,
+    climbTimeMin: tableValid ? fullClimb.timeMin : undefined,
     cruiseFuelKg: cruiseFuel - stepClimbFuelKg,
     stepClimbFuelKg,
     descentFuelKg: as.descentFuelKg,

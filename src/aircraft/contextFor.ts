@@ -12,7 +12,10 @@ import { comparisonAssumptionsFor } from "./missionProfiles.ts";
 const cache = new Map<string, EvalContext>();
 
 export function contextFor(def: AircraftDefinition): EvalContext {
-  let c = cache.get(def.id);
+  // Id не отличает модифицированную геометрию с тем же именем. Условия FCOM
+  // и ограничения относятся к конкретной конфигурации, поэтому ключ — определение целиком.
+  const key = JSON.stringify(def);
+  let c = cache.get(key);
   if (c) return c;
   const r = A320_CONTEXT.constraintsRef;
   const clTo = highLiftPerf(def, A320_CONTEXT.highLiftAnchor).clMaxTakeoff;
@@ -32,6 +35,6 @@ export function contextFor(def: AircraftDefinition): EvalContext {
       baseLengthM: def.fuselage.lengthM,
     },
   };
-  cache.set(def.id, c);
+  cache.set(key, c);
   return c;
 }

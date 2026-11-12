@@ -4,6 +4,7 @@
 import { type AeroConfig, aeroAtFl } from "./aero.ts";
 import { G0 } from "./atmosphere.ts";
 import { type AircraftDefinition, aeroSpanM } from "./definition.ts";
+import { isCesA320Reference } from "./aircraft/missionProfiles.ts";
 import { type Lever, applyDefinition, collectAero, collectMission, collectTsfcFactor } from "./levers.ts";
 import { type Calibration, type MassBreakdown, computeMasses } from "./mass/massTree.ts";
 import { DEFAULT_ASSUMPTIONS, type MissionAssumptions, type MissionResult, rangeForFuel, solveMissionFuel } from "./mission.ts";
@@ -192,7 +193,12 @@ export function evaluateResolved(
   ctx: EvalContext,
   mission: MissionSpec = DEFAULT_MISSION,
 ): Evaluation {
-  const as = assumptionsFor(ctx, levers);
+  const rawAssumptions = assumptionsFor(ctx, levers);
+  // После конструкторских изменений FCOM-таблица исходного A320 больше не применима.
+  // Проверки заводских графиков идут через отдельный A320_CONTEXT без этой таблицы.
+  const as = rawAssumptions.fcomClimb && (!isCesA320Reference(def) || levers.length > 0)
+    ? { ...rawAssumptions, fcomClimb: undefined }
+    : rawAssumptions;
   const masses = computeMasses(def, ctx.calibration, levers);
   const aero = aeroFor(def, ctx.aero, levers);
   const engine = engineStateFor(def, ctx, levers, as);
