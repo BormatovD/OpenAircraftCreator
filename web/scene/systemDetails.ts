@@ -7,6 +7,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import type { SurfaceShape } from "./shapes.ts";
 import { surfacePoint } from "./shapes.ts";
 
@@ -22,6 +23,21 @@ const box = (a: THREE.Vector3, size: THREE.Vector3, tone: DetailTone, side: -1 |
   const g = new THREE.BoxGeometry(size.x, size.y, size.z);
   g.translate(a.x, a.y, a.z);
   return tagged(g, tone, side);
+};
+/** Cabinet and equipment housings: machined rounded edge, not a single sharp cube. */
+const housing = (p: THREE.Vector3, size: THREE.Vector3, tone: DetailTone, side: -1 | 0 | 1 = 0): Piece => {
+  const radius = Math.max(.006, Math.min(.045, size.x*.10, size.y*.22, size.z*.10));
+  const g = new RoundedBoxGeometry(size.x, size.y, size.z, 2, radius);
+  g.translate(p.x,p.y,p.z);
+  return tagged(g,tone,side);
+};
+/** Dial / inspection window faces outward on ±z. */
+const gauge = (x:number,y:number,z:number,sd:-1|1):Piece[] => {
+  const rim=new THREE.CylinderGeometry(.075,.075,.018,20);
+  rim.rotateX(Math.PI/2); rim.translate(x,y,z); tagged(rim,"detailSteel",sd);
+  const face=new THREE.CylinderGeometry(.055,.055,.021,20);
+  face.rotateX(Math.PI/2); face.translate(x,y,z+sd*.016); tagged(face,"detailDark",sd);
+  return [rim,face];
 };
 const sphere = (p: THREE.Vector3, size: THREE.Vector3, tone: DetailTone, side: -1 | 0 | 1 = 0): Piece => {
   const g = new THREE.SphereGeometry(1, 14, 10);
@@ -99,7 +115,7 @@ export function avionicsRack(x: number): Piece[] {
     for (let col=0;col<3;col++) {
       const z=sd*(.17+col*.22);
       const unitX=x+.45+(col%2)*.22;
-      out.push(box(v(unitX,-.78,z),v(.45,.40,.18),"detailPanel"));
+      out.push(housing(v(unitX,-.78,z),v(.45,.40,.18),"detailPanel"));
       // Блоки охлаждения (щели) и ручки съёмной аппаратуры.
       for (let i=0;i<4;i++)
         out.push(box(v(unitX-.14+i*.075,-.67,z+sd*.095),v(.035,.022,.012),"detailDark"));
@@ -109,9 +125,19 @@ export function avionicsRack(x: number): Piece[] {
       out.push(box(v(unitX-.16,-.78,z+sd*.12),v(.055,.25,.022),"detailDark"));
       for (const dy of [-.13,.13]) out.push(bolt(v(unitX+.21,-.78+dy,z+sd*.121),"detailSteel"));
       out.push(cylinder(v(unitX+.18,-.98,z+sd*.08),v(unitX+.18,-1.04,z+sd*.22),.024,"detailElectrical"));
+      // Выдвижная рукоятка ЛРУ и блок многоконтактных разъёмов сзади.
+      out.push(cylinder(v(unitX-.11,-.88,z+sd*.117),v(unitX+.11,-.88,z+sd*.117),.014,"detailSteel"));
+      for (const ix of [-.13,-.08,-.03,.02])
+        out.push(cylinder(v(unitX+ix,-.94,z-sd*.09),v(unitX+ix,-.94,z-sd*.14),.012,"detailElectrical"));
     }
   }
   out.push(pipe([v(x+.5,-1.02,-.67),v(x+.1,-1.16,-.63),v(x+.07,-1.22,-.25)],.033,"detailElectrical"));
+  // Вертикальные кабельные лотки и маркированные соединения двух стоек.
+  for (const sd of [-1,1] as const) {
+    out.push(box(v(x+1.33,-.78,sd*.61),v(.08,.59,.085),"detailDark"));
+    for (let y=-1.03;y<-.50;y+=.12)
+      out.push(box(v(x+1.33,y,sd*.665),v(.068,.025,.012),"detailSteel"));
+  }
   return compactDetails(out);
 }
 
@@ -132,7 +158,7 @@ export function electricalBay(x:number): Piece[] {
   for(let i=0;i<3;i++) {
     const z=-.35+i*.35;
     out.push(box(v(x+.68,-1.09,z),v(.95,.075,.29),"detailSteel"));
-    out.push(box(v(x+.67,-1.00,z),v(.64,.12,.23),"detailPanel"));
+    out.push(housing(v(x+.67,-1.00,z),v(.64,.12,.23),"detailPanel"));
     for(let j=0;j<4;j++)
       out.push(box(v(x+.38+j*.19,-.986,z+.124),v(.12,.035,.018),"detailDark"));
     out.push(pipe([v(x+.16,-1.24,z),v(x+.07,-1.39,z),v(x+.16,-1.56,z+.12)],.018,"detailElectrical"));
@@ -142,6 +168,11 @@ export function electricalBay(x:number): Piece[] {
       out.push(bolt(v(x+dx,-.89,z+.02),"detailSteel"));
     }
     out.push(box(v(x+.7,-1.15,z+.145),v(.87,.037,.035),"detailElectrical"));
+    // Клеммная колодка и ряды охлаждающих рёбер выпрямителя.
+    for (let k=0;k<5;k++) {
+      out.push(box(v(x+.48+k*.10,-.93,z-.10),v(.022,.10,.16),"detailSteel"));
+      out.push(cylinder(v(x+.33+k*.15,-1.04,z+.14),v(x+.33+k*.15,-1.04,z+.20),.014,"detailElectrical"));
+    }
   }
   for(const z of [-.57,.57]) out.push(box(v(x+.68,-1.52,z),v(1.5,.045,.04),"detailSteel"));
   return compactDetails(out);
@@ -149,7 +180,7 @@ export function electricalBay(x:number): Piece[] {
 
 /** ATA 29: гидравлическая насосная станция, аккумулирующие баллоны и линии к шасси. */
 export function hydraulicBay(x:number): Piece[] {
-  const out:Piece[]=[box(v(x+.7,-1.56,0),v(1.45,.07,1.42),"detailSteel")];
+  const out:Piece[]=[housing(v(x+.7,-1.56,0),v(1.45,.07,1.42),"detailSteel")];
   for(const sd of [-1,1] as const) {
     const z=sd*.43;
     // Насос с электродвигателем и кольцами корпуса.
@@ -157,6 +188,9 @@ export function hydraulicBay(x:number): Piece[] {
     for(const dx of [.2,.50,.74]) out.push(ringX(x+dx,-1.36,z,.17,.024,"detailSteel"));
     out.push(sphere(v(x+1.08,-1.29,z),v(.19,.27,.19),"detailHydraulic"));
     out.push(box(v(x+1.07,-1.58,z),v(.38,.08,.31),"detailDark"));
+    // Газовый аккумулятор: металлическая горловина и сервисный штуцер.
+    out.push(cylinder(v(x+1.08,-1.02,z),v(x+1.08,-.91,z),.048,"detailSteel"));
+    out.push(cylinder(v(x+1.08,-.91,z),v(x+1.08,-.85,z),.021,"detailDark"));
     out.push(pipe([v(x+.73,-1.36,z),v(x+.84,-1.18,z),v(x+1.08,-1.18,z)],.034,"detailHydraulic"));
     out.push(pipe([v(x+1.08,-1.43,z),v(x+1.34,-1.48,sd*.75),v(x+1.60,-1.49,sd*.8)],.024,"detailSteel"));
     out.push(flangeX(x+.19,-1.36,z,.197,"detailSteel"));
@@ -169,6 +203,11 @@ export function hydraulicBay(x:number): Piece[] {
     }
     out.push(pipe([v(x+.47,-1.12,z+sd*.22),v(x+.40,-1.30,z+sd*.31),v(x+.20,-1.34,z+sd*.27)],.021,"detailHydraulic"));
     out.push(box(v(x+1.12,-1.05,z),v(.24,.045,.24),"detailPanel"));
+    // Манометр и обратная магистраль. Реальные позиции по бортам условные.
+    out.push(...gauge(x+.94,-1.10,z+sd*.34,sd));
+    out.push(pipe([v(x+1.04,-1.12,z+sd*.25),v(x+1.31,-1.22,z+sd*.32),v(x+1.36,-1.48,z+sd*.42)],.020,"detailHydraulic"));
+    for (const dx of [.33,.47,.60,.73])
+      out.push(box(v(x+dx,-1.39,z+sd*.19),v(.025,.31,.021),"detailSteel"));
   }
   return compactDetails(out);
 }
@@ -182,6 +221,11 @@ export function airConditioningPacks(x:number): Piece[] {
     out.push(cylinder(v(x+.28,-1.56,z),v(x+1.54,-1.56,z),.23,"detailAir",sd));
     for(let i=0;i<11;i++) out.push(box(v(x+.43+i*.1,-1.56,z),v(.035,.50,.50),"detailPanel",sd));
     out.push(cylinder(v(x+1.66,-1.56,z),v(x+2.1,-1.56,z),.20,"detailDark",sd));
+    // Повторяющиеся пластины теплообменника и крепёжный хомут турбохолодильника.
+    for (let j=0;j<7;j++) {
+      out.push(box(v(x+.38+j*.18,-1.29,z),v(.042,.044,.52),"detailDark",sd));
+    }
+    out.push(box(v(x+1.84,-1.55,z),v(.12,.47,.49),"detailSteel",sd));
     // Концевые фланцы, датчики и кронштейны теплообменника.
     for (const dx of [.32,1.52,1.67,2.1]) out.push(flangeX(x+dx,-1.56,z,.27,"detailSteel",sd));
     for (const dx of [.52,1.27,1.88]) {
@@ -190,6 +234,7 @@ export function airConditioningPacks(x:number): Piece[] {
     }
     out.push(pipe([v(x+.22,-1.56,z),v(x+.05,-1.35,z),v(x+.3,-1.12,sd*.6)],.075,"detailAir",sd));
     out.push(pipe([v(x+2.0,-1.55,z),v(x+2.35,-1.38,z),v(x+2.55,-1.22,sd*.6)],.066,"detailAir",sd));
+    out.push(housing(v(x+2.23,-1.78,z),v(.27,.20,.31),"detailPanel",sd));
   }
   return compactDetails(out);
 }
@@ -212,7 +257,13 @@ export function fuelDetails(
       const b=surfacePoint(sh,u,.40,false);
       const height=Math.max(.08,Math.abs(a.y-b.y)*.63);
       // Перегородка внутри бака; не новый силовой элемент в дереве масс.
-      out.push(box(p,v(.44,height,.05),"detailPanel",sd));
+      // Схематическая перфорированная нервюра: не закрывает бак сплошным кубом.
+      for(const dy of [-.32,0,.32]) {
+        const yy=p.y+dy*height;
+        out.push(box(v(p.x,yy,p.z),v(.44,.035,.05),"detailPanel",sd));
+      }
+      for(const dx of [-.2,.2])
+        out.push(box(v(p.x+dx,p.y,p.z),v(.028,height,.05),"detailSteel",sd));
     }
     for(const u of [.22,.65]) {
       const p=mid(u,.34);
@@ -229,6 +280,10 @@ export function fuelDetails(
     // Обратный клапан и датчик давления на выходном трубопроводе.
     out.push(sphere(v(xRoot+1.18,-1.05,sd*.85),v(.11,.10,.10),"detailSteel",sd));
     out.push(cylinder(v(xRoot+1.18,-.94,sd*.85),v(xRoot+1.18,-.81,sd*.85),.027,"detailFuel",sd));
+    // Дополнительный отбор в расходный отсек и круглые крышки доступа насосов.
+    const r=mid(.48,.35);
+    out.push(pipe([r,v(r.x+.33,r.y-.08,r.z),v(xRoot+1.15,-1.18,sd*.95)],.018,"detailFuel",sd));
+    out.push(ringX(r.x,r.y-.05,r.z,.10,.016,"detailSteel",sd));
   }
   out.push(cylinder(v(xRoot+1.8,-1.38,-.65),v(xRoot+1.8,-1.38,.65),.12,"detailSteel"));
   return compactDetails(out);
@@ -258,8 +313,17 @@ export function engineAccessories(lengthM:number, coreRadius:number): Piece[] {
       out.push(sphere(v(x,coreRadius*1.06*Math.sin(a),coreRadius*1.06*Math.cos(a)),v(.065,.042,.042),"detailSteel"));
     }
   }
+  // Силовые пояса и кожух приводов с раздельными крышками.
+  for (const t of [.24,.43,.76]) {
+    const x=t*lengthM;
+    for (let k=0;k<8;k++) {
+      const a=2*Math.PI*k/8;
+      const ry=coreRadius*.88*Math.sin(a),rz=coreRadius*.88*Math.cos(a);
+      out.push(cylinder(v(x-.025,ry,rz),v(x+.025,ry,rz),.022,"detailSteel"));
+    }
+  }
   // Accessory gearbox housing below the core, not an invented third spool.
-  out.push(box(v(.42*lengthM,-coreRadius*.98,0),v(.28*lengthM,.16,.27),"detailDark"));
+  out.push(housing(v(.42*lengthM,-coreRadius*.98,0),v(.28*lengthM,.16,.27),"detailDark"));
   for(const dx of [.36,.42,.48]) {
     out.push(cylinder(v(dx*lengthM,-coreRadius*1.13,-.115),v(dx*lengthM,-coreRadius*1.13,.115),.056,"detailSteel"));
     out.push(pipe([v(dx*lengthM,-coreRadius*1.17,.115),v((dx+.035)*lengthM,-coreRadius*1.35,.17)],.016,"detailFuel"));

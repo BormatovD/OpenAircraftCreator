@@ -1,0 +1,11 @@
+# Deploy with init-server.sh, replacing aircraft-designer.app.
+# Static Vite single-HTML build. No backend, database or Node process on VPS.
+aircraft-designer.app {
+    root * /srv/aircraft-designer/current
+    encode zstd gzip
+    @html path / *.html /release-id.txt
+    header @html Cache-Control "no-store, max-age=0"
+    header X-Content-Type-Options nosniff
+    header Referrer-Policy strict-origin-when-cross-origin
+    file_server
+}

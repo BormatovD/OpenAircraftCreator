@@ -20,6 +20,7 @@ import { type AircraftModel, type Family, FAMILY, buildAircraft, partCenter } fr
 import { Environment, PHASES, type Phase } from "./scene/environment.ts";
 import { LIVERIES, NO_LIVERY, PLAIN_FIN, finLiveryTexture, liveryById } from "./scene/livery.ts";
 import { fuselageTexture, htailTexture, wingTexture } from "./scene/textures.ts";
+import { finishForTone, technicalRelief, TECHNICAL_RELIEF_SCALE_M } from "./scene/technicalFinish.ts";
 import { SELECTED_EXPLODE_FRACTION, fitAircraftFrame, meshFramePoints, type SceneFrameArea } from "./scene/framing.ts";
 
 const FAMILY_LABEL: Record<Family, string> = {
@@ -291,6 +292,15 @@ function buildScene(): void {
             m.emissive = new THREE.Color(light);
             m.emissiveIntensity = 1;
             m.map = null;
+          }
+          // Техническая микрофактура только на внутреннем оборудовании. Карты
+          // переиспользуются между перестроениями сцены и не меняют геометрию.
+          const finish = finishForTone(tone);
+          if (finish) {
+            m.bumpMap = technicalRelief(finish);
+            m.bumpScale = TECHNICAL_RELIEF_SCALE_M;
+            m.roughness = tone === "detailSteel" ? .42 : tone === "detailPanel" ? .58 : .65;
+            m.metalness = tone === "detailSteel" ? .55 : tone === "detailPanel" ? .33 : .20;
           }
           if (tone === "glassFrame") {
             // Одинаковая яркость на передних и боковых стёклах даже при разных нормалях.
