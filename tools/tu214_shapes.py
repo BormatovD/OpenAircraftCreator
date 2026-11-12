@@ -14,31 +14,53 @@ OUT = ROOT / 'data/ac/tu214-shapes.json'
 L = 45.22  # fuselage body only; airplane including aft vertical tail projection = 46.14 m
 HALF_W, HALF_H = 1.90, 2.05
 
-# Main stations from side / top views; interstations are smooth linear interpolations.
-# Two-dimensional section is an engineering ellipse; the source drawing has no body sections.
-sections = [
-  # x, upper y, lower y, half-width (all relative to cylindrical body axis)
-  (0.000, 0.000, 0.000, 0.000),
-  (0.100, 0.270, -0.245, 0.335),
-  (0.350, 0.540, -0.500, 0.630),
-  (0.850, 0.820, -0.780, 0.940),
-  (1.700, 1.200, -1.150, 1.260),
-  (2.700, 1.720, -1.560, 1.570),
-  (3.500, 1.970, -1.900, 1.780),
-  (4.500, 2.050, -2.050, 1.900),
-  (6.000, 2.050, -2.050, 1.900),
-  (10.000, 2.050, -2.050, 1.900),
-  (16.000, 2.050, -2.050, 1.900),
-  (21.000, 2.050, -2.050, 1.900),
-  (28.000, 2.050, -2.050, 1.900),
-  (34.000, 2.050, -2.050, 1.900),
-  (37.000, 2.025, -1.990, 1.860),
-  (39.000, 1.960, -1.650, 1.730),
-  (41.000, 1.770, -1.270, 1.410),
-  (42.700, 1.520, -0.860, 1.090),
-  (44.000, 1.220, -0.420, 0.680),
-  (45.220, 0.690, 0.300, 0.120),
+# Fuselage tip is reconstructed from the visually proven B757 profile, independently
+# rescaled to the Tu-214's 3.80 x 4.10 m cross-section. The owner explicitly
+# requested this fallback because the coarse Tu 3-view produced a pointed beak.
+# It is a VISUAL donor, not evidence that Tu-214 and B757 noses are identical.
+# The original dimensioned Tu-204-200 top/side stations resume smoothly at 6.5 m.
+DONOR_FILE = ROOT / 'data/ac/b757-shapes.json'
+source_757 = json.loads(DONOR_FILE.read_text(encoding='utf-8'))
+donor = source_757['fuselage']
+
+sections_original = [
+  # x, upper y, lower y, half-width (from owner's Tu-204-200 3-view)
+  (0.0, 0.0, 0.0, 0.0), (0.1, .270, -.245, .335),
+  (.35, .540, -.500, .630), (.85, .820, -.780, .940),
+  (1.7, 1.20, -1.15, 1.26), (2.7, 1.72, -1.56, 1.57),
+  (3.5, 1.97, -1.90, 1.78), (4.5, 2.05, -2.05, 1.90),
+  (6.0, 2.05, -2.05, 1.90), (10.0, 2.05, -2.05, 1.90),
+  (16.0, 2.05, -2.05, 1.90), (21.0, 2.05, -2.05, 1.90),
+  (28.0, 2.05, -2.05, 1.90), (34.0, 2.05, -2.05, 1.90),
+  (37.0, 2.025, -1.99, 1.86), (39.0, 1.96, -1.65, 1.73),
+  (41.0, 1.77, -1.27, 1.41), (42.7, 1.52, -.86, 1.09),
+  (44.0, 1.22, -.42, .68), (45.22, .69, .30, .12),
 ]
+
+def linear_at(xs, ys, x):
+  if x <= xs[0]: return ys[0]
+  if x >= xs[-1]: return ys[-1]
+  for i in range(len(xs)-1):
+    if xs[i] <= x <= xs[i+1]:
+      t = (x-xs[i]) / (xs[i+1]-xs[i])
+      return ys[i]*(1-t) + ys[i+1]*t
+  raise ValueError('unreachable')
+
+x_original = [s[0] for s in sections_original]
+# The previous coarse Tu nose remains the blend target, not the sharp tip source.
+x_nose = [round(i/20, 3) for i in range(131)]  # 0..6.50m at 5cm stations
+sections = []
+for x in x_nose:
+  t = max(0.0, min(1.0, (x - 4.15) / (6.5 - 4.15)))
+  blend = t*t*(3 - 2*t)
+  dims = []
+  for key, idx, scale in [('top', 1, HALF_H/2.005), ('bottom', 2, HALF_H/2.005), ('half_width', 3, HALF_W/1.88)]:
+    d = linear_at(donor['x'], donor[key], x) * scale
+    original = linear_at(x_original, [s[idx] for s in sections_original], x)
+    dims.append(round(d*(1-blend) + original*blend, 6))
+  sections.append((x, *dims))
+sections.extend(s for s in sections_original if s[0] > 6.5)
+
 section_angles = list(range(0, 361, 15))
 radial = []
 for deg in section_angles:
@@ -85,7 +107,7 @@ fin_tes = [round(fin_te['slope']*y + fin_te['x0'], 6) for y in fin_ys]
 shape = {
   'schema': 'aircraft-designer/shape-set/v1',
   'source': 'Tu-204-200 / Tu-214 three-view supplied by project owner, dimensions checked against UIGA 2024',
-  'modelStatus': 'traced-planform; cockpit glazing photo-based provisional, doors/sections/gear and nacelles still provisional',
+  'modelStatus': 'traced-planform; smooth B757-derived visual nose blended to Tu-214 station 6.5m; cockpit photo-based, unvalidated; systems and doors schematic',
   'baseLengthM': L,
   'halfWidth': HALF_W, 'halfHeight': HALF_H,
   'fuselage': {
@@ -93,14 +115,15 @@ shape = {
     'bottom':[v[2] for v in sections], 'half_width':[v[3] for v in sections]},
   'section': {'deg': section_angles, 'r': radial},
   'features': features,
-  # Cockpit window silhouette: visual reconstruction from the Tu-214 photo supplied by the owner.
-  # NOT a dimensioned source. The front windshield is traced in (lateral z, vertical y),
-  # the two side panels in (longitudinal x, vertical y); all glass is projected onto the hull.
+  # Narrow-pillar arrangement uses the established B757 cockpit layout as a visual
+  # donor, with a modest Tu-specific upward offset. This is a *provisional* 3D
+  # shape based on the owner's real-life Tu-214 nose photos, NOT a flight manual outline.
+  # Forward windows are in (z,y); side windows in (x,y). Both project onto the hull.
   'cockpit': {
-    'windscreen':[[0.10,0.83],[0.16,1.10],[0.67,1.23],[0.91,0.82]],
+    'windscreen': [[0.046, 0.910], [0.046, 0.390], [0.916, 0.390], [0.739, 0.953]],
     'side': [
-      [[2.00,0.83],[2.38,1.20],[2.90,1.27],[2.89,0.78],[2.34,0.72]],
-      [[2.99,0.78],[2.99,1.27],[3.52,1.29],[3.68,1.11],[3.69,0.72]],
+      [[2.281, 0.819], [2.666, 0.791], [2.566, 0.229], [1.997, 0.299]],
+      [[2.699, 0.775], [3.167, 0.791], [3.240, 0.385], [2.599, 0.229]],
     ],
   },
   'wing': {
