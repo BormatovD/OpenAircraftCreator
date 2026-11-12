@@ -2038,3 +2038,19 @@ button.kpi-tile {
 .subst { min-width: 0; overflow-x: auto; }
 .subst .katex-display, .subst .katex { max-width: 100%; }
 .math-render-fallback { font-size: 12px; color: var(--ink-soft); }
+/* FlightCost integration: cabin choice is not confused with the structural stretch lever. */
+#cabin-layout { min-width: 128px; max-width: 228px; font-size: 12px; }
+.fc-layout-label { font-size: 11px; color: var(--ink-soft); }
+.fc-exchange { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:5px 12px; background:var(--panel); border-bottom:1px solid var(--panel-edge); font-size:11px; color:var(--ink-soft); }
+.fc-exchange button { padding:5px 9px; font-size:11px; border:1px solid var(--panel-edge); border-radius:6px; background:var(--bg); color:var(--ink); cursor:pointer; }
+.fc-exchange button:hover { border-color:var(--accent); }
+.fc-exchange #fc-status { font-weight:600; color:var(--ink); }
+.fc-warning { padding:8px 14px; color:var(--ink); background:var(--panel); border-bottom:2px solid var(--accent); font-size:12px; }
+[hidden] { display:none !important; }
+@media(max-width:800px) { #cabin-layout { width:150px; } .fc-exchange { gap:4px; font-size:10px; } }
+
+.scenario-bar { flex-wrap:wrap; }
+.scenario-bar .fc-exchange { order:10; flex:1 1 100%; padding:3px 0; border-bottom:0; }
+.scenario-bar .fc-warning { order:9; flex:1 1 100%; padding:6px; }
+
+.fc-warning button { margin-left:8px; padding:4px 9px; border:1px solid var(--accent); border-radius:5px; background:transparent; color:var(--ink); cursor:pointer; }

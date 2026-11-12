@@ -153,6 +153,8 @@ export interface WeightsDef {
 }
 
 export interface AircraftDefinition {
+  /** Выбранная плановая схема салона; синхронизируется с FlightCost (не сертифицированная LOPA). */
+  cabinLayout?: import("./integration/flightcost.ts").CabinLayout;
   id: string;
   label: string;
   /** Название типа для надписи на борту («A320», «737-8»). */

@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/generate-seo.mjs && vite build",
     "calibrate": "node scripts/calibrate-a320.ts",
     "masses": "node scripts/masses-a320.ts",
     "levers": "node scripts/levers-demo.ts",
@@ -19,8 +19,9 @@
     "validate:fcom": "node scripts/validate-fcom.ts",
     "inspect:fcom-phases": "node scripts/inspect-fcom-phases.ts",
     "inspect:fcom-batch": "node scripts/inspect-fcom-batch.ts",
-    "test": "node --test test/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "test": "node --test test/*.test.ts test/*.test.js",
+    "typecheck": "tsc --noEmit",
+    "seo": "node scripts/generate-seo.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

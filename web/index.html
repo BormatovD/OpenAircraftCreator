@@ -42,6 +42,16 @@
       <span class="scenario-label">Сценарии</span>
       <div class="scenarios" id="scenarios"></div>
       <p class="scenario-text" id="scenario-text"></p>
+      <label class="fc-layout-label" for="cabin-layout">Салон</label>
+      <select id="cabin-layout" class="select" aria-label="Выбранная компоновка самолёта"></select>
+      <div id="fc-warning" class="fc-warning" role="alert" hidden></div>
+      <div class="fc-exchange" role="group" aria-label="Интеграция с FlightCost">
+        <span>FlightCost ↔ Aircraft Designer · одна компоновка</span>
+        <button type="button" id="fc-copy">Копировать JSON</button>
+        <button type="button" id="fc-send" hidden>Передать в FlightCost</button>
+        <span id="fc-status" role="status" aria-live="polite"></span>
+      </div>
+
     </nav>
 
     <aside class="panel left" id="left-panel" aria-label="Пересчёт и агрегаты">

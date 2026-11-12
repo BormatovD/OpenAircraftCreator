@@ -10,6 +10,7 @@ import { cabinOpenings } from "./features.ts";
 import { fuselageFittings, wingtipLights } from "./fittings.ts";
 import { avionicsRack, instrumentPanel, electricalBay, hydraulicBay, airConditioningPacks, fuelDetails, engineAccessories } from "./systemDetails.ts";
 import { type AircraftDefinition, aeroSpanM } from "../../src/definition.ts";
+import { cabinRowsFor } from "../../src/integration/flightcost.ts";
 import {
   type FuselageShape,
   type SurfaceShape,
@@ -851,49 +852,57 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   // задними дверями, задняя кухня — за ними. Кресло: подушка, наклонённая спинка, подлокотники, ножки и
   // открытое пространство под креслом для сумок с ограничительной планкой.
   const floorY = SH.cabin.floorY;
-  const pitch = def.systems.seatPitchM;
-  const rows = Math.ceil(def.systems.seats / def.systems.seatsAbreast);
+  const cabinRows = cabinRowsFor(def);
   const openings = cabinOpenings(def).sort((a, b) => a.x0 - b.x0);
   const ownCabin = def.id === "a321ceo" || def.id === "a321neo";
   const fwdDoorEnd = ownCabin ? openings[0].x1 + 0.25 : SH.cabin.fwdDoorEnd;
   const aftDoorStart = ownCabin ? openings.at(-1)!.x0 : modelX(L, SH.cabin.aftDoorX);
   const firstRow = fwdDoorEnd + 0.45;
-  const seatTriple = (x: number, side: 1 | -1): THREE.BufferGeometry => {
+  // Unlike the old 3+3/ceil implementation, draw the exact seat count — including
+  // 194/225/239-seat layouts and wider 2+2 business class rows.
+  const seatBank = (x: number, side: 1 | -1, count: number, seatsPerBank: number): THREE.BufferGeometry => {
     const zIn = 0.32;
     const zOut = Math.min(1.82, ...[x, x + 0.6].map((xx) => fuselageHalfWidthAt(f, xx, floorY + 0.62) - 0.06));
-    const w = (zOut - zIn) / 3;
+    const w = (zOut - zIn) / seatsPerBank;
     const parts: THREE.BufferGeometry[] = [];
     const zs = (a: number, b: number): [number, number] => (side === 1 ? [a, b] : [-b, -a]);
-    for (let k = 0; k < 3; k++) {
+    for (let k = 0; k < count; k++) {
       const z0 = zIn + k * w + 0.015;
       const z1 = zIn + (k + 1) * w - 0.015;
       const [a, b] = zs(z0, z1);
       parts.push(boxAt(x + 0.04, x + 0.48, floorY + 0.34, floorY + 0.45, a, b));
-      // Спинка: 0,72 м, наклон назад 12°, поворот вокруг нижней кромки.
       const back = new THREE.BoxGeometry(0.09, 0.74, b - a);
       back.translate(0.045, 0.37, 0);
       back.rotateZ((-12 * Math.PI) / 180);
       back.translate(x + 0.44, floorY + 0.42, (a + b) / 2);
       parts.push(back);
     }
-    for (let k = 0; k <= 3; k++) {
+    for (let k = 0; k <= count; k++) {
       const z = zIn + k * w;
       const [a, b] = zs(z - 0.025, z + 0.025);
       parts.push(boxAt(x + 0.1, x + 0.5, floorY + 0.56, floorY + 0.61, a, b));
     }
-    for (const z of [zIn + 0.12, zOut - 0.12]) {
+    for (const z of [zIn + 0.12, zIn + count * w - 0.12]) {
       const [a, b] = zs(z - 0.02, z + 0.02);
       parts.push(boxAt(x + 0.08, x + 0.12, floorY, floorY + 0.34, a, b));
       parts.push(boxAt(x + 0.38, x + 0.42, floorY, floorY + 0.34, a, b));
       parts.push(boxAt(x + 0.08, x + 0.42, floorY + 0.02, floorY + 0.05, a, b));
     }
-    const [a, b] = zs(zIn + 0.05, zOut - 0.05);
+    const [a, b] = zs(zIn + 0.05, zIn + count * w - 0.05);
     parts.push(boxAt(x + 0.05, x + 0.07, floorY + 0.1, floorY + 0.13, a, b));
     return mergeGeometries(parts.map((g) => g.toNonIndexed()))!;
   };
   const seatsGroup: THREE.BufferGeometry[] = [];
-  for (let r = 0; r < rows; r++) for (const side of [1, -1] as const) seatsGroup.push(seatTriple(firstRow + r * pitch, side));
-  const lastRow = firstRow + rows * pitch;
+  let nextRowX = firstRow;
+  for (const row of cabinRows) {
+    const seatsPerBank = Math.ceil(row.seatsPerRow / 2);
+    const nLeft = Math.min(seatsPerBank, Math.ceil(row.seats / 2));
+    const nRight = row.seats - nLeft;
+    if (nLeft > 0) seatsGroup.push(seatBank(nextRowX, 1, nLeft, seatsPerBank));
+    if (nRight > 0) seatsGroup.push(seatBank(nextRowX, -1, nRight, seatsPerBank));
+    nextRowX += row.pitchM;
+  }
+  const lastRow = nextRowX;
   // Туалеты: перед дверью 1 справа и перед задними дверями с обеих сторон.
   const lavs = [
     hullBox(f, 3.5, 4.45, floorY, floorY + 2.0, 0.2, 1.6),

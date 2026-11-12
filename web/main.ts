@@ -2,7 +2,6 @@ import "./style.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { CSS2DObject, CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
-import { A320CEO } from "../src/aircraft/a320.ts";
 import { AIRCRAFT, AIRCRAFT_CHOICES, AIRCRAFT_LABEL, aircraftForType, typeOf, variantsFor } from "./aircraftCatalog.ts";
 import { contextFor } from "../src/aircraft/contextFor.ts";
 import { type ConstraintResult } from "../src/constraints.ts";
@@ -21,6 +20,7 @@ import { Environment, PHASES, type Phase } from "./scene/environment.ts";
 import { LIVERIES, NO_LIVERY, PLAIN_FIN, finLiveryTexture, liveryById } from "./scene/livery.ts";
 import { fuselageTexture, htailTexture, wingTexture } from "./scene/textures.ts";
 import { finishForTone, technicalRelief, TECHNICAL_RELIEF_SCALE_M } from "./scene/technicalFinish.ts";
+import { FC_ORIGIN, FC_PROTOCOL, FC_VERSION, PRESETS, seatsInLayout, flightCostDesign, layoutFor, presetFor, resolveFlightCostAircraft, withCabinLayout } from "../src/integration/flightcost.ts";
 import { SELECTED_EXPLODE_FRACTION, fitAircraftFrame, meshFramePoints, type SceneFrameArea } from "./scene/framing.ts";
 
 const FAMILY_LABEL: Record<Family, string> = {
@@ -53,10 +53,22 @@ const LIGHTS: Record<string, string> = {
 };
 const COMPOSITE_PARTS: Record<string, string> = { compositeBox: "wing.box", compositeHighLift: "wing.highLift" };
 
+const launchParams = new URLSearchParams(window.location.search);
+const isFlightCostEmbed = launchParams.get("embed") === "flightcost" && window.parent !== window;
+const hasFlightCostParams = ["ac", "aircraft", "engine", "layout"].some((key) => launchParams.has(key));
+const requested = hasFlightCostParams ? resolveFlightCostAircraft(launchParams) : null;
+const launchError = requested && "error" in requested ? requested.error : null;
+// On an unsupported engine, keep the ICAO airframe visible but disable export
+// and display the error; the visible engine is NOT claimed to be a match.
+const initialId = requested && "preset" in requested ? requested.preset.aircraftId
+  : (hasFlightCostParams ? PRESETS.find((p) => p.icao === (launchParams.get("ac") ?? "").toUpperCase())?.aircraftId : undefined) ?? "a320ceo";
+const initialLayoutId = requested && "layout" in requested ? requested.layout.id : presetFor(initialId)?.defaultLayoutId ?? "a320-180";
 const state = {
-  aircraftId: "a320ceo",
+  aircraftId: initialId,
+  layoutId: initialLayoutId,
+  flightCostError: launchError as string | null,
   mode: "fixed" as Mode,
-  values: defaults(A320CEO),
+  values: defaults(AIRCRAFT[initialId]),
   scenarioId: null as string | null,
   explode: 0,
   phase: "cruise" as Phase,
@@ -106,7 +118,9 @@ interface Result {
 let result: Result;
 
 function compute(): Result {
-  const def = AIRCRAFT[state.aircraftId];
+  const baseDef = AIRCRAFT[state.aircraftId];
+  const layout = layoutFor(state.aircraftId, state.layoutId);
+  const def = layout ? withCabinLayout(baseDef, layout) : baseDef;
   const base = baseOf(state.aircraftId);
   const levers = leversFor(def, state.values);
   const fixed = evaluate(def, levers, contextFor(def));
@@ -798,6 +812,8 @@ function applyScenario(id: string | null): void {
   const s = SCENARIOS.find((x) => x.id === id);
   if (s) {
     state.aircraftId = s.aircraft;
+    state.layoutId = presetFor(s.aircraft)?.defaultLayoutId ?? state.layoutId;
+    state.flightCostError = null;
     state.mode = s.mode;
     state.values = { ...defaults(AIRCRAFT[s.aircraft]), ...s.values };
   } else {
@@ -820,6 +836,32 @@ function syncHeader(): void {
     `<button role="radio" data-variant="${id}" aria-checked="${id === state.aircraftId}"${variants.length === 1 ? " disabled" : ""}>${AIRCRAFT_CHOICES[id].variantLabel}</button>`,
   ).join("");
   for (const o of document.querySelectorAll<HTMLButtonElement>("[data-mode]")) o.setAttribute("aria-checked", String(o.dataset.mode === state.mode));
+  const select = $("cabin-layout") as HTMLSelectElement;
+  const preset = presetFor(state.aircraftId);
+  select.replaceChildren();
+  for (const layout of preset?.layouts ?? []) {
+    const option = document.createElement("option");
+    option.value = layout.id;
+    option.textContent = layout.label;
+    option.selected = layout.id === state.layoutId;
+    select.appendChild(option);
+  }
+  const warning = $("fc-warning");
+  warning.hidden = !state.flightCostError;
+  warning.textContent = state.flightCostError ?? "";
+  if (state.flightCostError) {
+    // A FlightCost PW1100G link may show the A20N airframe as a preview,
+    // but export stays blocked until the user explicitly selects LEAP-1A.
+    const confirm = document.createElement("button");
+    confirm.type = "button";
+    confirm.textContent = `Я выбираю модель ${preset?.engine ?? "этого двигателя"}`;
+    confirm.addEventListener("click", () => {
+      state.flightCostError = null;
+      syncHeader();
+      schedule();
+    });
+    warning.append(" ", confirm);
+  }
 }
 
 function controlRow(c: Control, def: AircraftDefinition): string {
@@ -1041,6 +1083,10 @@ function renderPassport(): void {
   if (title) title.textContent = def.shortName ?? def.label;
   $("passport-body").innerHTML = passportRows(def, base.oewKg, base.missionAssumptions.cruiseMach)
     .map(({ label, value }) => `<dt>${label}</dt><dd>${value}</dd>`).join("");
+  const layout = layoutFor(state.aircraftId, state.layoutId);
+  if (layout) $("passport-body").insertAdjacentHTML("afterbegin", `<dt>Выбранный салон (3D и расчёт)</dt><dd>${result.ev.seats} мест</dd>`);
+  const maxCatalog = Math.max(0, ...(presetFor(state.aircraftId)?.layouts.map(seatsInLayout) ?? []));
+  if (maxCatalog) $("passport-body").insertAdjacentHTML("beforeend", `<dt>Максимальная схема каталога · не сертификат</dt><dd>${maxCatalog} мест</dd>`);
 }
 
 /** Правая панель — вкладки вместо длинной прокрутки. */
@@ -1429,6 +1475,8 @@ $("explode").addEventListener("input", (e) => {
 const pickAircraft = (id: string) => {
   if (state.aircraftId === id || !AIRCRAFT[id]) return;
   state.aircraftId = id;
+  state.layoutId = presetFor(id)?.defaultLayoutId ?? state.layoutId;
+  state.flightCostError = null;
   state.scenarioId = null;
   state.values = defaults(AIRCRAFT[state.aircraftId]);
   if (state.selected) select(state.selected);
@@ -1449,6 +1497,8 @@ for (const b of document.querySelectorAll<HTMLButtonElement>("[data-aircraft]"))
   b.addEventListener("click", () => {
     if (state.aircraftId === b.dataset.aircraft) return;
     state.aircraftId = b.dataset.aircraft!;
+    state.layoutId = presetFor(state.aircraftId)?.defaultLayoutId ?? state.layoutId;
+    state.flightCostError = null;
     state.scenarioId = null;
     state.values = defaults(AIRCRAFT[state.aircraftId]);
     syncHeader();
@@ -1456,6 +1506,49 @@ for (const b of document.querySelectorAll<HTMLButtonElement>("[data-aircraft]"))
     schedule();
   });
 }
+// Конфигурация салона общая для 3D, масс и FlightCost.
+$("cabin-layout").addEventListener("change", (event) => {
+  state.layoutId = (event.target as HTMLSelectElement).value;
+  state.flightCostError = null;
+  state.scenarioId = null;
+  syncHeader();
+  renderScenarios();
+  schedule();
+});
+
+function currentFlightCostDesign() {
+  if (!result || state.flightCostError) return null;
+  const d = result.ev.definition;
+  const fuelDensity = contextFor(d).fuelDensityKgL;
+  return flightCostDesign(d, result.ev.oewKg, state.values, state.mode, state.aircraftId, state.layoutId, fuelDensity);
+}
+$("fc-copy").addEventListener("click", async () => {
+  const design = currentFlightCostDesign();
+  if (!design) return;
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(design, null, 2));
+    $("fc-status").textContent = "Конфигурация JSON скопирована";
+  } catch {
+    $("fc-status").textContent = "Буфер обмена недоступен; откройте конструктор в отдельной вкладке";
+  }
+});
+let pendingRequest: string | null = null;
+$("fc-send").hidden = !isFlightCostEmbed;
+$("fc-send").addEventListener("click", () => {
+  const design = currentFlightCostDesign();
+  if (!design || !isFlightCostEmbed) return;
+  pendingRequest = crypto.randomUUID();
+  window.parent.postMessage({ protocol: FC_PROTOCOL, version: FC_VERSION, type: "DESIGN_EXPORT", requestId: pendingRequest, design }, FC_ORIGIN);
+  $("fc-status").textContent = "Конфигурация отправлена FlightCost; ожидаем подтверждения сохранения";
+});
+window.addEventListener("message", (event: MessageEvent) => {
+  if (!isFlightCostEmbed || event.origin !== FC_ORIGIN || event.source !== window.parent) return;
+  const msg = event.data as { protocol?: string; version?: number; type?: string; requestId?: string; saved?: boolean; error?: string } | null;
+  if (!msg || msg.protocol !== FC_PROTOCOL || msg.version !== FC_VERSION || msg.type !== "DESIGN_ACK" || msg.requestId !== pendingRequest) return;
+  pendingRequest = null;
+  $("fc-status").textContent = msg.saved ? "Сохранено в workspace FlightCost" : (msg.error || "FlightCost получил конфигурацию, но ещё не сохранил её");
+});
+
 for (const b of document.querySelectorAll<HTMLButtonElement>("[data-mode]")) {
   b.addEventListener("click", () => {
     state.mode = b.dataset.mode as Mode;
