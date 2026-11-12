@@ -103,11 +103,11 @@ export function cockpitGlazing(f: FuselageShape): THREE.BufferGeometry[] {
   };
   const sideMap = (side: 1 | -1) => (x: number, y: number) => new THREE.Vector3(x, y, side * fuselageHalfWidthAt(f, x, y));
   const out: THREE.BufferGeometry[] = [];
-  const ownCockpit = S().id === "tu214";
+  const ownCockpit = S().id === "tu214" || S().id === "b757";
   const window = (poly: P2[], mapping: (a: number, b: number) => THREE.Vector3) => {
     if (ownCockpit) {
       // Обод плотно прилегает к форме обшивки; стекло внутри рамы чуть выше по нормали.
-      // Для других типов их ранее проверенные геометрия и материалы не меняются.
+      // A320/737 retain their existing glazing and material settings.
       const rim = decal(poly, mapping, axis, 0.006, 0.011);
       rim.userData.tone = "glassFrame";
       out.push(rim);

@@ -1,4 +1,4 @@
-"""Extract 757-200 drawing geometry from Boeing D6-58327, Rev H (December 2024).
+"""Extract 757-200 geometry from Boeing D6-58327, Rev H (December 2024).
 
 Usage: python3 tools/b757_extract.py /path/to/757_Rev_H.pdf
        python3 tools/b757_extract.py source.pdf --preview-dir /tmp/757-review
@@ -151,6 +151,73 @@ def ordered_polygon(group):
     p = np.unique(np.round(points(group), 5), axis=0)
     c = p.mean(axis=0)
     return p[np.argsort(np.arctan2(p[:, 1]-c[1], p[:, 0]-c[0]))].tolist()
+
+
+# Visual-only A321-family forebody donor. The Boeing drawing remains the authority
+# for wing, tail, doors, engine stations, gear, masses and full fuselage dimensions.
+# These five- and six-sided cabin window polygons are from A320-family AC, via
+# web/scene/shapeSet.ts. The transfer is not a 757 manufacturer CAD cockpit.
+A321_WINDSCREEN = [[.07,.872],[.719,.932],[.84,.488],[.147,.439],[.06,.488]]
+A321_SIDE_GLAZING = [
+    [[1.88,.419],[2.229,.865],[2.654,.868],[2.654,.308],[2.551,.308]],
+    [[2.654,.308],[2.654,.868],[3.13,.868],[3.267,.735],[3.265,.35],[3.225,.31]],
+]
+
+
+def smooth_transfer_forebody(output, a320_shapes_path):
+    """Blend the approved A321 nose into the Boeing 757 barrel without a join.
+
+    x <= 4.0 m uses the A321 cross-section profile, scaled to the 757 body;
+    4.0–8.5 m uses a C1 smoothstep to the traced Boeing body. At and aft of
+    8.5 m, the original Boeing measurements remain exactly unchanged.
+    """
+    with open(a320_shapes_path, encoding='utf-8') as file:
+        donor = json.load(file)['ceo']['fuselage']
+    original = output['fuselage']
+    x_src = np.asarray(original['x'], dtype=float)
+    x_donor = np.asarray(donor['x'], dtype=float)
+    x_new = np.unique(np.round(np.r_[x_src, np.arange(.05, 8.501, .05)], 6))
+    keys = {'top': (BODY_HEIGHT/2)/2.069,
+            'bottom': (BODY_HEIGHT/2)/2.073,
+            'half_width': (BODY_WIDTH/2)/1.977}
+    new_fus = {'x': x_new.tolist()}
+    for key, scale in keys.items():
+        original_v = np.interp(x_new, x_src, original[key])
+        transplanted_v = np.interp(x_new, x_donor, donor[key]) * scale
+        if key == 'top': transplanted_v = np.minimum(transplanted_v, BODY_HEIGHT/2)
+        elif key == 'bottom': transplanted_v = np.maximum(transplanted_v, -BODY_HEIGHT/2)
+        else: transplanted_v = np.minimum(transplanted_v, BODY_WIDTH/2)
+        weight = np.clip((x_new - 4.0) / 4.5, 0, 1)
+        weight = weight * weight * (3 - 2 * weight)
+        blended = (1-weight)*transplanted_v + weight*original_v
+        # The original trace's first point is intentionally replaced with the
+        # smooth donor's tip, but tip still has zero width and height.
+        new_fus[key] = blended.tolist()
+    # The printed blue outline contains a small false roof dent near 8 m.
+    # Preserve the underlying measured data aft of 9 m, but remove that
+    # isolated dip in the visual forebody to avoid a visible junction ridge.
+    forebody = x_new <= 9.0
+    new_fus['top'] = np.where(forebody, np.maximum.accumulate(new_fus['top']), new_fus['top']).tolist()
+    new_fus['bottom'] = np.where(forebody, np.minimum.accumulate(new_fus['bottom']), new_fus['bottom']).tolist()
+    new_fus['half_width'] = np.where(forebody, np.maximum.accumulate(new_fus['half_width']), new_fus['half_width']).tolist()
+    # Cross-axis donor scaling must not split the closed tip.
+    tip_y = (new_fus['top'][0] + new_fus['bottom'][0]) / 2
+    new_fus['top'][0] = new_fus['bottom'][0] = tip_y
+    output['fuselage'] = new_fus
+    y_scale = (BODY_HEIGHT/2) / 2.07
+    z_scale = (BODY_WIDTH/2) / 1.975
+    output['cockpit'] = {
+        'windscreen': [[z*z_scale, y*y_scale] for z,y in A321_WINDSCREEN],
+        'side': [[[x, y*y_scale] for x,y in poly] for poly in A321_SIDE_GLAZING],
+    }
+    output['_assumptions'].append(
+        '757 forebody x=0–4.0m and cockpit glazing are an explicitly visual '
+        'A321-family AC donor, scaled to the Boeing 3.76x4.01m fuselage; '
+        'x=4.0–8.5m blends C1-smoothly to the Boeing dimensions; the '
+        'isolated tracing artefact near 8m is removed. The aft body is unchanged. '
+        'This is not a certified 757 nose geometry or a change to aerodynamic reference area.'
+    )
+    return output
 
 
 def rounded(value):
@@ -422,7 +489,7 @@ def extract(pdf):
             "The belly obscured by wing/nacelle/fairing is continued as the same cylindrical body. Tail width is constrained to taper monotonically where the stabiliser crosses the outline.",
             "A full structural cross-section is not supplied: an explicitly elliptical visual section uses the labelled width and height.",
             "Wing t/c 0.15/0.10, gear retraction 85 degrees, zero rake, and the fairing ellipsoid are visual engineering assumptions. Horizontal-tail dihedral is measured from the front view.",
-            "No A320/737 window, door or surface-panel pattern is reused. Panel lines and exact high-lift subdivisions are not resolved by this general view.",
+            "Boeing cabin doors, window stations, and high-lift surfaces are retained; cockpit glazing and the first 8.5 m of the forebody have a separate visual A321-family donor. Panel lines remain approximate.",
             f"Straight-edge planform integration with an extrapolated centre section gives {drawn_area:.2f} m2, versus the aircraft's 185.25 m2 aerodynamic reference area. The measured drawing polygon is not used to replace the aerodynamic area.",
             "Nacelle inlet stations and external widths are RR/PW-specific labels. A common illustrated installation axis is used; complete longitudinal pod shapes and 5.4/5.6 m reference lengths remain parametric assumptions from the aircraft definitions.",
             "The ground plane is one feasible static pose in the intersection of labelled A, K and L clearance ranges, retaining the illustrated common engine axis. It is not a model of load-dependent aircraft attitude. The unadjusted drawing ground ordinate is retained in validation metadata.",
@@ -454,6 +521,7 @@ def extract(pdf):
                         "windowCountOnDrawnSide": sum(f["kind"] == "window" for f in features),
                         "doorCountPerSide": len(doors), "overwingExitCountPerSide": 2},
     }
+    output = smooth_transfer_forebody(output, Path(__file__).resolve().parents[1] / 'data/ac/a320-shapes.json')
     return rounded(output), views
 
 
