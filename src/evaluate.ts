@@ -196,8 +196,9 @@ export function evaluateResolved(
   const rawAssumptions = assumptionsFor(ctx, levers);
   // После конструкторских изменений FCOM-таблица исходного A320 больше не применима.
   // Проверки заводских графиков идут через отдельный A320_CONTEXT без этой таблицы.
-  const as = rawAssumptions.fcomClimb && (!isCesA320Reference(def) || levers.length > 0)
-    ? { ...rawAssumptions, fcomClimb: undefined }
+  const as = (rawAssumptions.fcomClimb || rawAssumptions.fcomDescent) &&
+    (!isCesA320Reference(def) || levers.length > 0)
+    ? { ...rawAssumptions, fcomClimb: undefined, fcomDescent: undefined }
     : rawAssumptions;
   const masses = computeMasses(def, ctx.calibration, levers);
   const aero = aeroFor(def, ctx.aero, levers);

@@ -26,6 +26,10 @@ export function comparisonAssumptionsFor(def: AircraftDefinition): MissionAssump
     ...DEFAULT_ASSUMPTIONS,
     fcomClimb: isCesA320Reference(def) ? ces : undefined,
     fcomClimbIsaDeviationC: 0,
+    fcomDescent: isCesA320Reference(def) ? ces : undefined,
+    fcomApproachFuelKg: 120, // CES FCOM V2: IFR approach+landing, six minutes, aircraft total.
+    fcomApproachDurationMin: 6,
+    fcomApproachGroundspeedKt: 135, // Explicit engineering estimate, NOT in the CES FCOM descent table.
     cruiseMach: flight.cruiseMach,
     cruiseSpeedMode: flight.cruiseSpeedMode,
     lrcTable: flight.lrcTable,

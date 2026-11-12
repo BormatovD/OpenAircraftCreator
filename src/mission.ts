@@ -7,7 +7,7 @@ import { G0, NM, flightLevelToM, isa } from "./atmosphere.ts";
 import { requiredThrustN } from "./thrust.ts";
 import { type LrcTable, interpolateLrcMach } from "./cruise.ts";
 import { tsfcMachFactor } from "./propulsion.ts";
-import { type PhaseTableDataset, lookupClimb } from "./phaseTables.ts";
+import { type PhaseTableDataset, lookupClimb, lookupDescent } from "./phaseTables.ts";
 
 export const LHV_JET_A = 43.2e6; // Дж/кг, теплотворная способность керосина
 
@@ -31,6 +31,14 @@ export interface MissionAssumptions {
    * В остальных случаях эта позиция не назначается. Нет экстраполяции за границы FCOM. */
   fcomClimb?: PhaseTableDataset;
   fcomClimbIsaDeviationC?: number;
+  /** Descent table is only for the original A320-214, ISA0, NORMAL A/C and anti-ice OFF. */
+  fcomDescent?: PhaseTableDataset;
+  /** FCOM fuel after pure descent (FL15 to landing), not a second descent allocation. */
+  fcomApproachFuelKg?: number;
+  /** FCOM time of the IFR approach. */
+  fcomApproachDurationMin?: number;
+  /** Explicit engineering assumption: approach ground speed, NOT printed in the FCOM table. */
+  fcomApproachGroundspeedKt?: number;
   /** Таблица скорости базового типа. Расход FF из неё в миссию не подставляется. */
   lrcTable?: LrcTable;
   /** Эшелон для режима "fixed". */
@@ -102,6 +110,15 @@ export interface TripResult {
   cruiseFuelKg: number;
   stepClimbFuelKg: number;
   descentFuelKg: number;
+  /** Pure FCOM descent to 1,500 ft and the terminal IFR phase are separated when applicable. */
+  pureDescentFuelKg?: number;
+  approachFuelKg?: number;
+  descentSource?: "fcom" | "energy" | "energy-uncovered" | "energy-short-route" | "energy-unstable";
+  pureDescentDistanceNm?: number;
+  pureDescentTimeMin?: number;
+  approachDistanceNm?: number;
+  /** The source does not define whether WEIGHT is descent start or end mass. */
+  descentMassBasis?: "estimated-mass-at-1500ft";
   landingMassKg: number;
   initialFL: number;
   finalFL: number;
@@ -200,13 +217,12 @@ export function simulateTrip(
   let mach = speed.mach;
   let lrcFallback = speed.fallback;
   let flightLevelLimited = selected.limited || !flightLevelAllowed(aero, as, m, fl, mach, engine);
-  let { speedMs, densityKgM3 } = cruiseSpeed(fl, mach);
+  const { speedMs, densityKgM3 } = cruiseSpeed(fl, mach);
   const h = flightLevelToM(fl);
-  let distance = 0;
 
   // Набор высоты: энергия = потенциальная + кинетическая + работа против сопротивления на дистанции набора.
   // Поляра на текущем эшелоне — с поправкой трения на число Рейнольдса.
-  let aFl = aeroAtFl(aero, fl);
+  const aFl = aeroAtFl(aero, fl);
   const clClimb = clForWeight(aFl, m * G0, densityKgM3, speedMs);
   const ldClimb = liftToDrag(aFl, clClimb, mach) * as.climbLdRatio;
   const etaCruise = speedMs / (tsfcAtMach(engine, mach) * LHV_JET_A);
@@ -231,29 +247,156 @@ export function simulateTrip(
   const climbDistance = tableValid ? fullClimb.distanceNm * NM : climbDist;
   const climbSource: TripResult["climbSource"] = tableValid ? "fcom"
     : fcomEligible ? "energy-uncovered" : "energy";
-  const fixedFuel = initialFuel + climbBurn + as.descentFuelKg;
-  // Фаза FCOM — ПОЛНЫЙ набор от brake release. На очень коротком рейсе нельзя пропорционально
-  // использовать её без физической модели частичного набора; сохраняем прежнюю оценку.
-  if (tableValid && tripFuelKg <= fixedFuel) {
-    const fallback = simulateTrip(aero, engine, { ...as, fcomClimb: undefined }, takeoffMassKg, tripFuelKg, cruiseFL);
-    return { ...fallback, climbSource: "energy-short-route" };
-  }
-  if (tripFuelKg <= fixedFuel) {
-    // Очень короткий рейс: дистанцию считаем пропорционально, без крейсерского участка.
-    const share = Math.max(0, tripFuelKg / fixedFuel);
+  const initialFL = fl;
+  const initialMassAfterClimbKg = takeoffMassKg - initialFuel - climbBurn;
+  // A320 CES 3.05.30: pure descent ends at FL15. The table's WEIGHT timing is
+  // not defined; use estimated mass at FL15 as an explicit *model assumption*.
+  // FCOM terminal IFR fuel/time are separate. Approach groundspeed is NOT sourced
+  // from the FCOM and must remain an explicit engineering estimate.
+  const descentEligible = cruiseFL === undefined && as.fcomDescent !== undefined &&
+    as.cruiseSpeedMode !== "lrc" && Math.abs(as.cruiseMach - 0.78) < 1e-9 &&
+    (as.fcomClimbIsaDeviationC ?? 0) === 0;
+  type DescentAllocation = {
+    fuelKg: number; distanceM: number;
+    source: NonNullable<TripResult["descentSource"]>;
+    pureFuelKg?: number; approachFuelKg?: number;
+    pureDistanceNm?: number; pureTimeMin?: number; approachDistanceNm?: number;
+    massBasis?: TripResult["descentMassBasis"];
+  };
+  const descentAtFl = (fromFl: number): DescentAllocation => {
+    const fallback = (): DescentAllocation => ({
+      fuelKg: as.descentFuelKg, distanceM: as.descentDistanceKm * 1000,
+      source: descentEligible ? "energy-uncovered" : "energy",
+    });
+    if (!descentEligible) return fallback();
+    const approachFuel = as.fcomApproachFuelKg;
+    const approachMinutes = as.fcomApproachDurationMin;
+    const groundspeedKt = as.fcomApproachGroundspeedKt;
+    if (approachFuel === undefined || approachFuel < 0 ||
+      approachMinutes === undefined || approachMinutes < 0 ||
+      groundspeedKt === undefined || groundspeedKt < 0) return fallback();
+    const massAt1500Ft = takeoffMassKg - tripFuelKg + approachFuel;
+    const row = lookupDescent(as.fcomDescent!, massAt1500Ft, fromFl);
+    if (!row) return fallback();
+    const approachDistanceNm = groundspeedKt * approachMinutes / 60;
     return {
-      distanceM: share * (climbDistance + as.descentDistanceKm * 1000),
+      fuelKg: row.fuelKg + approachFuel,
+      distanceM: (row.distanceNm + approachDistanceNm) * NM,
+      source: "fcom", pureFuelKg: row.fuelKg, approachFuelKg: approachFuel,
+      pureDistanceNm: row.distanceNm, pureTimeMin: row.timeMin, approachDistanceNm,
+      massBasis: "estimated-mass-at-1500ft",
+    };
+  };
+
+  // The final cruise FL can rise after step-climb; descent starts at the FINAL FL,
+  // not necessarily the initial FL. Re-evaluate the cruise if the descent row
+  // changes. Only the descent allocation changes; engine TSFC is not retuned.
+  function integrateCruise(allocation: DescentAllocation) {
+    const fixedFuel = initialFuel + climbBurn + allocation.fuelKg;
+    if (tripFuelKg <= fixedFuel) return undefined;
+    let massKg = initialMassAfterClimbKg;
+    let activeFL = initialFL;
+    let aFlCruise = aeroAtFl(aero, activeFL);
+    let travelledM = climbDistance;
+    const availableCruiseFuel = tripFuelKg - fixedFuel;
+    let remaining = availableCruiseFuel;
+    const dm = availableCruiseFuel / as.cruiseSteps;
+    let stepClimbFuelKg = 0;
+    let initialCruiseMach = mach;
+    let minMach = Infinity;
+    let maxMach = -Infinity;
+    let cruiseSample: TripResult["cruiseSample"];
+    let sampleDelta = Infinity;
+    const sampleMass = massKg - availableCruiseFuel / 2;
+    let localFallback = lrcFallback;
+    let localFlLimited = flightLevelLimited;
+    let activeMach = mach;
+    while (remaining > 1e-6) {
+      const current = cruiseMachAt(as, massKg, activeFL);
+      activeMach = current.mach;
+      localFallback ||= current.fallback;
+      let currentSpeed = cruiseSpeed(activeFL, activeMach).speedMs;
+      if (stepping) {
+        const target = selectFlightLevel(aero, as, massKg, engine);
+        localFlLimited ||= target.limited;
+        if (target.fl > activeFL) {
+          const targetMach = cruiseMachAt(as, massKg, target.fl).mach;
+          const targetSpeed = cruiseSpeed(target.fl, targetMach).speedMs;
+          const dh = flightLevelToM(target.fl) - flightLevelToM(activeFL);
+          const kinetic = Math.max(0, (targetSpeed * targetSpeed - currentSpeed * currentSpeed) / 2);
+          const etaStep = currentSpeed / (tsfcAtMach(engine, activeMach) * LHV_JET_A) * as.climbEfficiencyRatio;
+          const stepFuel = massKg * (G0 * dh + kinetic) / (etaStep * LHV_JET_A);
+          if (stepFuel < remaining) {
+            massKg -= stepFuel;
+            remaining -= stepFuel;
+            stepClimbFuelKg += stepFuel;
+            activeFL = target.fl;
+            aFlCruise = aeroAtFl(aero, activeFL);
+          }
+        }
+      }
+      const step = Math.min(dm, remaining);
+      const mMid = massKg - step / 2;
+      const selectedMach = cruiseMachAt(as, mMid, activeFL);
+      activeMach = selectedMach.mach;
+      localFallback ||= selectedMach.fallback;
+      const { speedMs: stepSpeedMs, densityKgM3: stepRho } = cruiseSpeed(activeFL, activeMach);
+      if (minMach === Infinity) initialCruiseMach = activeMach;
+      minMach = Math.min(minMach, activeMach);
+      maxMach = Math.max(maxMach, activeMach);
+      if (Math.abs(mMid - sampleMass) < sampleDelta) {
+        sampleDelta = Math.abs(mMid - sampleMass);
+        cruiseSample = { massKg: mMid, fl: activeFL, mach: activeMach };
+      }
+      const cl = clForWeight(aFlCruise, mMid * G0, stepRho, stepSpeedMs);
+      const ld = liftToDrag(aFlCruise, cl, activeMach);
+      travelledM += (stepSpeedMs * ld) / (G0 * tsfcAtMach(engine, activeMach)) * Math.log(massKg / (massKg - step));
+      massKg -= step;
+      remaining -= step;
+    }
+    return {
+      distanceM: travelledM + allocation.distanceM,
+      landingMassKg: massKg - allocation.fuelKg,
+      finalFL: activeFL,
+      initialMach: initialCruiseMach,
+      finalMach: activeMach,
+      minMach: Number.isFinite(minMach) ? minMach : activeMach,
+      maxMach: Number.isFinite(maxMach) ? maxMach : activeMach,
+      lrcFallback: localFallback,
+      flightLevelLimited: localFlLimited,
+      cruiseSample,
+      cruiseFuelKg: availableCruiseFuel - stepClimbFuelKg,
+      stepClimbFuelKg,
+    };
+  }
+
+  let allocation = descentAtFl(initialFL);
+  if (tripFuelKg <= initialFuel + climbBurn + allocation.fuelKg) {
+    // A complete table is not a partial-climb/partial-descent model.
+    if (tableValid || allocation.source === "fcom") {
+      const fallback = simulateTrip(aero, engine,
+        { ...as, fcomClimb: undefined, fcomDescent: undefined },
+        takeoffMassKg, tripFuelKg, cruiseFL);
+      return { ...fallback,
+        climbSource: tableValid ? "energy-short-route" : fallback.climbSource,
+        descentSource: "energy-short-route",
+      };
+    }
+    const share = Math.max(0, tripFuelKg / (initialFuel + climbBurn + allocation.fuelKg));
+    return {
+      distanceM: share * (climbDistance + allocation.distanceM),
       takeoffFuelKg: initialFuel * share,
       climbFuelKg: climbBurn * share,
       climbSource,
-      climbDistanceNm: (share * climbDistance) / NM,
-      climbTimeMin: tableValid ? (share * fullClimb.timeMin) : undefined,
+      climbDistanceNm: share * climbDistance / NM,
+      climbTimeMin: undefined,
       cruiseFuelKg: 0,
       stepClimbFuelKg: 0,
-      descentFuelKg: as.descentFuelKg * share,
+      descentFuelKg: allocation.fuelKg * share,
+      descentSource: allocation.source,
       landingMassKg: takeoffMassKg - tripFuelKg,
-      initialFL: fl,
-      finalFL: fl,
+      initialFL,
+      finalFL: initialFL,
       initialMach: mach,
       finalMach: mach,
       minMach: mach,
@@ -262,93 +405,50 @@ export function simulateTrip(
       flightLevelLimited,
     };
   }
-
-  // m после взлёта изначально уменьшено на старые 90 кг; для табличного режима
-  // восстанавливаем точный баланс от brake release, без двойного счёта взлёта.
-  m = takeoffMassKg - initialFuel - climbBurn;
-  distance += climbDistance;
-  const initialFL = fl;
-
-  // Крейсер: Бреге пошагово по массе; скорость LRC пересчитывается на каждом шаге и на каждом эшелоне.
-  // При ступенчатом наборе подъём на следующий эшелон стоит энергии m·g·Δh, оплачиваемой из крейсерского топлива.
-  const cruiseFuel = tripFuelKg - fixedFuel;
-  let remaining = cruiseFuel;
-  const dm = cruiseFuel / as.cruiseSteps;
-  let stepClimbFuelKg = 0;
-  let initialMach = mach;
-  let minMach = Infinity;
-  let maxMach = -Infinity;
-  let cruiseSample: TripResult["cruiseSample"];
-  let sampleDelta = Infinity;
-  const sampleMass = m - cruiseFuel / 2;
-  while (remaining > 1e-6) {
-    speed = cruiseMachAt(as, m, fl);
-    mach = speed.mach;
-    lrcFallback ||= speed.fallback;
-    ({ speedMs, densityKgM3 } = cruiseSpeed(fl, mach));
-    if (stepping) {
-      const target = selectFlightLevel(aero, as, m, engine);
-      flightLevelLimited ||= target.limited;
-      if (target.fl > fl) {
-        const targetMach = cruiseMachAt(as, m, target.fl).mach;
-        const targetSpeed = cruiseSpeed(target.fl, targetMach).speedMs;
-        const dh = flightLevelToM(target.fl) - flightLevelToM(fl);
-        const kinetic = Math.max(0, (targetSpeed * targetSpeed - speedMs * speedMs) / 2);
-        const etaStep = speedMs / (tsfcAtMach(engine, mach) * LHV_JET_A) * as.climbEfficiencyRatio;
-        const stepFuel = m * (G0 * dh + kinetic) / (etaStep * LHV_JET_A);
-        // Нельзя занять верхний эшелон, оплатив лишь часть его энергетической цены.
-        if (stepFuel < remaining) {
-          m -= stepFuel;
-          remaining -= stepFuel;
-          stepClimbFuelKg += stepFuel;
-          fl = target.fl;
-          aFl = aeroAtFl(aero, fl);
-        }
-      }
+  let integrated: ReturnType<typeof integrateCruise>;
+  let settled = false;
+  const maxTries = Math.max(3, as.stepFLs.length + 2);
+  for (let i = 0; i < maxTries; i++) {
+    integrated = integrateCruise(allocation);
+    if (!integrated) break;
+    const next = descentAtFl(integrated.finalFL);
+    if (next.source === allocation.source &&
+        Math.abs(next.fuelKg - allocation.fuelKg) < 1e-8 &&
+        Math.abs(next.distanceM - allocation.distanceM) < 1e-5) {
+      settled = true;
+      break;
     }
-    const step = Math.min(dm, remaining);
-    const mMid = m - step / 2;
-    speed = cruiseMachAt(as, mMid, fl);
-    mach = speed.mach;
-    lrcFallback ||= speed.fallback;
-    ({ speedMs, densityKgM3 } = cruiseSpeed(fl, mach));
-    if (minMach === Infinity) initialMach = mach;
-    minMach = Math.min(minMach, mach);
-    maxMach = Math.max(maxMach, mach);
-    if (Math.abs(mMid - sampleMass) < sampleDelta) {
-      sampleDelta = Math.abs(mMid - sampleMass);
-      cruiseSample = { massKg: mMid, fl, mach };
-    }
-    const cl = clForWeight(aFl, mMid * G0, densityKgM3, speedMs);
-    const ld = liftToDrag(aFl, cl, mach);
-    distance += ((speedMs * ld) / (G0 * tsfcAtMach(engine, mach))) * Math.log(m / (m - step));
-    m -= step;
-    remaining -= step;
+    allocation = next;
   }
-
-  m -= as.descentFuelKg;
-  distance += as.descentDistanceKm * 1000;
-
+  if (!settled) {
+    // A descent table is meaningful only for a completed descent and a stable
+    // top-of-descent FL. Revert to energy if the short route or iterative choice
+    // cannot satisfy that requirement. Never extrapolate an unavailable cell.
+    const fallback = simulateTrip(aero, engine,
+      { ...as, fcomClimb: undefined, fcomDescent: undefined }, takeoffMassKg, tripFuelKg, cruiseFL);
+    return { ...fallback,
+      climbSource: tableValid ? "energy-short-route" : fallback.climbSource,
+      descentSource: tripFuelKg <= initialFuel + climbBurn + allocation.fuelKg
+        ? "energy-short-route" : "energy-unstable",
+    };
+  }
+  if (!integrated) throw new Error("Unexpected missing cruise integration");
   return {
-    distanceM: distance,
+    ...integrated,
     takeoffFuelKg: initialFuel,
     climbFuelKg: climbBurn,
     climbSource,
     climbDistanceNm: climbDistance / NM,
     climbTimeMin: tableValid ? fullClimb.timeMin : undefined,
-    cruiseFuelKg: cruiseFuel - stepClimbFuelKg,
-    stepClimbFuelKg,
-    descentFuelKg: as.descentFuelKg,
-    landingMassKg: m,
+    descentFuelKg: allocation.fuelKg,
+    pureDescentFuelKg: allocation.pureFuelKg,
+    approachFuelKg: allocation.approachFuelKg,
+    descentSource: allocation.source,
+    pureDescentDistanceNm: allocation.pureDistanceNm,
+    pureDescentTimeMin: allocation.pureTimeMin,
+    approachDistanceNm: allocation.approachDistanceNm,
+    descentMassBasis: allocation.massBasis,
     initialFL,
-    finalFL: fl,
-    initialMach,
-    finalMach: mach,
-    minMach: Number.isFinite(minMach) ? minMach : mach,
-    maxMach: Number.isFinite(maxMach) ? maxMach : mach,
-    lrcFallback,
-    flightLevelLimited,
-    cruiseSample,
   };
 }
 
