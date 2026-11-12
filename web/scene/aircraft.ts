@@ -78,6 +78,9 @@ export const FAMILY: Record<string, Family> = {
   apu: "systems",
   furnishings: "cabin",
   operatorItems: "cabin",
+  // Учётные весовые позиции не изображаются фиктивными кубами; видны в дереве масс.
+  oewReconciliation: "cabin",
+  additionalEquipment: "cabin",
   // Без собственной геометрии, но с массой.
   "engine.controls": "propulsion",
   handling: "systems",

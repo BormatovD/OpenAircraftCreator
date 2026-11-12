@@ -45,6 +45,8 @@ export interface MissionSpec {
   seats?: number;
   massPerPaxKg: number;
   distanceNm: number;
+  /** Дополнительный коммерческий груз сверх пассажиров с багажом, кг. Сначала размещаем пассажиров. */
+  cargoKg?: number;
 }
 
 export const DEFAULT_MISSION: MissionSpec = { massPerPaxKg: 95, distanceNm: 810 }; // все места, 1 500 км
@@ -72,7 +74,11 @@ export interface Evaluation {
   /** Места, которые помещаются в MZFW при заданной массе пассажира. */
   seatsCarried: number;
   payloadKg: number;
-  /** Все места не помещаются в MZFW — нагрузка урезана, расход на место считается по помещающимся местам. */
+  /** Фактически размещённый дополнительный коммерческий груз, кг (без пассажиров с багажом). */
+  cargoCarriedKg: number;
+  /** Заявленная суммарная коммерческая нагрузка, кг. */
+  payloadRequestedKg: number;
+  /** Запрошенная нагрузка не помещается в MZFW / типовой предел. */
   payloadLimitedByMzfw: boolean;
   /** NaN, если миссия не выполнена либо число перевезённых пассажиров равно нулю. Успех — missionResult.feasible. */
   fuelPerSeatPer100KmKg: number;
@@ -208,7 +214,8 @@ export function evaluateResolved(
 
   if (!Number.isFinite(mission.distanceNm) || mission.distanceNm <= 0 ||
     !Number.isFinite(mission.massPerPaxKg) || mission.massPerPaxKg <= 0 ||
-    !Number.isInteger(mission.seats ?? def.systems.seats) || (mission.seats ?? def.systems.seats) < 0) {
+    !Number.isInteger(mission.seats ?? def.systems.seats) || (mission.seats ?? def.systems.seats) < 0 ||
+    !Number.isFinite(mission.cargoKg ?? 0) || (mission.cargoKg ?? 0) < 0) {
     throw new RangeError("Дальность и масса пассажира должны быть положительными, число мест — целым неотрицательным");
   }
   const fuelCapKg = Math.max(0, def.systems.fuelVolumeL * ctx.fuelDensityKgL - as.taxiFuelKg);
@@ -216,7 +223,11 @@ export function evaluateResolved(
   const rangeFullTankNm = rangeForFuel(aero, engine, as, w.mtowKg, fullTankFuel).rangeNm;
 
   const seats = mission.seats ?? def.systems.seats;
-  const payload = Math.max(0, Math.min(seats * mission.massPerPaxKg, w.mzfwKg - oew));
+  const maxPayload = Math.max(0, Math.min(w.mzfwKg - oew, w.maxPayloadKg ?? Infinity));
+  const paxPayloadKg = Math.min(seats * mission.massPerPaxKg, maxPayload);
+  const cargoCarriedKg = Math.min(mission.cargoKg ?? 0, Math.max(0, maxPayload - paxPayloadKg));
+  const payload = paxPayloadKg + cargoCarriedKg;
+  const payloadRequestedKg = seats * mission.massPerPaxKg + (mission.cargoKg ?? 0);
   const fuelWithPayload = Math.max(0, Math.min(fuelCapKg, w.mtowKg - oew - payload));
   const rangeWithMissionPayloadNm = rangeForFuel(aero, engine, as, oew + payload + fuelWithPayload, fuelWithPayload).rangeNm;
   const solved = solveMissionFuel(aero, engine, as, oew + payload, fuelWithPayload, mission.distanceNm);
@@ -227,10 +238,9 @@ export function evaluateResolved(
   const cruiseSample = missionResult.trip.cruiseSample;
   const km = mission.distanceNm * 1.852;
 
-  const payloadLimitedByMzfw = seats * mission.massPerPaxKg > w.mzfwKg - oew;
-  const seatsCarried = Math.min(seats, Math.floor(payload / mission.massPerPaxKg));
+  const payloadLimitedByMzfw = payloadRequestedKg > maxPayload + 1e-6;
+  const seatsCarried = Math.min(seats, Math.floor((paxPayloadKg + 1e-6) / mission.massPerPaxKg));
   // Диаграмма нагрузка–дальность.
-  const maxPayload = Math.max(0, w.mzfwKg - oew);
   const fuelA = Math.min(fuelCapKg, w.mtowKg - oew - maxPayload);
   const payloadB = Math.max(0, Math.min(maxPayload, w.mtowKg - oew - fuelCapKg));
   const fuelB = Math.max(0, Math.min(fuelCapKg, w.mtowKg - oew - payloadB));
@@ -266,7 +276,7 @@ export function evaluateResolved(
     definition: def,
     masses,
     oewKg: oew,
-    maxPayloadKg: w.mzfwKg - oew,
+    maxPayloadKg: maxPayload,
     aero,
     ldMaxApprox: 0.5 / Math.sqrt(aero.cd0 * k),
     tsfcCruise: engine.tsfcCruise,
@@ -278,6 +288,8 @@ export function evaluateResolved(
     missionResult,
     seats,
     payloadKg: payload,
+    cargoCarriedKg,
+    payloadRequestedKg,
     payloadLimitedByMzfw,
     constraints,
     // Расход на место — по местам, которые реально помещаются в MZFW.

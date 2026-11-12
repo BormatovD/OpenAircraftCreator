@@ -97,11 +97,19 @@ body {
   flex: 1 1 auto;
   min-width: 0;
 }
-/* Разделы и переключатели не сжимаются: при нехватке места сокращается подзаголовок. */
-.views,
-.bar-controls {
+/* Переключатели типов не смещают сцену за край при шестом типе. */
+.views {
   flex: 0 0 auto;
   white-space: nowrap;
+}
+.bar-controls {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.bar-controls .segmented {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
 }
 .brand h1 {
   margin: 0;

@@ -3,13 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>A320 в разборе</title>
+    <title>Aircraft Designer — конструктор и разбор самолётов</title>
+    <meta name="description" content="Aircraft Designer — интерактивный инженерный конструктор самолётов. Геометрия, двигатели, массы, дальность и визуальный разбор агрегатов." />
   </head>
   <body>
     <header class="bar">
       <div class="brand">
-        <h1>A320 в разборе</h1>
-        <p title="Рычаги меняют геометрию, массы, расход и ограничения. Модель откалибрована один раз на A320 и без подгонки проверена на A319, A321, 737 и 757.">Рычаги меняют геометрию, массы, расход и ограничения · калибровка на A320</p>
+        <h1>Aircraft Designer</h1>
+        <p title="Рычаги меняют геометрию, массы, расход и ограничения. Модель откалибрована на A320; Ту-214 пока является предварительным прогнозом, не проверенным по РЛЭ.">Рычаги меняют геометрию, массы, расход и ограничения · калибровка на A320</p>
       </div>
       <nav class="views" aria-label="Разделы">
         <a href="#" id="nav-model" aria-current="page">Модель</a>
@@ -22,6 +23,7 @@
           <button role="radio" data-type="a321" aria-checked="false">A321</button>
           <button role="radio" data-type="b737" aria-checked="false" title="Boeing 737-8 (MAX 8), LEAP-1B">737-8</button>
           <button role="radio" data-type="b757" aria-checked="false" title="Boeing 757-200, RB211-535E4 или PW2037">757-200</button>
+          <button role="radio" data-type="tu214" aria-checked="false" title="Ту-214 / ПС-90А — предварительный инженерный прогноз">Ту-214 β</button>
         </div>
         <div class="segmented" id="aircraft-variants" role="radiogroup" aria-label="Вариант самолёта и двигателя">
           <button role="radio" data-variant="a320ceo" aria-checked="true">ceo</button>

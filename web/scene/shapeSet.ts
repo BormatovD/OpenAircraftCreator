@@ -4,10 +4,12 @@
 //  • a320 — Airbus AC A320 (2-2-0, 2-3-0, 2-5-0, 2-9-0, 2-12-0), векторный PDF → tools/ac_shapes.py;
 //  • b737 — сетка Collada 737-800 → tools/mesh_shapes.py, плюс размеры Boeing D6-38A004 2.2.2 (база и колея шасси).
 //  • b757 — Boeing D6-58327 Rev H, векторный общий вид 2.2.1 и размеры тележек 7.2 → tools/b757_extract.py.
+//  • tu214 — пользовательский Ту-204-200 трёхвид + УИ ГА 2024 → tools/tu214_shapes.py.
 
 import A320 from "../../data/ac/a320-shapes.json" with { type: "json" };
 import B737 from "../../data/ac/b737-8-shapes.json" with { type: "json" };
 import B757 from "../../data/ac/b757-shapes.json" with { type: "json" };
+import TU214 from "../../data/ac/tu214-shapes.json" with { type: "json" };
 import { type AircraftDefinition } from "../../src/definition.ts";
 
 type Line = { slope: number; x0: number };
@@ -21,7 +23,7 @@ export interface Feature {
 }
 
 export interface ShapeSet {
-  id: "a320" | "b737" | "b757";
+  id: "a320" | "b737" | "b757" | "tu214";
   fuselage: { x: number[]; top: number[]; bottom: number[]; half_width: number[] };
   /** Радиус сечения по углу; fullTurn — таблица на полный оборот, иначе верхняя половина зеркалится вниз. */
   section: { deg: number[]; r: number[]; fullTurn: boolean };
@@ -320,7 +322,58 @@ const B757_SET: ShapeSet = {
   fin: C.fin,
 };
 
-const SETS = { a320: A320_SET, b737: B737_SET, b757: B757_SET };
+/** Ту-214 — отдельные контуры, без масштабирования 757. Двери/сечение/пилоны ещё оценочные. */
+const TU214_SET: ShapeSet = {
+  id: "tu214",
+  fuselage: TU214.fuselage,
+  section: { deg: TU214.section.deg, r: TU214.section.r, fullTurn: true },
+  halfH: TU214.halfHeight,
+  halfW: 1.9,
+  baseLengthM: TU214.baseLengthM,
+  plugFwd: 10.0,
+  plugAft: 32.0,
+  features: TU214.features,
+  cockpit: { windscreen: TU214.cockpit.windscreen as P2[], side: TU214.cockpit.side as P2[][] },
+  wing: {
+    le: TU214.wing.le,
+    teInner: TU214.wing.te_inner,
+    teOuter: TU214.wing.te_outer,
+    kinkZ: TU214.wing.kink_z,
+    tipZ: TU214.wing.tip_z,
+    sideZ: TU214.wing.side_z,
+    rootY: TU214.wing.root_y,
+    dihedralDeg: TU214.wing.dihedral_deg,
+    thicknessRoot: TU214.wing.thickness_root,
+    thicknessTip: TU214.wing.thickness_tip,
+    lines: TU214.wing.lines,
+    refSpanM: TU214.wing.ref_span_m,
+    refAreaM2: TU214.wing.ref_area_m2,
+  },
+  htail: {
+    le: TU214.htail.le, te: TU214.htail.te, tipZ: TU214.htail.tip_z,
+    dihedralDeg: TU214.htail.dihedral_deg, lines: TU214.htail.lines,
+  },
+  vtail: {
+    le: TU214.vtail.le, te: TU214.vtail.te, tipY: TU214.vtail.tip_y,
+    lines: TU214.vtail.lines, table: TU214.vtail.table,
+    filletX: TU214.vtail.fillet_x, leY0: TU214.vtail.table.y[0] + 0.1,
+    refSpanM: TU214.vtail.ref_span_m, refAreaM2: TU214.vtail.ref_area_m2,
+  },
+  fairing: TU214.fairing,
+  nacelle: {
+    inletX: TU214.nacelle.inlet_x, refLengthM: TU214.nacelle.ref_length_m,
+    axisZ: TU214.nacelle.axis_z, axisY: TU214.nacelle.axis_y,
+    clearanceM: TU214.nacelle.clearance_m,
+  },
+  groundY: TU214.groundY,
+  gear: TU214.gear,
+  cabin: TU214.cabin,
+  cargo: TU214.cargo as [number, number, number, number][],
+  titleX: TU214.titleX as [number, number],
+  fin: TU214.fin,
+};
+
+const SETS = { a320: A320_SET, b737: B737_SET, b757: B757_SET, tu214: TU214_SET };
 let current: ShapeSet = A320_SET;
 
 /** Текущий набор контуров — тот, для которого строится сцена. */

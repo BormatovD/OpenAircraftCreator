@@ -169,12 +169,12 @@ export function checkConstraints(
   // 8. Масса: все места не помещаются в MZFW.
   out.push({
     id: "mzfw",
-    label: "Нагрузка в пределах MZFW",
+    label: "Нагрузка в пределах MZFW и ограничений типа",
     status: opts.payloadLimitedByMzfw ? "warning" : "ok",
-    value: opts.payloadLimitedByMzfw ? "все места не помещаются" : "помещаются",
-    limit: `MZFW ${def.weights.mzfwKg} кг`,
+    value: opts.payloadLimitedByMzfw ? "нагрузка превышает предел" : "помещается",
+    limit: `MZFW ${def.weights.mzfwKg} кг${def.weights.maxPayloadKg !== undefined ? `; коммерческая нагрузка ≤ ${def.weights.maxPayloadKg} кг` : ""}`,
     message: opts.payloadLimitedByMzfw
-      ? "Нужно усилить конструкцию и поднять MZFW/MTOW — как у A321 — или летать с неполной загрузкой"
+      ? "Нужно уменьшить груз или число пассажиров; изменение количества топлива не снимает ограничение MZFW"
       : "Полная загрузка помещается",
   });
 

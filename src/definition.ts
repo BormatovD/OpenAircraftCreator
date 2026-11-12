@@ -139,6 +139,12 @@ export interface WeightsDef {
   mtowKg: number;
   mlwKg: number;
   mzfwKg: number;
+  /** Предельная коммерческая нагрузка текущей весовой комплектации, не больше MZFW − OEW. */
+  maxPayloadKg?: number;
+  /** Неатрибутированное расхождение OEW с выбранной базовой комплектацией (отдельная видимая статья массы, кг). */
+  oewReconciliationKg?: number;
+  /** Дополнительное снаряжение эксплуатационной комплектации сверх заводской, кг. */
+  additionalEquipmentKg?: number;
   /** Ультимативная перегрузка: 1,5 × 2,5. */
   ultimateLoadFactor: number;
   landingLoadFactor: number;
@@ -152,7 +158,7 @@ export interface AircraftDefinition {
   /** Название типа для надписи на борту («A320», «737-8»). */
   shortName?: string;
   /** Набор контуров для 3D-модели (вид сбоку, сверху, сечение); по умолчанию — A320. */
-  shapeSet?: "a320" | "b737" | "b757";
+  shapeSet?: "a320" | "b737" | "b757" | "tu214";
   wing: WingDef;
   htail: TailDef;
   vtail: TailDef;

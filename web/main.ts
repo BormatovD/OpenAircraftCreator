@@ -752,10 +752,12 @@ function renderScenarios(): void {
   const text = $("scenario-text");
   text.textContent = s?.text ?? (fam === "b737"
     ? "Сценарии про решения самого 737: что дал бы больший вентилятор, старое крыло, пилон."
+    : fam === "tu214"
+      ? "Ту-214 / ПС-90А: предварительный инженерный прогноз, не подтверждён по графикам РЛЭ. Масса, дальность и цикл двигателя требуют независимой проверки."
     : fam === "b757"
       ? "757-200: выберите RB211 или PW2037 и сравните расчёт. Исходная масса пока недооценена; это контрольный тип для модели масс."
       : "Сценарии — готовые наборы рычагов с объяснением. Нажмите ещё раз, чтобы снять.");
-  document.querySelector(".scenario-label")!.textContent = fam === "b757" ? "757-200" : "Сценарии";
+  document.querySelector(".scenario-label")!.textContent = fam === "b757" ? "757-200" : fam === "tu214" ? "Ту-214 / прогноз" : "Сценарии";
   text.classList.toggle("idle", !s);
   text.title = s ? "Нажмите, чтобы развернуть" : "";
   text.classList.remove("open");
@@ -953,7 +955,7 @@ function renderMetrics(): void {
   const km = DEFAULT_MISSION.distanceNm * 1.852;
   const scenario = SCENARIOS.find((s) => s.id === state.scenarioId);
   const cmp = scenario?.compareWith ? baseOf(scenario.compareWith) : null;
-  const seatsNote = ev.payloadLimitedByMzfw ? `${ev.seatsCarried} из ${ev.seats} мест — упор в MZFW` : `${ev.seats} мест`;
+  const seatsNote = ev.seatsCarried < ev.seats ? `${ev.seatsCarried} из ${ev.seats} мест — лимит нагрузки` : `${ev.seats} мест`;
   const name = AIRCRAFT_LABEL[state.aircraftId];
   const same = Math.abs(ev.fuelPerSeatPer100KmKg / base.fuelPerSeatPer100KmKg - 1) < 5e-4;
   const tile = (label: string, value: string, delta: string, note: string) =>
@@ -1106,6 +1108,7 @@ function renderPayloadRange(): void {
       <text x="4" y="${P.t + 4}">т</text>
     </svg>
     <div class="pr-legend"><span><i class="k-cur"></i>сейчас</span><span><i class="k-base"></i>${AIRCRAFT_LABEL[state.aircraftId]}</span><span><i class="k-mission"></i>рейс ${nf(Math.round(DEFAULT_MISSION.distanceNm * 1.852))} км</span></div>
+    ${ev.definition.id === "tu214-ps90a" ? `<p class="drag-note"><b>Ту-214 — прогноз, не валидация.</b> ПС-90А имеет смешанное сопло, которого пока нет в цикле. Максимальная нагрузка 25,2 т — ограничение ОАК; дальность, коэффициенты цикла и ВПП не подтверждены по РЛЭ.</p>` : ""}
     ${missionProfileNote(ev)}`;
 }
 

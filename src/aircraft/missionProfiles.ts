@@ -9,6 +9,7 @@ import { DEFAULT_ASSUMPTIONS, type MissionAssumptions } from "../mission.ts";
 import { B737_ASSUMPTIONS } from "./b737.ts";
 import { B737_8_ASSUMPTIONS } from "./b737max.ts";
 import { B757_ASSUMPTIONS } from "./b757.ts";
+import { TU214_ASSUMPTIONS } from "./tu214.ts";
 
 /** FCOM-числа нельзя переносить на перепроектированную машину, даже если прежний id сохранён. */
 export function isCesA320Reference(def: AircraftDefinition): boolean {
@@ -20,6 +21,7 @@ export function isCesA320Reference(def: AircraftDefinition): boolean {
 export function comparisonAssumptionsFor(def: AircraftDefinition): MissionAssumptions {
   const flight = def.id === "b737-300" ? B737_ASSUMPTIONS
     : def.id === "b737-8" ? B737_8_ASSUMPTIONS
+    : def.id.startsWith("tu214-ps90a") ? TU214_ASSUMPTIONS
     : def.id.startsWith("b757-") ? B757_ASSUMPTIONS
     : DEFAULT_ASSUMPTIONS;
   return {

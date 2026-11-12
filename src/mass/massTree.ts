@@ -101,6 +101,20 @@ export const NODES: NodeSpec[] = [
     estimate: (d) => d.weights.operatorItemsKg,
     source: "допущение",
   },
+  // Только весовые комплектации с подтверждённой общей OEW; не приписываем разницу
+  // конструктивным узлам Raymer и не переобучаем массу при движении рычагов.
+  {
+    id: "oewReconciliation",
+    label: "Сверка OEW: нераспределённая масса",
+    estimate: (d) => d.weights.oewReconciliationKg ?? 0,
+    source: "Разница оценщика Raymer/A320 с принятой OEW заводской комплектации; распределение по ATA неизвестно. Не результат взвешивания агрегатов.",
+  },
+  {
+    id: "additionalEquipment",
+    label: "Дополнительное оснащение комплектации",
+    estimate: (d) => d.weights.additionalEquipmentKg ?? 0,
+    source: "Разница эксплуатационной и заводской OEW, принятая как гипотеза о дополнительном оборудовании; без ведомости по ATA.",
+  },
 ];
 
 export interface MassNode {
@@ -200,7 +214,12 @@ export function computeMasses(def: AircraftDefinition, calibration: Calibration,
     n.rawKg = n.children.reduce((s, c) => s + c.rawKg, 0);
     n.kg = n.children.reduce((s, c) => s + c.kg, 0);
   };
-  const roots = NODES.filter((n) => !n.parent).map((n) => byId.get(n.id)!);
+  // Нулевые учётные статьи не должны менять состав групп у A320/Boeing и
+  // попадать в существующие диагностические отчёты как «деление на ноль».
+  const roots = NODES.filter((n) => !n.parent && (
+    (n.id !== "oewReconciliation" && n.id !== "additionalEquipment") ||
+    Math.abs(byId.get(n.id)!.kg) > 1e-9
+  )).map((n) => byId.get(n.id)!);
   roots.forEach(sum);
   return {
     roots,

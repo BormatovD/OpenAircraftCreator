@@ -24,6 +24,8 @@ export function contextFor(def: AircraftDefinition): EvalContext {
     (takeoffThrustN(def) / r.takeoffThrustN);
   c = {
     ...A320_CONTEXT,
+    // Ту-214: 35 710 кг баки при плотности 0,78 кг/л; для A320 — прежние 0,785.
+    fuelDensityKgL: def.shapeSet === "tu214" ? 0.78 : A320_CONTEXT.fuelDensityKgL,
     assumptions: comparisonAssumptionsFor(def),
     constraintsRef: {
       ...r,
@@ -33,6 +35,9 @@ export function contextFor(def: AircraftDefinition): EvalContext {
       takeoffThrustN: takeoffThrustN(def),
       clMaxTakeoff: clTo,
       baseLengthM: def.fuselage.lengthM,
+      // For Tu-214, use the provisional installed PS-90A reference from its own
+      // three-view shape, not the A320 nacelle datum (0.58 m).
+      ...(def.shapeSet === "tu214" ? { nacelleClearanceM: 0.79, nacelleWidthM: 2.36 } : {}),
     },
   };
   cache.set(key, c);
