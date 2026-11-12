@@ -14,15 +14,12 @@ OUT = ROOT / 'data/ac/tu214-shapes.json'
 L = 45.22  # fuselage body only; airplane including aft vertical tail projection = 46.14 m
 HALF_W, HALF_H = 1.90, 2.05
 
-# Fuselage tip is reconstructed from the visually proven B757 profile, independently
-# rescaled to the Tu-214's 3.80 x 4.10 m cross-section. The owner explicitly
-# requested this fallback because the coarse Tu 3-view produced a pointed beak.
-# It is a VISUAL donor, not evidence that Tu-214 and B757 noses are identical.
-# The original dimensioned Tu-204-200 top/side stations resume smoothly at 6.5 m.
-DONOR_FILE = ROOT / 'data/ac/b757-shapes.json'
-source_757 = json.loads(DONOR_FILE.read_text(encoding='utf-8'))
-donor = source_757['fuselage']
-
+# The A321 uses the same A320-family AC nose (2-2-0) and cockpit outline.
+# Use that established forebody as an explicit visual donor, scaled to the
+# Tu-214 body (3.80m wide, 4.10m high). This is not Tu-214 manufacturer CAD.
+# The shape joins its own unchanged cylindrical body at x=6.50m.
+DONOR_FILE = ROOT / 'data/ac/a320-shapes.json'
+donor = json.loads(DONOR_FILE.read_text(encoding='utf-8'))['ceo']['fuselage']
 sections_original = [
   # x, upper y, lower y, half-width (from owner's Tu-204-200 3-view)
   (0.0, 0.0, 0.0, 0.0), (0.1, .270, -.245, .335),
@@ -46,20 +43,28 @@ def linear_at(xs, ys, x):
       return ys[i]*(1-t) + ys[i+1]*t
   raise ValueError('unreachable')
 
-x_original = [s[0] for s in sections_original]
-# The previous coarse Tu nose remains the blend target, not the sharp tip source.
-x_nose = [round(i/20, 3) for i in range(131)]  # 0..6.50m at 5cm stations
+nose_stations = [round(i/20, 3) for i in range(131)]  # 0–6.5m
+scales = [('top', HALF_H/2.069, HALF_H),
+          ('bottom', HALF_H/2.073, -HALF_H),
+          ('half_width', HALF_W/1.977, HALF_W)]
 sections = []
-for x in x_nose:
-  t = max(0.0, min(1.0, (x - 4.15) / (6.5 - 4.15)))
-  blend = t*t*(3 - 2*t)
-  dims = []
-  for key, idx, scale in [('top', 1, HALF_H/2.005), ('bottom', 2, HALF_H/2.005), ('half_width', 3, HALF_W/1.88)]:
-    d = linear_at(donor['x'], donor[key], x) * scale
-    original = linear_at(x_original, [s[idx] for s in sections_original], x)
-    dims.append(round(d*(1-blend) + original*blend, 6))
-  sections.append((x, *dims))
-sections.extend(s for s in sections_original if s[0] > 6.5)
+for x in nose_stations:
+  dims=[]
+  for key,scale,limit in scales:
+    if x == 0:
+      v=-0.7 if key != 'half_width' else 0.0
+    elif x == 6.5: v=limit
+    else:
+      v=linear_at(donor['x'],donor[key],x)*scale
+      # A320 AC has an isolated lower-fairing tracing at 4.8–4.95m;
+      # this is not a nose feature. Also suppress tiny shoulder overshoot,
+      # so the Tu-214 forebody joins its cylindrical body without a ring.
+      if key=='bottom':v=max(-HALF_H,v)
+      if key=='top':v=min(HALF_H,v)
+      if key=='half_width':v=min(HALF_W,v)
+    dims.append(round(v,6))
+  sections.append((x,*dims))
+sections.extend(s for s in sections_original if s[0]>6.5)
 
 section_angles = list(range(0, 361, 15))
 radial = []
@@ -107,7 +112,7 @@ fin_tes = [round(fin_te['slope']*y + fin_te['x0'], 6) for y in fin_ys]
 shape = {
   'schema': 'aircraft-designer/shape-set/v1',
   'source': 'Tu-204-200 / Tu-214 three-view supplied by project owner, dimensions checked against UIGA 2024',
-  'modelStatus': 'traced-planform; smooth B757-derived visual nose blended to Tu-214 station 6.5m; cockpit photo-based, unvalidated; systems and doors schematic',
+  'modelStatus': 'Tu-214 own wing/tail/gear; visual forebody and glazing transferred from A321/A320 AC and scaled to Tu section, smooth cylinder join at x=6.5m; not Tu manufacturer CAD',
   'baseLengthM': L,
   'halfWidth': HALF_W, 'halfHeight': HALF_H,
   'fuselage': {
@@ -115,15 +120,13 @@ shape = {
     'bottom':[v[2] for v in sections], 'half_width':[v[3] for v in sections]},
   'section': {'deg': section_angles, 'r': radial},
   'features': features,
-  # Narrow-pillar arrangement uses the established B757 cockpit layout as a visual
-  # donor, with a modest Tu-specific upward offset. This is a *provisional* 3D
-  # shape based on the owner's real-life Tu-214 nose photos, NOT a flight manual outline.
-  # Forward windows are in (z,y); side windows in (x,y). Both project onto the hull.
+  # The A321-family five-sided windshield and multi-sided side glazing,
+  # projected onto the transferred A321 nose. Visual reference only.
   'cockpit': {
-    'windscreen': [[0.046, 0.910], [0.046, 0.390], [0.916, 0.390], [0.739, 0.953]],
+    'windscreen': [[0.067274,0.863992],[0.690996,0.923441],[0.807284,0.483519],[0.141275,0.434969],[0.057663,0.483519]],
     'side': [
-      [[2.281, 0.819], [2.666, 0.791], [2.566, 0.229], [1.997, 0.299]],
-      [[2.699, 0.775], [3.167, 0.791], [3.240, 0.385], [2.599, 0.229]],
+      [[1.88,0.415152],[2.229,0.857057],[2.654,0.860029],[2.654,0.305172],[2.551,0.305172]],
+      [[2.654,0.305172],[2.654,0.860029],[3.13,0.860029],[3.267,0.72825],[3.265,0.346786],[3.225,0.307153]],
     ],
   },
   'wing': {

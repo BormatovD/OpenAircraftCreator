@@ -12,13 +12,17 @@ const at = (xs: number[], values: number[], x: number) => {
   return values[i-1] * (1-t) + values[i] * t;
 };
 
-test("Ту-214: округлённый туповатый нос без заострённого 757-подобного кончика", () => {
+test("Ту-214: плавный нос по A321 без выступов и перегибов у цилиндра", () => {
   assert.ok(f.top[0] < -0.65 && f.top[0] > -1.1, "tip is below fuselage centreline");
   assert.ok(Math.abs(f.top[0] - f.bottom[0]) < 1e-5, "closed nose tip");
-  assert.ok(at(f.x, f.top, 1) > 0.4, "fuller upper radome at station 1m");
+  assert.ok(at(f.x, f.top, 1) > 0.24 && at(f.x, f.top, 1) < 0.34, "A321 roof at station 1m");
   assert.ok(at(f.x, f.half_width, 1) < at(f.x, f.half_width, 3));
   assert.ok(Math.abs(at(f.x, f.top, 6.5) - 2.05) < 0.001);
   assert.ok(Math.abs(at(f.x, f.half_width, 6.5) - 1.90) < 0.001);
+  for (const x of [4.8, 4.85, 4.9, 4.95, 5.0, 5.5, 6]) {
+    assert.ok(at(f.x,f.bottom,x) >= -2.050001, `no underbody protrusion at x=${x}`);
+    assert.ok(at(f.x,f.half_width,x) <= 1.900001, `no broad shoulder at x=${x}`);
+  }
   assert.ok(f.x.every((x: number, i: number) => i === 0 || x > f.x[i-1]));
   for (let i=0;i<f.x.length;i++) {
     for (const key of ["top", "bottom", "half_width"] as const)
