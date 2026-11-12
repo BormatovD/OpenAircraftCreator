@@ -7,7 +7,7 @@ import { G0, NM, flightLevelToM, isa } from "./atmosphere.ts";
 import { requiredThrustN } from "./thrust.ts";
 import { type LrcTable, interpolateLrcMach } from "./cruise.ts";
 import { tsfcMachFactor } from "./propulsion.ts";
-import { type PhaseTableDataset, lookupClimb, lookupDescent } from "./phaseTables.ts";
+import { type PhaseTableDataset, lookupClimb, lookupDescent, lookupHolding } from "./phaseTables.ts";
 
 export const LHV_JET_A = 43.2e6; // Дж/кг, теплотворная способность керосина
 
@@ -39,6 +39,9 @@ export interface MissionAssumptions {
   fcomApproachDurationMin?: number;
   /** Explicit engineering assumption: approach ground speed, NOT printed in the FCOM table. */
   fcomApproachGroundspeedKt?: number;
+  /** CES holding at Green Dot, racetrack, sea-level alternate (FL15). */
+  fcomHolding?: PhaseTableDataset;
+  fcomHoldingFL?: number;
   /** Таблица скорости базового типа. Расход FF из неё в миссию не подставляется. */
   lrcTable?: LrcTable;
   /** Эшелон для режима "fixed". */
@@ -474,6 +477,10 @@ export function fuelForDistance(
 }
 
 export interface Reserves {
+  /** FCOM holding or low-speed physical fallback; cruise reserve uses its own integration. */
+  finalReserveSource?: "fcom" | "physical" | "physical-uncovered" | "cruise";
+  holdingFuelFlowKgH?: number;
+  holdingReferenceMassKg?: number;
   contingencyKg: number;
   alternateKg: number;
   finalKg: number;
@@ -521,13 +528,25 @@ export function reserves(
       m *= Math.exp(-(t / n) * G0 * tsfcAtMach(engine, speed.mach) / ld);
     }
     const finalKg = massAfterAlt - m;
-    return { contingencyKg, alternateKg, finalKg, totalKg: contingencyKg + alternateKg + finalKg, lrcFallback, flightLevelLimited };
+    return { contingencyKg, alternateKg, finalKg, totalKg: contingencyKg + alternateKg + finalKg, lrcFallback, flightLevelLimited, finalReserveSource: "cruise" };
   }
+  // FCOM CES 3.05.20: FF in KG/H/ENG, GREEN DOT, CLEAN, racetrack pattern.
+  // Planning mass is the alternate landing mass BEFORE holding; do not integrate
+  // the published table through decreasing mass (the planning basis is explicit).
+  const h = as.fcomHolding && as.fcomHoldingFL !== undefined &&
+    lookupHolding(as.fcomHolding, massAfterAlt, as.fcomHoldingFL);
+  const holdingFuelFlowKgH = h && as.fcomHolding
+    ? h.fuelFlowPerEngineKgH * as.fcomHolding.holding.engineCount : undefined;
   const tsfcHold = engine.tsfcCruise * as.holdTsfcRatio;
-  const finalKg = massAfterAlt * (1 - Math.exp((-t * G0 * tsfcHold) / maxLiftToDrag(aero)));
+  const finalKg = holdingFuelFlowKgH === undefined
+    ? massAfterAlt * (1 - Math.exp((-t * G0 * tsfcHold) / maxLiftToDrag(aero)))
+    : holdingFuelFlowKgH * t / 3600;
   return {
     contingencyKg, alternateKg, finalKg, totalKg: contingencyKg + alternateKg + finalKg,
     lrcFallback: alternate.lrcFallback, flightLevelLimited: alternate.flightLevelLimited,
+    finalReserveSource: holdingFuelFlowKgH === undefined
+      ? (as.fcomHolding ? "physical-uncovered" : "physical") : "fcom",
+    holdingFuelFlowKgH, holdingReferenceMassKg: holdingFuelFlowKgH === undefined ? undefined : massAfterAlt,
   };
 }
 
