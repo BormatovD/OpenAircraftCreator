@@ -8,7 +8,7 @@ import { type ConstraintResult } from "../src/constraints.ts";
 import { type AircraftDefinition } from "../src/definition.ts";
 import { DEFAULT_MISSION, type Evaluation, evaluate } from "../src/evaluate.ts";
 import { type MassNode, NODES } from "../src/mass/massTree.ts";
-import { designMissionOf, redesign } from "../src/redesign.ts";
+import { evaluateConfiguration } from "../src/integration/configuration.ts";
 import { engineCycle, tsfcFactor } from "../src/propulsion.ts";
 import { renderMethod } from "./method.ts";
 import { passportRows } from "./passport.ts";
@@ -20,6 +20,7 @@ import { Environment, PHASES, type Phase } from "./scene/environment.ts";
 import { LIVERIES, NO_LIVERY, PLAIN_FIN, finLiveryTexture, liveryById } from "./scene/livery.ts";
 import { fuselageTexture, htailTexture, wingTexture } from "./scene/textures.ts";
 import { finishForTone, technicalRelief, TECHNICAL_RELIEF_SCALE_M } from "./scene/technicalFinish.ts";
+import { FRA_BCN_NM, leapRoute } from "../src/integration/leapRoute.ts";
 import { FC_ORIGIN, FC_PROTOCOL, FC_VERSION, PRESETS, seatsInLayout, flightCostDesign, layoutFor, presetFor, resolveFlightCostAircraft, withCabinLayout } from "../src/integration/flightcost.ts";
 import { SELECTED_EXPLODE_FRACTION, fitAircraftFrame, meshFramePoints, type SceneFrameArea } from "./scene/framing.ts";
 
@@ -54,6 +55,7 @@ const LIGHTS: Record<string, string> = {
 const COMPOSITE_PARTS: Record<string, string> = { compositeBox: "wing.box", compositeHighLift: "wing.highLift" };
 
 const launchParams = new URLSearchParams(window.location.search);
+const flightCostOrigin = import.meta.env.VITE_FLIGHTCOST_ORIGIN || FC_ORIGIN;
 const isFlightCostEmbed = launchParams.get("embed") === "flightcost" && window.parent !== window;
 const hasFlightCostParams = ["ac", "aircraft", "engine", "layout"].some((key) => launchParams.has(key));
 const requested = hasFlightCostParams ? resolveFlightCostAircraft(launchParams) : null;
@@ -110,24 +112,13 @@ function baseOf(id: string): Evaluation {
   return e;
 }
 
-interface Result {
-  ev: Evaluation;
-  base: Evaluation;
-  redesign?: { converged: boolean; iterations: number; designRangeNm: number };
-}
-let result: Result;
+let result: ReturnType<typeof evaluateConfiguration>;
 
-function compute(): Result {
+function compute() {
   const baseDef = AIRCRAFT[state.aircraftId];
   const layout = layoutFor(state.aircraftId, state.layoutId);
   const def = layout ? withCabinLayout(baseDef, layout) : baseDef;
-  const base = baseOf(state.aircraftId);
-  const levers = leversFor(def, state.values);
-  const fixed = evaluate(def, levers, contextFor(def));
-  if (state.mode === "fixed") return { ev: fixed, base };
-  const mission = { ...designMissionOf(base), payloadKg: fixed.seats * DEFAULT_MISSION.massPerPaxKg };
-  const rs = redesign(def, levers, contextFor(def), mission);
-  return { ev: rs.evaluation, base, redesign: { converged: rs.converged, iterations: rs.iterations, designRangeNm: mission.rangeNm } };
+  return evaluateConfiguration(def, leversFor(def, state.values), state.mode, baseOf(state.aircraftId));
 }
 
 let pending = 0;
@@ -147,6 +138,8 @@ function schedule(): void {
 const timing = { compute: 0, scene: 0, panels: 0 };
 function run(): void {
   let t = performance.now();
+  frame = 0;
+  pending = 0;
   result = compute();
   timing.compute = performance.now() - t;
   t = performance.now();
@@ -156,6 +149,7 @@ function run(): void {
   timing.scene = performance.now() - t;
   t = performance.now();
   renderMetrics();
+  renderFlightCostRoute();
   renderPassport();
   renderPayloadRange();
   renderDrag();
@@ -1516,7 +1510,27 @@ $("cabin-layout").addEventListener("change", (event) => {
   schedule();
 });
 
+function renderFlightCostRoute(): void {
+  const visible = state.aircraftId === "a320neo" && !state.flightCostError;
+  $("fc-route").hidden = !visible;
+  if (!visible || !result) return;
+  const percent = Number(($("fc-load") as HTMLInputElement).value);
+  const pax = Math.floor(result.ev.seats * percent / 100 + 0.5 + 1e-9);
+  const distance = Number(launchParams.get("routeNm"));
+  const route = leapRoute(result, {
+    pax, distanceNm: isFlightCostEmbed && distance > 0 && Number.isFinite(distance) ? distance : FRA_BCN_NM,
+  });
+  const output = $("fc-route-result");
+  const reason = Object.values(route.limits).join(". ");
+  output.textContent = percent + "% · " + pax + " пасс. · " + (reason || (
+    nf(route.tripKg, 1) + " кг с рулением · " + nf(route.blockMin, 2) + " мин блок-время"));
+  output.dataset.fuelKg = String(route.tripKg);
+  output.dataset.blockMin = String(route.blockMin);
+}
+$("fc-load").addEventListener("input", renderFlightCostRoute);
+
 function currentFlightCostDesign() {
+  if (frame || pending) { cancelAnimationFrame(frame); clearTimeout(pending); run(); }
   if (!result || state.flightCostError) return null;
   const d = result.ev.definition;
   const fuelDensity = contextFor(d).fuelDensityKgL;
@@ -1538,11 +1552,12 @@ $("fc-send").addEventListener("click", () => {
   const design = currentFlightCostDesign();
   if (!design || !isFlightCostEmbed) return;
   pendingRequest = crypto.randomUUID();
-  window.parent.postMessage({ protocol: FC_PROTOCOL, version: FC_VERSION, type: "DESIGN_EXPORT", requestId: pendingRequest, design }, FC_ORIGIN);
+  window.parent.postMessage({ protocol: FC_PROTOCOL, version: FC_VERSION, type: "DESIGN_EXPORT", requestId: pendingRequest, design,
+    routeLoad: state.aircraftId === "a320neo" ? Number(($("fc-load") as HTMLInputElement).value) : undefined }, flightCostOrigin);
   $("fc-status").textContent = "Конфигурация отправлена FlightCost; ожидаем подтверждения сохранения";
 });
 window.addEventListener("message", (event: MessageEvent) => {
-  if (!isFlightCostEmbed || event.origin !== FC_ORIGIN || event.source !== window.parent) return;
+  if (!isFlightCostEmbed || event.origin !== flightCostOrigin || event.source !== window.parent) return;
   const msg = event.data as { protocol?: string; version?: number; type?: string; requestId?: string; saved?: boolean; error?: string } | null;
   if (!msg || msg.protocol !== FC_PROTOCOL || msg.version !== FC_VERSION || msg.type !== "DESIGN_ACK" || msg.requestId !== pendingRequest) return;
   pendingRequest = null;

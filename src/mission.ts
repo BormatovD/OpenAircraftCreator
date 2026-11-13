@@ -109,6 +109,9 @@ export interface TripResult {
   climbDistanceNm?: number;
   /** Накопленное время набора, если подтверждено таблицей. */
   climbTimeMin?: number;
+  /** Время горизонтальных шагов по фактической скорости каждого шага. */
+  cruiseTimeMin: number;
+  descentDistanceNm: number;
   /** Только горизонтальный крейсер; топливо ступеней показано отдельно. */
   cruiseFuelKg: number;
   stepClimbFuelKg: number;
@@ -301,6 +304,7 @@ export function simulateTrip(
     let activeFL = initialFL;
     let aFlCruise = aeroAtFl(aero, activeFL);
     let travelledM = climbDistance;
+    let cruiseSeconds = 0;
     const availableCruiseFuel = tripFuelKg - fixedFuel;
     let remaining = availableCruiseFuel;
     const dm = availableCruiseFuel / as.cruiseSteps;
@@ -353,12 +357,16 @@ export function simulateTrip(
       }
       const cl = clForWeight(aFlCruise, mMid * G0, stepRho, stepSpeedMs);
       const ld = liftToDrag(aFlCruise, cl, activeMach);
-      travelledM += (stepSpeedMs * ld) / (G0 * tsfcAtMach(engine, activeMach)) * Math.log(massKg / (massKg - step));
+      const stepDistanceM = (stepSpeedMs * ld) / (G0 * tsfcAtMach(engine, activeMach)) * Math.log(massKg / (massKg - step));
+      travelledM += stepDistanceM;
+      cruiseSeconds += stepDistanceM / stepSpeedMs;
       massKg -= step;
       remaining -= step;
     }
     return {
       distanceM: travelledM + allocation.distanceM,
+      cruiseTimeMin: cruiseSeconds / 60,
+      descentDistanceNm: allocation.distanceM / NM,
       landingMassKg: massKg - allocation.fuelKg,
       finalFL: activeFL,
       initialMach: initialCruiseMach,
@@ -393,6 +401,8 @@ export function simulateTrip(
       climbSource,
       climbDistanceNm: share * climbDistance / NM,
       climbTimeMin: undefined,
+      cruiseTimeMin: 0,
+      descentDistanceNm: share * allocation.distanceM / NM,
       cruiseFuelKg: 0,
       stepClimbFuelKg: 0,
       descentFuelKg: allocation.fuelKg * share,

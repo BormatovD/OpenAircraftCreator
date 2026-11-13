@@ -138,13 +138,15 @@ export function validatePresetCatalog(): string[] {
   return errors;
 }
 
+export const LEAP_ROUTE_MODEL = "a320neo-leap-mission-v1";
+
 export interface FlightCostDesign {
   protocol: typeof FC_PROTOCOL;
   version: number;
   aircraft: { icao: string; aircraftId: string; engine: string; weightProfile: string; layoutId: string; cabin: CabinZone[]; seats: number };
   weights: { oew_kg: number; mtow_kg: number; mzfw_kg: number; mlw_kg: number; fuel_capacity_kg: number };
   geometry: { length_m: number; span_m: number };
-  model: { mode: "fixed" | "redesign"; controls: Record<string, number | boolean>; provisional: true };
+  model: { routeSolver?: typeof LEAP_ROUTE_MODEL; mode: "fixed" | "redesign"; controls: Record<string, number | boolean>; provisional: true };
 }
 
 /** No guess for fuel burn here: FlightCost must select and label its own method. */
@@ -171,6 +173,6 @@ export function flightCostDesign(def: AircraftDefinition, oewKg: number, control
     aircraft: { icao: preset.icao, aircraftId, engine: preset.engine, weightProfile: preset.weightProfile, layoutId, cabin, seats: def.systems.seats },
     weights: { oew_kg: oewKg, mtow_kg: def.weights.mtowKg, mzfw_kg: def.weights.mzfwKg, mlw_kg: def.weights.mlwKg, fuel_capacity_kg: def.systems.fuelVolumeL * fuelDensityKgL },
     geometry: { length_m: def.fuselage.lengthM, span_m: def.wing.tip === "sharklet" ? def.wing.sharkletSpanM : def.wing.spanM },
-    model: { mode, controls: { ...controls }, provisional: true },
+    model: { ...(aircraftId === "a320neo" ? { routeSolver: LEAP_ROUTE_MODEL } : {}), mode, controls: { ...controls }, provisional: true },
   };
 }
