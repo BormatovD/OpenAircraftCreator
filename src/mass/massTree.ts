@@ -5,6 +5,7 @@
 import { type AircraftDefinition } from "../definition.ts";
 import { type Lever } from "../levers.ts";
 import * as R from "./raymer.ts";
+import { highLiftMassFactor } from "../highlift.ts";
 
 export interface NodeSpec {
   id: string;
@@ -184,7 +185,8 @@ export function computeMasses(def: AircraftDefinition, calibration: Calibration,
       const r = raw.get(spec.id)!;
       const { factor, deltaKg } = modifiersFor(spec.id, levers);
       node.rawKg = r;
-      node.kg = r * (calibration.get(spec.id) ?? 1) * factor + deltaKg;
+      const configuration = spec.id === "wing.highLift" ? highLiftMassFactor(def.wing) : 1;
+      node.kg = r * (calibration.get(spec.id) ?? 1) * configuration * factor + deltaKg;
     }
   }
   // Перенос проводки: из каждой системы в узел БКС уходит её доля (до рычагов БКС), затем к БКС

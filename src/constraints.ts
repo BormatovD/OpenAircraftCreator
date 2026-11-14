@@ -59,13 +59,14 @@ export function checkConstraints(
   out.push({
     id: "span-code",
     label: "Код аэродрома по размаху",
-    status: span <= ICAO_CODE_C_MAX_SPAN_M ? "ok" : "warning",
+    status: span < ICAO_CODE_C_MAX_SPAN_M ? "ok" : "warning",
     value: `${span.toFixed(2)} м`,
-    limit: `код C ≤ ${ICAO_CODE_C_MAX_SPAN_M} м`,
+    limit: `размах для кода C < ${ICAO_CODE_C_MAX_SPAN_M} м`,
     message:
-      span <= ICAO_CODE_C_MAX_SPAN_M
+      span < ICAO_CODE_C_MAX_SPAN_M
         ? `Код C, запас ${(ICAO_CODE_C_MAX_SPAN_M - span).toFixed(2)} м`
-        : "Код D: стоянки и рулёжки для более широких самолётов, часть аэропортов недоступна. Решение у 777X — складные законцовки",
+        : span < 52 ? "Код D по размаху. Для самолёта нужны более широкие стоянки и рулёжные дорожки."
+          : "Размах превышает пределы кодов C и D.",
   });
 
   // При изменении размера нижний радиус масштабируется вместе с гондолой.

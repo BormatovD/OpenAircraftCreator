@@ -4,19 +4,20 @@
 import katex from "katex";
 import { A320CEO, A320NEO, AC_OEW_KG } from "../src/aircraft/a320.ts";
 import { A320_CONTEXT as CTX } from "../src/aircraft/a320Context.ts";
-import { aspectRatio, maxLiftToDrag } from "../src/aero.ts";
+import { aspectRatio } from "../src/aero.ts";
 import { flightLevelToM, isa } from "../src/atmosphere.ts";
 import { tsfcToImperial } from "../src/calibrate.ts";
 import { type AircraftDefinition } from "../src/definition.ts";
-import { DEFAULT_MISSION, type Evaluation, aeroFor, evaluate } from "../src/evaluate.ts";
-import { KORN_KAPPA, MISC_SHARE, dragBuildup, waveDrag, waveParams } from "../src/drag.ts";
+import { type Evaluation, evaluate, evaluateResolved } from "../src/evaluate.ts";
+import { contextFor } from "../src/aircraft/contextFor.ts";
+import { KORN_KAPPA, MISC_SHARE, dragBuildup } from "../src/drag.ts";
 import { cruiseMach as cruiseMachLever } from "../src/levers.ts";
 import { NODES, computeMasses } from "../src/mass/massTree.ts";
 import { DEFAULT_ASSUMPTIONS as AS, LHV_JET_A } from "../src/mission.ts";
-import { dryMassForBpr, engineCycle, fanDiameterForBpr, tsfcFactor, tsfcMachFactor } from "../src/propulsion.ts";
+import { engineCycle, tsfcFactor, tsfcMachFactor } from "../src/propulsion.ts";
 import { runCycle } from "../src/cycle.ts";
 import { B737_300 } from "../src/aircraft/b737.ts";
-import { CONTROLS } from "./controls.ts";
+import { controlsFor } from "./controls.ts";
 import { relativeOewErrorPct, validateFamily } from "../src/validation.ts";
 import vb from "../data/validation-boeing.json" with { type: "json" };
 import vf from "../data/validation-fcom.json" with { type: "json" };
@@ -217,8 +218,8 @@ export const SOURCES: Source[] = [
   },
   {
     id: "icao",
-    title: "SKYbrary. ICAO Aerodrome Reference Code",
-    url: "https://skybrary.aero/articles/icao-aerodrome-reference-code",
+    title: "ICAO. Annex 14, Vol. I, табл. 1-1. Aerodrome reference code",
+    url: "https://www.icao.int/sites/default/files/APAC/Meetings/2021/2021%20AP-ADO-TF2/3-Working%20Papers/WP04-AI2-Amdt-15-to-A14V1.pdf",
     note: "Код C — размах до 36 м, код D — 36–52 м",
   },
   {
@@ -292,9 +293,9 @@ function massSection(current: Evaluation): string {
 }
 
 function aeroSection(def: AircraftDefinition, current: Evaluation): string {
-  const a = aeroFor(def, CTX.aero, []);
+  const a = current.aero;
   const b = dragBuildup(def);
-  const k = CTX.aero.cd0Factor ?? 1;
+  const k = a.cd0 / b.cd0;
   const rows = b.components.map((c) => [
     c.label,
     nf(c.swetM2, 0),
@@ -312,10 +313,12 @@ function aeroSection(def: AircraftDefinition, current: Evaluation): string {
   const cd0c = cd.total - indc - wavec;
   const ca = current.aero;
   const arNow = (ca.spanM * ca.spanM) / ca.wingAreaM2;
-  const w = waveParams(def);
+  const ctx = { ...contextFor(def), assumptions: current.missionAssumptions };
   const machRows = [0.74, 0.76, 0.78, 0.8, 0.82].map((m) => {
-    const ev = evaluate(def, [cruiseMachLever(m)], { ...CTX, assumptions: current.missionAssumptions });
-    return [`M ${nf(m, 2)}`, nf(waveDrag(w, ev.cruiseDrag.cl, m) * 1e4, 1), nf(tsfcMachFactor(def.engine.bypassRatio, m), 3), nf(ev.cruiseDrag.ld, 1), nf(ev.fuelPerSeatPer100KmKg, 3)];
+    const ev = current.missionAssumptions.cruiseSpeedMode !== "lrc" && m === current.missionAssumptions.cruiseMach
+      ? current : evaluateResolved(def, [...current.levers, cruiseMachLever(m)], ctx, current.mission);
+    const wave = ev.cruiseDrag.parts.find((part) => part.id === "wave")!;
+    return [`M ${nf(m, 2)}`, nf(wave.counts, 1), nf(tsfcMachFactor(def.engine.bypassRatio, m), 3), nf(ev.cruiseDrag.ld, 1), Number.isFinite(ev.fuelPerSeatPer100KmKg) ? nf(ev.fuelPerSeatPer100KmKg, 3) : "—"];
   });
   const fcomRows = vf.results.map((r) => [
     r.name, String(r.rows.length), `${nf(r.biasPct, 2)}%`, `${nf(r.rmsPct, 2)}%`, `${nf(r.sdPct, 2)}%`, `${nf(r.minPct, 2)}…${nf(r.maxPct, 2)}%`,
@@ -337,7 +340,7 @@ function aeroSection(def: AircraftDefinition, current: Evaluation): string {
     вплотную под крылом, как у всех 737, — 1,5;
     ${t(String.raw`k_{\text{пр}} = ${nf(MISC_SHARE * 100, 0)}\%`)} — допущение. В таблице ниже — опорный срез текущей геометрии на FL350, M 0,78:
     до привязки сумма ${t(String.raw`C_{D0} = ${nf(b.cd0, 4)}`)}. Калибровка опирается на A320 и уровень 0,019 у Poll & Schumann ${ref("poll-2")}.
-    Общий множитель ×${nf(k, 3)} сохраняется для всех типов; формулы дают
+    Множитель текущей конфигурации с учётом калибровки и рычагов равен ${nf(k, 3)}. Формулы дают
     чувствительность: длиннее фюзеляж, больше гондола, толще профиль — выше ${t("C_{D0}")}.</p>
     ${table(["Агрегат", "S<sub>wet</sub>, м²", "Re, млн", "C<sub>f</sub>×1000", "FF", "Q", "Каунты"], rows, "num")}
 
@@ -374,7 +377,7 @@ function aeroSection(def: AircraftDefinition, current: Evaluation): string {
     эта проверка не позволяет отделить их от ошибок сопротивления и TSFC. Исправление BPR и OPR CFM56-3B2 также не устраняет весь остаток его расхода.
     Калибровка A320 даёт TSFC CFM56-5B ${nf(tsfcToImperial(CTX.tsfcCruise), 3)} lb/(lbf·ч). Минимум расхода модели при переборе постоянных чисел Маха сам по себе
     не определяет табличный режим LRC; по одному расходу топлива нельзя раздельно восстановить поляру и цикл двигателя.</p>
-    <p>Для текущего определения самолёта при постоянном числе Маха на всём крейсере; остальные допущения миссии сохранены:</p>
+    <p>Для текущего самолёта и его рычагов при постоянном числе Маха. При смене режима полёта набор, снижение и ожидание рассчитываются по модели.</p>
     ${table(["", "Волновое, каунты", "TSFC к M 0,78", "L/D", "Топливо на место"], machRows, "num")}
     <p>Рычаг «Аэродинамическое качество» делит полное сопротивление на ${t("(1+x)")}. Предел крейсерского ${t("C_L")} в текущей миссии — ${nf(current.missionAssumptions.cruiseClMax, 2)}.
     Опорный предел A320 ${nf(AS.cruiseClMax, 2)} принят по ${ref("poll-1")}; это не универсальная граница для всех типов.</p>
@@ -463,15 +466,18 @@ function engineSection(current: Evaluation): string {
     <p>Линии через CFM56-5B и LEAP-1A ${ref("engines-text")} ${ref("leap")}; PW1100G (${t(String.raw`B \approx 12{,}5`)}, ≈2,05 м) ложится на линию диаметра с точностью ±0,02 м:</p>
     ${tex(String.raw`D_{\text{вент}} = 1{,}73 + 0{,}0472\,(B - 5{,}7)\ \text{м},\qquad m_{\text{сух}} = 2380 + 115\,(B - 5{,}7)\ \text{кг}`)}
     <p>Гондола масштабируется по диаметру вентилятора. Линия массы — для прямоприводных двигателей; масса редуктора и сэкономленных ступеней ТНД не учитывается.
-    Вне ${t(String.raw`B = 5\ldots13`)} это экстраполяция, о чём предупреждает ограничение. Сейчас: ${t(String.raw`B = ${nf(cur.bypassRatio, 1)}`)} → ${nf(fanDiameterForBpr(cur.bypassRatio), 2)} м, ${nf(dryMassForBpr(cur.bypassRatio))} кг.</p>
+    Рычаг умножает исходные диаметр и массу выбранного двигателя на отношение значений соответствующей линии при новом и исходном B. Для других семейств это допущение.
+    Вне ${t(String.raw`B = 5\ldots13`)} это экстраполяция. Сейчас при ${t(String.raw`B = ${L(cur.bypassRatio, 1)}`)} диаметр ${nf(cur.fanDiameterM, 2)} м, сухая масса ${nf(cur.dryMassKg)} кг.</p>
 
     <h3>Что показывает разрез</h3>
-    ${cur.architecture.spools === 3 ? "<p class=\"caveat\">RB211 — трёхвальный двигатель. Текущий разрез и общий расчёт цикла остаются упрощённой двухвальной моделью с раздельными соплами: отдельный вал СД и смешение потоков RB211 пока не воспроизведены.</p>" : ""}
-    <p>В показанной двухвальной схеме вентилятор, подпорный компрессор и турбина низкого давления сидят на одном валу (НД), компрессор и турбина высокого давления — на другом (ВД),
-    вал НД проходит внутри полого вала ВД. Радиус входа в ядро на модели: ${t(String.raw`r_{\text{ядро}} = R\sqrt{1{,}6/(1+B)}`)} — площадь ядра
-    обратно пропорциональна ${t("1+B")}. Число ступеней ТНД — ${t(String.raw`\mathrm{round}(4 + 0{,}57(B-5{,}7))`)}: больший вентилятор вращается медленнее, и турбине
-    нужно больше ступеней (CFM56 — 4, LEAP — 7); с редуктором ТНД быстроходная — 3 ступени. Сейчас ядро ${nf(coreRadiusFor(1, cur.bypassRatio) * 100, 0)}% радиуса вентилятора,
-    ТНД — ${cur.cycle.gearbox ? 3 : lptStagesFor(cur.bypassRatio)} ступ. Скорости вращения на модели условные (ВД ≈ втрое быстрее НД).</p>
+    <p>${cur.architecture.spools === 3
+      ? `У RB211 три соосных вала. Турбина НД приводит вентилятор, турбина СД — шестиступенчатый КСД, турбина ВД — шестиступенчатый КВД. Расчёт расхода использует общий упрощённый цикл с раздельными соплами.`
+      : "На внутреннем валу НД работают вентилятор, подпорный компрессор и турбина НД. Полый вал ВД соединяет компрессор ВД с турбиной ВД."}
+    Скорости анимации условны. Радиус ядра составляет ${nf(coreRadiusFor(1, cur.bypassRatio) * 100, 0)}% радиуса вентилятора
+    по зависимости ${t(String.raw`r_{\text{ядро}} = R\sqrt{1{,}6/(1+B)}`)}.</p>
+    <p>Турбина НД содержит ${lptStagesFor(cur.bypassRatio, cur.cycle.gearbox, cur.architecture.lptStages)} ступ.
+    ${cur.architecture.lptStages ? "Число ступеней в разрезе задаёт схема установленного двигателя."
+      : "Число ступеней ТНД оценивается по двухконтурности. Для быстроходной ТНД с редуктором принято три ступени."}</p>
   </section>`;
 }
 
@@ -570,7 +576,7 @@ function missionSection(current: Evaluation): string {
   const a = current.missionAssumptions;
   const m = current.missionResult;
   const p = m.trip;
-  const km = DEFAULT_MISSION.distanceNm * 1.852;
+  const km = current.mission.distanceNm * 1.852;
   const lrc = a.cruiseSpeedMode === "lrc";
   const machDigits = Math.abs(p.maxMach - p.minMach) < 0.001 ? 4 : 3;
   const speed = current.cruiseDrag.mach * isa(flightLevelToM(current.cruiseDrag.fl)).speedOfSoundMs;
@@ -606,8 +612,7 @@ function missionSection(current: Evaluation): string {
     <h3>Набор высоты — энергетический метод</h3>
     ${tex(String.raw`E = m\left(g h + \frac{V^2}{2} + \frac{g\, d_{\text{наб}}}{(L/D)_{\text{наб}}}\right),\qquad m_{\text{т}} = \frac{E}{\eta_{\text{наб}}\, LHV}`)}
     <p>${t(String.raw`\eta_{\text{наб}} = ${nf(a.climbEfficiencyRatio, 1)}\,\eta_0`)}, ${t(String.raw`(L/D)_{\text{наб}} = ${nf(a.climbLdRatio, 1)}\,(L/D)`)}, ${t(String.raw`d_{\text{наб}}`)} = ${a.climbDistanceKm} км.</p>
-    <p><b>Эти коэффициенты остаются допущениями.</b> Таблица LRC не заменяет таблицы набора, снижения и ожидания. Взлёт ${a.takeoffFuelKg} кг ${ref("poll-3")},
-    снижение ${a.descentFuelKg} кг на ${a.descentDistanceKm} км и руление ${a.taxiFuelKg} кг пока заданы оценками; они не выдаются за данные FCOM.</p>
+    <p>В текущем рейсе набор рассчитан ${p.climbSource === "fcom" ? "по таблице CES FCOM" : "энергетическим методом"}, снижение — ${p.descentSource === "fcom" ? "по таблице CES FCOM с отдельным заходом" : "по модели"}. Руление составляет ${a.taxiFuelKg} кг.</p>
     <h3>Крейсер — уравнение Бреге по шагам</h3>
     ${tex(String.raw`\Delta R_i = \frac{V_i\,(L/D)_i}{g\, TSFC}\,\ln\frac{m_i}{m_i - \Delta m}`)}
     ${now(String.raw`V = ${L(speed)}\ \text{м/с},\ L/D = ${L(current.cruiseDrag.ld, 1)},\ TSFC = ${L(tsfcToImperial(current.tsfcCruise), 3)}\ \text{lb/(lbf}\cdot\text{ч)}\ \Rightarrow\ m_{\text{рейс}} = ${L(current.tripFuelKg)}\ \text{кг}`, `рейс ${nf(Math.round(km))} км; срез M ${nf(current.cruiseDrag.mach, 3)}, FL${nf(current.cruiseDrag.fl)}`)}
@@ -619,14 +624,16 @@ function missionSection(current: Evaluation): string {
     <h3>Резервы</h3>
     ${tex(String.raw`m_{\text{рез}} = ${nf(a.contingencyFraction * 100, 0)}\%\, m_{\text{рейс}} + m_{\text{запасной}} + m_{\text{финальный}}`)}
     <p>Запасной аэродром — ${a.alternateDistanceNm} nm на FL${a.alternateFL}; финальный резерв — ${a.finalReserveMin} мин
-    ${a.finalReserveMode === "cruise" ? `продолжения крейсерского полёта на FL${a.cruiseFL}: масса, C<sub>L</sub> и число Маха пересчитываются по времени.` : `ожидания на максимальном качестве при ${t(String.raw`TSFC_{\text{ож}} = ${nf(a.holdTsfcRatio, 1)}\,TSFC`)}.`}
+    ${a.finalReserveMode === "cruise" ? `продолжения крейсерского полёта на FL${a.cruiseFL}.` : m.reserves.finalReserveSource === "fcom" ? "ожидания по таблице Green Dot CES FCOM." : `ожидания на максимальном качестве при ${t(String.raw`TSFC_{\text{ож}} = ${L(a.holdTsfcRatio, 1)}\,TSFC`)}.`}
     В интерактивных сценариях у всех типов сохраняются общие правила: 5%, запасной 200 nm и 30 мин ожидания. Проверки графиков Boeing используют отдельные правила своих источников.</p>
     ${table(["Резерв текущего рейса", "Топливо, кг"], reserveRows, "num")}
-    ${!m.feasible ? `<p class="caveat"><b>Недостаточно топлива для резервов:</b> дефицит ${nf(m.reserveShortfallKg)} кг.</p>` : ""}
+    ${!m.feasible ? `<p class="caveat">Рейс недостижим. Дефицит дальности ${nf(m.distanceShortfallNm ?? 0, 1)} nm, дефицит резервов ${nf(m.reserveShortfallKg)} кг.</p>` : ""}
     <h3>Расход на место</h3>
     ${tex(String.raw`q = \frac{m_{\text{рейс}}}{n_{\text{мест}}\, d} \cdot 100\quad\text{кг на место на 100 км}`)}
-    ${now(String.raw`q = \frac{${L(current.tripFuelKg)}}{${current.seatsCarried} \cdot ${L(km)}} \cdot 100 = ${L(current.fuelPerSeatPer100KmKg, 3)}`)}
-    <p>Рейс ${nf(km)} км, пассажир с багажом ${DEFAULT_MISSION.massPerPaxKg} кг, все места. Резервы в ${t("q")} не входят. Если все места не помещаются в MZFW,
+    ${Number.isFinite(current.fuelPerSeatPer100KmKg)
+      ? now(String.raw`q = \frac{${L(current.tripFuelKg)}}{${current.seatsCarried} \cdot ${L(km)}} \cdot 100 = ${L(current.fuelPerSeatPer100KmKg, 3)}`)
+      : `<p>Расход на место не определён: ${m.feasible ? "нет перевезённых пассажиров" : "рейс недостижим"}.</p>`}
+    <p>Рейс ${nf(km)} км, пассажир с багажом ${current.mission.massPerPaxKg} кг, запрошено мест ${current.seats}. Резервы в ${t("q")} не входят. Если все места не помещаются в MZFW,
     считается только то число мест, что помещается.</p>
   </section>`;
 }
@@ -728,8 +735,8 @@ function checkSection(): string {
   </section>`;
 }
 
-function leversSection(): string {
-  const items = CONTROLS.map((c) => {
+function leversSection(def: AircraftDefinition): string {
+  const items = controlsFor(def).map((c) => {
     const lever = c.kind === "toggle" ? c.toLever(true) : c.toLever(c.max);
     const kinds = [...new Set(lever.effects.map((e) => e.kind))]
       .map((k) => ({ definition: "определение самолёта → пересчёт по формулам", massFactor: "множитель массы узла", massDelta: "добавка массы", aero: "поляра", engine: "TSFC", mission: "допущения полёта" })[k])
@@ -741,7 +748,7 @@ function leversSection(): string {
   <section id="m-levers">
     <h2>Рычаги</h2>
     <p>Рычаг — запись данных, а не код. Он либо правит определение самолёта (размах, двигатель, длину), после чего массы и аэродинамика пересчитываются
-    по формулам, либо умножает массу узла дерева, либо меняет поляру. Поэтому любой рычаг сразу виден во всех выходах.</p>
+    по формулам, либо меняет массу узла, поляру или профиль полёта. Подъём двигателя в этой модели меняет только клиренс.</p>
     <ul class="levers-list">${items}</ul>
   </section>`;
 }
@@ -755,8 +762,8 @@ function redesignSection(): string {
     с этой нагрузкой, скорость захода, удлинение и тяговооружённость. Скорость захода держится, если ${t(String.raw`W/(S\,C_{L\max})`)} постоянно:
     лучшая механизация позволяет меньшее крыло (см. «Механизация»).</p>
     ${tex(String.raw`S \propto \frac{MTOW}{C_{L\max}},\quad b \propto \sqrt{MTOW},\quad T \propto MTOW,\quad m_{\text{дв}} \propto T,\quad D_{\text{вент}} \propto \sqrt{T},\quad V_{\text{баков}} \propto S^{1{,}5}`)}
-    ${tex(String.raw`MTOW_{n+1} = MTOW_n + 0{,}7\left(OEW(MTOW_n) + PL + m_{\text{т}}(MTOW_n) - MTOW_n\right)`)}
-    <p>Итерации останавливаются, когда шаг меньше 1 кг; множитель 0,7 гасит колебания. Оперение масштабируется вместе с крылом (тот же коэффициент статического объёма).
+    ${tex(String.raw`W_{\rm req}=\max\left(OEW+PL+m_{\rm fuel},\ W_{\rm ref}\left[\frac{m_{\rm fuel}+m_{\rm taxi}}{\rho V_{\rm ref}}\right]^{2/3}\right),\quad W_{n+1}=W_n+0{,}7(W_{\rm req}-W_n)`)}
+    <p>Расчёт проверяет и взлётную массу, и вместимость баков с учётом руления. Итерации заканчиваются при невязке менее 0,01 кг, затем проверяются доступная дальность с резервами и нагрузка. Оперение масштабируется вместе с крылом.
     MZFW — расчётная нагрузка плюс тот же запас, что у базового самолёта. Удлинение крыла сохраняется, поэтому при росте площади растёт и размах —
     у A321 Airbus сохранил крыло A320 и поставил двухщелевые закрылки: рычаг «Двухщелевые закрылки» возвращает размах в код C.</p>
   </section>`;
@@ -768,7 +775,7 @@ function constraintsSection(): string {
   <section id="m-constraints">
     <h2>Ограничения</h2>
     <h3>Код аэродрома</h3>
-    <p>${t(String.raw`b \le 36`)} м — код C, 36–52 м — код D ${ref("icao")}. С шарклетами считается их размах 35,8 м ${ref("ac-a320")}.</p>
+    <p>${t(String.raw`24 \le b < 36`)} м — код C, ${t(String.raw`36 \le b < 52`)} м — код D ${ref("icao")}. С шарклетами считается их размах 35,8 м ${ref("ac-a320")}.</p>
     <h3>Клиренс под гондолой</h3>
     ${tex(String.raw`h = h_0 - \frac{D_{\text{гонд}} - D_{\text{гонд},0}}{2} + \Delta h_{\text{подъём}}`)}
     <p>${t(String.raw`h_0 = ${nf(r.nacelleClearanceM, 2)}`)} м — CFM56-5B при MRW ${ref("ac-a320")}. Норма — не меньше ${nf(r.provenMinClearanceM, 2)} м (A320neo по AC);
@@ -835,7 +842,7 @@ function limitsSection(): string {
     <ul>
       <li>Доли масс — от 737-200, а не A320; формулы Raymer — статистика прошлых поколений. Абсолютная масса узла может отличаться от реальной на 10–20%, изменения — точнее.</li>
       <li>Волновое сопротивление — по уравнению Корна, без расчёта обтекания. LRC 737-8 задаётся исходной таблицей; после изменения самолёта оптимальный режим заново не рассчитывается. Вне таблицы используется явно отмеченное приближение постоянного Маха.</li>
-      <li>Набор, снижение и ожидание ещё не заменены таблицами FCOM. Коэффициенты набора и фиксированные расходы фаз остаются допущениями.</li>
+      <li>Таблицы CES FCOM для набора, снижения и ожидания применяются в области покрытия исходного A320ceo. Для изменённых конструкций эти фазы оцениваются по модели. При сравнении рычагов база пересчитывается тем же методом.</li>
       <li>Тяга на высоте — обобщённая формула для класса двигателей, а не характеристика CFM56 или LEAP; жаркий день и высокогорные аэродромы не считаются.</li>
       <li>Разделение выигрыша двигателя на ядро и вентилятор — допущение (см. «Двигатель»).</li>
       <li>Экономия от композитов (кессон −20%, механизация −15%) — отраслевые диапазоны, не данные Airbus.</li>
@@ -898,7 +905,7 @@ export function renderMethod(current: Evaluation, name = "Сейчас"): string
     ${highLiftSection(current)}
     ${missionSection(current)}
     ${checkSection()}
-    ${leversSection()}
+    ${leversSection(current.definition)}
     ${redesignSection()}
     ${constraintsSection()}
     ${geometrySection()}

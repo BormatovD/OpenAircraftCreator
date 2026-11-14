@@ -199,7 +199,7 @@ export const CONTROLS: Control[] = [
     parts: ["engines"],
     min: 20,
     max: 60,
-    step: 0.5,
+    step: 0.1,
     base: (d) => d.engine.overallPressureRatio,
     format: (v) => num(v),
     toLever: (v) => pressureRatio(v),

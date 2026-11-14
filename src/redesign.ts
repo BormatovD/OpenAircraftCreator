@@ -6,10 +6,10 @@
 // новое MTOW = OEW + нагрузка + топливо. Сходится, если каждое облегчение не порождает больше, чем снимает.
 
 import { type AircraftDefinition } from "./definition.ts";
-import { DEFAULT_MISSION, type EvalContext, type Evaluation, type MissionSpec, bisect, evaluateResolved } from "./evaluate.ts";
+import { DEFAULT_MISSION, type EvalContext, type Evaluation, type MissionSpec, evaluateResolved } from "./evaluate.ts";
 import { type Lever, applyDefinition } from "./levers.ts";
-import { rangeForFuel } from "./mission.ts";
-import { aeroFor, assumptionsFor, engineStateFor } from "./evaluate.ts";
+import { rangeForFuel, solveMissionFuel } from "./mission.ts";
+import { aeroFor, assumptionsForDesign, engineStateFor } from "./evaluate.ts";
 import { computeMasses } from "./mass/massTree.ts";
 import { highLiftRaw } from "./highlift.ts";
 
@@ -77,16 +77,14 @@ export interface RedesignResult {
 }
 
 /** Топливо на взлёте, нужное для расчётной миссии при данных OEW и аэродинамике. */
-function missionTakeoffFuel(def: AircraftDefinition, levers: Lever[], ctx: EvalContext, mission: DesignMission, oewKg: number): number {
-  const as = assumptionsFor(ctx, levers);
+function missionTakeoffFuel(def: AircraftDefinition, levers: Lever[], ctx: EvalContext, mission: DesignMission, oewKg: number) {
+  const as = assumptionsForDesign(def, ctx, levers);
   const aero = aeroFor(def, ctx.aero, levers);
   const engine = engineStateFor(def, ctx, levers, as);
-  return bisect(
-    (fuel) => rangeForFuel(aero, engine, as, oewKg + mission.payloadKg + fuel, fuel).rangeNm,
-    500,
-    60000,
-    mission.rangeNm,
-  );
+  const zfw = oewKg + mission.payloadKg;
+  // Ищем потребность до изменения размеров баков и самолёта.
+  const solved = solveMissionFuel(aero, engine, as, zfw, def.weights.mtowKg, mission.rangeNm);
+  return { fuel: solved.takeoffFuelKg, taxi: as.taxiFuelKg, feasible: solved.result.feasible };
 }
 
 export function redesign(
@@ -102,7 +100,7 @@ export function redesign(
   const ref = scaleWingArea(applied, clMaxLandingRaw(baseDef) / clMaxLandingRaw(applied));
   // Запас MZFW над расчётной нагрузкой — как у базового самолёта со всеми его местами.
   const basePayload = baseDef.systems.seats * reporting.massPerPaxKg;
-  const mzfwMargin = baseDef.weights.mzfwKg - computeMasses(baseDef, ctx.calibration).oewKg - basePayload;
+  const baseOew = computeMasses(baseDef, ctx.calibration).oewKg;
 
   let mtow = ref.weights.mtowKg;
   const history = [mtow];
@@ -111,24 +109,34 @@ export function redesign(
   for (; i < 60; i++) {
     const def = resize(ref, mtow);
     const oew = computeMasses(def, ctx.calibration, levers).oewKg;
-    const fuel = missionTakeoffFuel(def, levers, ctx, mission, oew);
-    const next = oew + mission.payloadKg + fuel;
+    const { fuel, taxi, feasible } = missionTakeoffFuel(def, levers, ctx, mission, oew);
+    if (!feasible) break;
+    // Объём баков растёт как (MTOW / MTOW_ref)^1,5. У лёгкого самолёта
+    // дальность может ограничивать именно объём, даже при свободной взлётной массе.
+    const tankMtow = ref.weights.mtowKg * ((fuel + taxi) / (ref.systems.fuelVolumeL * ctx.fuelDensityKgL)) ** (2 / 3);
+    const next = Math.max(oew + mission.payloadKg + fuel, tankMtow);
     if (!Number.isFinite(next) || next > 3 * ref.weights.mtowKg || next < 0.3 * ref.weights.mtowKg) break;
-    const relaxed = mtow + 0.7 * (next - mtow);
-    history.push(relaxed);
-    if (Math.abs(relaxed - mtow) < 1) {
-      mtow = relaxed;
+    if (Math.abs(next - mtow) < 0.01) {
       converged = true;
       break;
     }
+    const relaxed = mtow + 0.7 * (next - mtow);
+    history.push(relaxed);
     mtow = relaxed;
   }
 
   const sized = resize(ref, mtow);
   const oew = computeMasses(sized, ctx.calibration, levers).oewKg;
   // MZFW: расчётная нагрузка плюс тот же запас, что у базового самолёта.
-  const final: AircraftDefinition = { ...sized, weights: { ...sized.weights, mzfwKg: oew + mission.payloadKg + mzfwMargin } };
-  return { converged, iterations: i + 1, evaluation: evaluateResolved(final, levers, ctx, reporting), mtowKg: mtow, history };
+  const mzfwKg = baseDef.weights.mzfwKg + (oew - baseOew) + (mission.payloadKg - basePayload);
+  const final: AircraftDefinition = { ...sized, weights: { ...sized.weights, mzfwKg } };
+  const evaluation = evaluateResolved(final, levers, ctx, reporting);
+  const as = evaluation.missionAssumptions;
+  const zfw = oew + mission.payloadKg;
+  const available = Math.max(0, Math.min(mtow - zfw, final.systems.fuelVolumeL * ctx.fuelDensityKgL - as.taxiFuelKg));
+  const capacity = rangeForFuel(evaluation.aero, engineStateFor(final, ctx, levers, as), as, zfw + available, available);
+  converged &&= mission.payloadKg <= evaluation.maxPayloadKg + 1e-6 && capacity.feasible && capacity.rangeNm + 0.02 >= mission.rangeNm;
+  return { converged, iterations: Math.min(i + 1, 60), evaluation, mtowKg: mtow, history };
 }
 
 /** Расчётная миссия базового самолёта: все места × масса пассажира на дальность, которую он для этого имеет при MTOW. */

@@ -104,6 +104,8 @@ export interface WaveParams {
   kappa: number;
   tc: number;
   cosSweep: number;
+  /** Общий множитель сопротивления текущей конфигурации. */
+  dragFactor?: number;
 }
 
 export function waveParams(def: AircraftDefinition): WaveParams {
@@ -119,7 +121,7 @@ export function dragDivergenceMach(w: WaveParams, cl: number): { mdd: number; mc
 
 export function waveDrag(w: WaveParams, cl: number, mach: number): number {
   const { mcr } = dragDivergenceMach(w, cl);
-  return mach > mcr ? 20 * Math.pow(mach - mcr, 4) : 0;
+  return mach > mcr ? (w.dragFactor ?? 1) * 20 * Math.pow(mach - mcr, 4) : 0;
 }
 
 export function aspectRatioOf(def: AircraftDefinition): number {

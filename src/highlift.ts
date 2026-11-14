@@ -111,3 +111,13 @@ export function highLiftPerf(def: AircraftDefinition, anchor: number): HighLiftP
 export const HIGHLIFT_MASS_SHARES = { flaps: 0.6, slats: 0.2 };
 /** Двухщелевой закрылок тяжелее однощелевого той же площади: второе звено и сложнее каретки. Допущение: +25%. */
 export const DOUBLE_SLOTTED_MASS = 1.25;
+
+/** Относительная масса при изменении хорды, типа закрылков и наличия предкрылков. */
+export function highLiftMassFactor(wing: AircraftDefinition["wing"]): number {
+  if (!wing.referenceHighLift) return 1;
+  const { flaps, slats } = HIGHLIFT_MASS_SHARES;
+  const relativeMass = (h: typeof wing.highLift) => 1 - flaps - slats
+    + flaps * h.flapChordFraction / 0.26 * (h.flapType === "double" ? DOUBLE_SLOTTED_MASS : 1)
+    + (h.slats ? slats : 0);
+  return relativeMass(wing.highLift) / relativeMass(wing.referenceHighLift);
+}

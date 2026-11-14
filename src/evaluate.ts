@@ -53,6 +53,8 @@ export const DEFAULT_MISSION: MissionSpec = { massPerPaxKg: 95, distanceNm: 810 
 
 export interface Evaluation {
   definition: AircraftDefinition;
+  levers: Lever[];
+  mission: MissionSpec;
   masses: MassBreakdown;
   oewKg: number;
   maxPayloadKg: number;
@@ -108,7 +110,7 @@ export function aeroFor(def: AircraftDefinition, base: BaselineAero, levers: Lev
     spanM: aeroSpanM(def),
     cd0: (cd0 * m.cd0Factor + m.cd0Delta) * m.dragFactor,
     oswald: (oswald + m.oswaldDelta) / m.dragFactor,
-    wave: built ? waveParams(def) : undefined,
+    wave: built ? { ...waveParams(def), dragFactor: m.dragFactor } : undefined,
     cd0Scale: built ? reynoldsScale(def) : undefined,
   };
 }
@@ -116,7 +118,8 @@ export function aeroFor(def: AircraftDefinition, base: BaselineAero, levers: Lev
 /** Множители CD0 по эшелонам от изменения числа Рейнольдса (трение по составляющим, M 0,78). Кешируется по геометрии. */
 const reCache = new Map<string, { fl: number[]; k: number[] }>();
 function reynoldsScale(def: AircraftDefinition): { fl: number[]; k: number[] } {
-  const key = JSON.stringify([def.wing, def.fuselage, def.htail, def.vtail, def.engine.nacelleLengthM, def.engine.nacelleWidthM]);
+  const key = JSON.stringify([def.wing, def.fuselage, def.htail, def.vtail, def.engine.nacelleLengthM,
+    def.engine.nacelleWidthM, def.engine.count, def.engine.installation]);
   let t = reCache.get(key);
   if (!t) {
     const ref = dragBuildup(def).cd0;
@@ -140,6 +143,16 @@ export function engineStateFor(def: AircraftDefinition, ctx: EvalContext, levers
 /** Допущения миссии с учётом рычагов (крейсерское число Маха). */
 export function assumptionsFor(ctx: EvalContext, levers: Lever[]): MissionAssumptions {
   return { ...(ctx.assumptions ?? DEFAULT_ASSUMPTIONS), ...collectMission(levers) };
+}
+
+export function withoutFcomPhases(as: MissionAssumptions): MissionAssumptions {
+  return { ...as, fcomClimb: undefined, fcomDescent: undefined, fcomHolding: undefined };
+}
+
+export function assumptionsForDesign(def: AircraftDefinition, ctx: EvalContext, levers: Lever[]): MissionAssumptions {
+  const as = assumptionsFor(ctx, levers);
+  return (as.fcomClimb || as.fcomDescent || as.fcomHolding) && (levers.length > 0 || !isCesA320Reference(def))
+    ? withoutFcomPhases(as) : as;
 }
 
 export interface CruiseDrag {
@@ -201,13 +214,7 @@ export function evaluateResolved(
   ctx: EvalContext,
   mission: MissionSpec = DEFAULT_MISSION,
 ): Evaluation {
-  const rawAssumptions = assumptionsFor(ctx, levers);
-  // После конструкторских изменений FCOM-таблица исходного A320 больше не применима.
-  // Проверки заводских графиков идут через отдельный A320_CONTEXT без этой таблицы.
-  const as = (rawAssumptions.fcomClimb || rawAssumptions.fcomDescent || rawAssumptions.fcomHolding) &&
-    (!isCesA320Reference(def) || levers.length > 0)
-    ? { ...rawAssumptions, fcomClimb: undefined, fcomDescent: undefined, fcomHolding: undefined }
-    : rawAssumptions;
+  const as = assumptionsForDesign(def, ctx, levers);
   const masses = computeMasses(def, ctx.calibration, levers);
   const aero = aeroFor(def, ctx.aero, levers);
   const engine = engineStateFor(def, ctx, levers, as);
@@ -226,7 +233,8 @@ export function evaluateResolved(
 
   const seats = mission.seats ?? def.systems.seats;
   const maxPayload = Math.max(0, Math.min(w.mzfwKg - oew, w.maxPayloadKg ?? Infinity));
-  const paxPayloadKg = Math.min(seats * mission.massPerPaxKg, maxPayload);
+  const seatsCarried = Math.min(seats, Math.floor((maxPayload + 1e-6) / mission.massPerPaxKg));
+  const paxPayloadKg = seatsCarried * mission.massPerPaxKg;
   const cargoCarriedKg = Math.min(mission.cargoKg ?? 0, Math.max(0, maxPayload - paxPayloadKg));
   const payload = paxPayloadKg + cargoCarriedKg;
   const payloadRequestedKg = seats * mission.massPerPaxKg + (mission.cargoKg ?? 0);
@@ -241,7 +249,6 @@ export function evaluateResolved(
   const km = mission.distanceNm * 1.852;
 
   const payloadLimitedByMzfw = payloadRequestedKg > maxPayload + 1e-6;
-  const seatsCarried = Math.min(seats, Math.floor((paxPayloadKg + 1e-6) / mission.massPerPaxKg));
   // Диаграмма нагрузка–дальность.
   const fuelA = Math.min(fuelCapKg, w.mtowKg - oew - maxPayload);
   const payloadB = Math.max(0, Math.min(maxPayload, w.mtowKg - oew - fuelCapKg));
@@ -276,7 +283,7 @@ export function evaluateResolved(
     message: "Нет пассажиров: расход на пассажира математически не определён.",
   });
   return {
-    definition: def,
+    definition: def, levers, mission,
     masses,
     oewKg: oew,
     maxPayloadKg: maxPayload,

@@ -1,13 +1,24 @@
 import { contextFor } from "../aircraft/contextFor.ts";
 import type { AircraftDefinition } from "../definition.ts";
-import { DEFAULT_MISSION, evaluate, type Evaluation } from "../evaluate.ts";
+import { DEFAULT_MISSION, evaluate, withoutFcomPhases, type Evaluation } from "../evaluate.ts";
 import type { Lever } from "../levers.ts";
 import { designMissionOf, redesign } from "../redesign.ts";
 
-/** Resolve the editable design once, including the geometry produced by redesign. */
+const physicalBaselines = new WeakMap<Evaluation, Evaluation>();
+
+/** Сравниваем изменение проекта при одном методе расчёта набора, снижения и резервов. */
 export function evaluateConfiguration(def: AircraftDefinition, levers: Lever[], mode: "fixed" | "redesign", base: Evaluation) {
   const ctx = contextFor(def);
   const fixed = evaluate(def, levers, ctx);
+  if (base.missionAssumptions.fcomClimb && !fixed.missionAssumptions.fcomClimb) {
+    let physical = physicalBaselines.get(base);
+    if (!physical) {
+      const baseCtx = contextFor(base.definition);
+      physical = evaluate(base.definition, [], { ...baseCtx, assumptions: withoutFcomPhases(base.missionAssumptions) });
+      physicalBaselines.set(base, physical);
+    }
+    base = physical;
+  }
   if (mode === "fixed") return { ev: fixed, base, levers, ctx };
   const mission = { ...designMissionOf(base), payloadKg: fixed.seats * DEFAULT_MISSION.massPerPaxKg };
   const rs = redesign(def, levers, ctx, mission);
