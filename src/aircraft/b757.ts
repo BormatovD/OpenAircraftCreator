@@ -3,6 +3,7 @@
 // Источник размеров, масс, топлива и диаграмм — Boeing D6-58327 «757 Airplane Characteristics for Airport Planning»
 // (ред. H, декабрь 2024): 2.1.1, 2.1.2, 2.2.1, 3.2.2, 3.2.3. «По чертежу» — снято с общего вида 2.2.1 по его масштабу.
 
+import shapes from "../../data/ac/b757-shapes.json" with { type: "json" };
 import { type AircraftDefinition, type EngineDef } from "../definition.ts";
 import { type MissionAssumptions } from "../mission.ts";
 import { A320CEO } from "./a320.ts";
@@ -10,6 +11,11 @@ import { B737_ASSUMPTIONS } from "./b737.ts";
 
 const LB = 0.45359237;
 const LBF = 4.44822;
+
+/** Reference installation shared by the clearance check and the 3D scene. */
+export function b757NacelleFor(engine: EngineDef) {
+  return engine.name.startsWith("PW") ? shapes.nacelleByEngine.PW2000 : shapes.nacelleByEngine.RB211;
+}
 
 const base: AircraftDefinition = {
   id: "b757-200",
@@ -77,7 +83,7 @@ const RB211: EngineDef = {
   overallPressureRatio: 28,
   cycle: { t4K: 1450, coolingFrac: 0.18, fanEff: 0.885, compEff: 0.87, hptEff: 0.87, lptEff: 0.88, gearbox: false },
   nacelleLengthM: 5.4, // допущение: длинная гондола
-  nacelleWidthM: 2.46, // наружная ширина RR: D6-58327 Rev H, 2.2.1 (PDF 20)
+  nacelleWidthM: shapes.nacelleByEngine.RB211.width_m,
   installation: "pylon",
   nacelleRaiseM: 0,
   takeoffThrustKn: (40100 * LBF) / 1000,
@@ -100,7 +106,7 @@ const PW2037: EngineDef = {
   overallPressureRatio: 27.6,
   cycle: { t4K: 1500, coolingFrac: 0.16, fanEff: 0.87, compEff: 0.875, hptEff: 0.875, lptEff: 0.885, gearbox: false },
   nacelleLengthM: 5.6,
-  nacelleWidthM: 2.69, // наружная ширина PW: D6-58327 Rev H, 2.2.1 (PDF 20)
+  nacelleWidthM: shapes.nacelleByEngine.PW2000.width_m,
   takeoffThrustKn: (38250 * LBF) / 1000,
   architecture: { fanBlades: 36, boosterStages: 4, hpcStages: 12, hptStages: 2, spools: 2 },
 };

@@ -7,6 +7,7 @@ import { type AircraftDefinition } from "../definition.ts";
 import { highLiftPerf } from "../highlift.ts";
 import { takeoffThrustN } from "../thrust.ts";
 import { A320_CONTEXT } from "./a320Context.ts";
+import { b757NacelleFor } from "./b757.ts";
 import { comparisonAssumptionsFor } from "./missionProfiles.ts";
 
 const cache = new Map<string, EvalContext>();
@@ -18,6 +19,7 @@ export function contextFor(def: AircraftDefinition): EvalContext {
   let c = cache.get(key);
   if (c) return c;
   const r = A320_CONTEXT.constraintsRef;
+  const nacelle757 = def.shapeSet === "b757" ? b757NacelleFor(def.engine) : undefined;
   const clTo = highLiftPerf(def, A320_CONTEXT.highLiftAnchor).clMaxTakeoff;
   const tofl =
     (r.takeoffFieldLengthM * Math.pow(def.weights.mtowKg / r.mtowKg, 2) * (r.wingAreaM2 / def.wing.areaM2) * (r.clMaxTakeoff / clTo)) /
@@ -35,6 +37,7 @@ export function contextFor(def: AircraftDefinition): EvalContext {
       takeoffThrustN: takeoffThrustN(def),
       clMaxTakeoff: clTo,
       baseLengthM: def.fuselage.lengthM,
+      ...(nacelle757 && { nacelleClearanceM: nacelle757.clearance_m, nacelleWidthM: nacelle757.width_m }),
       // For Tu-214, use the provisional installed PS-90A reference from its own
       // three-view shape, not the A320 nacelle datum (0.58 m).
       ...(def.shapeSet === "tu214" ? { nacelleClearanceM: 0.79, nacelleWidthM: 2.36 } : {}),

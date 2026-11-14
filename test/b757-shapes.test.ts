@@ -3,11 +3,27 @@ import { test } from "node:test";
 import * as THREE from "three";
 import B757 from "../data/ac/b757-shapes.json" with { type: "json" };
 import { B757_PW2037, B757_RB211 } from "../src/aircraft/b757.ts";
+import { contextFor } from "../src/aircraft/contextFor.ts";
+import { evaluate } from "../src/evaluate.ts";
+import { nacelleRaise } from "../src/levers.ts";
 import { buildAircraft } from "../web/scene/aircraft.ts";
 import { nacelleSegments } from "../web/scene/shapes.ts";
 
 const near = (actual: number, reference: number, tolerance: number) =>
   assert.ok(Math.abs(actual - reference) <= tolerance, `${actual} differs from ${reference} by more than ${tolerance}`);
+
+test("757: подсветка клиренса учитывает установленный двигатель, ширину гондолы и подъём пилона", () => {
+  for (const [def, expected] of [[B757_RB211, "0.86 м"], [B757_PW2037, "0.74 м"]] as const) {
+    const clearance = (aircraft = def, raise = 0) => evaluate(aircraft, [nacelleRaise(raise)], contextFor(aircraft))
+      .constraints.find(c => c.id === "nacelle-clearance")!;
+    assert.equal(clearance().value, expected);
+    assert.equal(clearance().status, "ok");
+    const wider = { ...def, engine: { ...def.engine, nacelleWidthM: def.engine.nacelleWidthM + 1.0 } };
+    assert.equal(clearance(wider).status, def === B757_RB211 ? "warning" : "violation");
+    assert.equal(clearance(wider, 0.5).value, expected);
+    assert.equal(clearance(wider, 0.5).status, "ok");
+  }
+});
 
 test("757: обе гондолы RB211 имеют общее сопло и соответствуют установочным размерам", () => {
   const model = buildAircraft(B757_RB211);

@@ -12,6 +12,7 @@ import B757 from "../../data/ac/b757-shapes.json" with { type: "json" };
 import PHOTO_FOREBODIES from "../../data/ac/photo-forebodies.json" with { type: "json" };
 import TU214 from "../../data/ac/tu214-shapes.json" with { type: "json" };
 import { type AircraftDefinition } from "../../src/definition.ts";
+import { b757NacelleFor } from "../../src/aircraft/b757.ts";
 
 type Line = { slope: number; x0: number };
 type P2 = [number, number];
@@ -419,7 +420,7 @@ export const S = (): ShapeSet => current;
 export function useShapes(def: AircraftDefinition): ShapeSet {
   const base = SETS[def.shapeSet ?? "a320"];
   const nacelle = base.id === "b757"
-    ? nacelle757(def.engine.name.startsWith("PW") ? C.nacelleByEngine.PW2000 : C.nacelleByEngine.RB211)
+    ? nacelle757(b757NacelleFor(def.engine))
     : base.nacelle;
   current = { ...base, nacelle, stretchReference: def.fuselage.shapeStretch };
   return current;
