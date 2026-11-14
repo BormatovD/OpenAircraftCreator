@@ -1361,7 +1361,9 @@ body.method-mode .scenario-bar {
 
 @media (max-width: 980px) {
   body {
-    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100%;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto minmax(520px, 72svh) auto auto;
     grid-template-areas: "bar" "scen" "view" "right" "left";
     overflow: auto;
@@ -1969,11 +1971,15 @@ button.kpi-tile {
   position: sticky;
   top: 0;
   z-index: 1;
+  flex-wrap: wrap;
+  overflow: visible;
   background: var(--panel);
   margin: 0 -12px 12px;
   padding: 4px 8px 0;
 }
 .panel.right .tabs button {
+  flex: 1 0 auto;
+  min-inline-size: 6.5em;
   padding: 9px 5px 8px;
   font-size: 12px;
 }
