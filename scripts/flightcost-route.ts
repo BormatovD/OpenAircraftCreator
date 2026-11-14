@@ -1,7 +1,7 @@
 // JSON stdin/stdout adapter for fca serve. Both the page and this runner call flightCostRoute.
 import { readFileSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
-import { A320CEO, A320NEO } from "../src/aircraft/a320.ts";
+import { AIRCRAFT } from "../web/aircraftCatalog.ts";
 import { contextFor } from "../src/aircraft/contextFor.ts";
 import { evaluate } from "../src/evaluate.ts";
 import { evaluateConfiguration } from "../src/integration/configuration.ts";
@@ -12,8 +12,8 @@ import { controlsFor, leversFor } from "../web/controls.ts";
 function run(design: FlightCostDesign, route?: RouteInput) {
   const { aircraft, model } = design;
   const solver = routeModelFor(aircraft.aircraftId);
-  const reference = aircraft.aircraftId === "a320ceo" ? A320CEO : A320NEO;
-  if (!solver || aircraft.engine !== reference.engine.name || (model.routeSolver !== undefined && model.routeSolver !== solver))
+  const reference = AIRCRAFT[aircraft.aircraftId];
+  if (!solver || !reference || aircraft.engine !== reference.engine.name || (model.routeSolver !== undefined && model.routeSolver !== solver))
     throw Error("Несовместимый двигатель или версия расчёта Designer");
   const layout = layoutFor(aircraft.aircraftId, aircraft.layoutId);
   if (!layout || !["fixed", "redesign"].includes(model.mode)) throw Error("Неизвестный салон или режим Designer");

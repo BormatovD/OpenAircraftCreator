@@ -144,6 +144,7 @@ export const CFM56_ROUTE_MODEL = "a320ceo-cfm56-5b-mission-v1";
 export function routeModelFor(aircraftId: string) {
   if (aircraftId === "a320ceo") return CFM56_ROUTE_MODEL;
   if (aircraftId === "a320neo") return LEAP_ROUTE_MODEL;
+  if (aircraftId === "a321neo") return "a321neo-leap-mission-v1" as const;
   return undefined;
 }
 
@@ -153,7 +154,7 @@ export interface FlightCostDesign {
   aircraft: { icao: string; aircraftId: string; engine: string; weightProfile: string; layoutId: string; cabin: CabinZone[]; seats: number };
   weights: { oew_kg: number; mtow_kg: number; mzfw_kg: number; mlw_kg: number; fuel_capacity_kg: number };
   geometry: { length_m: number; span_m: number };
-  model: { routeSolver?: typeof LEAP_ROUTE_MODEL | typeof CFM56_ROUTE_MODEL; mode: "fixed" | "redesign"; controls: Record<string, number | boolean>; provisional: true };
+  model: { routeSolver?: ReturnType<typeof routeModelFor>; mode: "fixed" | "redesign"; controls: Record<string, number | boolean>; provisional: true };
 }
 
 /** No guess for fuel burn here: FlightCost must select and label its own method. */
