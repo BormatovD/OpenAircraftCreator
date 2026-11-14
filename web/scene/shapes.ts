@@ -2,6 +2,7 @@
 // Система координат: x — вдоль фюзеляжа назад от носа, y — вверх, z — по размаху вправо. Метры.
 
 import * as THREE from "three";
+import { B737_800_NACELLE } from "../../src/aircraft/b737ng.ts";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { buildCockpitFairing, insideCockpitFairing } from "./cockpitFairing.ts";
 import { S } from "./shapeSet.ts";
@@ -316,6 +317,8 @@ export interface SurfaceShape {
    * Произвольная форма в плане (крыло с изломом задней кромки): по доле размаха u
    * возвращает смещение передней кромки от корня по x и хорду. Если не задана — трапеция.
    */
+  /** Optional curved centreline in the span plane, with its local inclination (radians). */
+  spanPath?: (u: number) => { rise: number; run: number; angle: number };
   planform?: (u: number) => { le: number; chord: number; thickness?: number };
   /** Абсолютная полутолщина в точке (u, v), м — для поверхностей с наплывом (форкиль), где профиль не подобен. */
   halfThickness?: (u: number, v: number) => number;
@@ -335,13 +338,14 @@ export function surfacePoint(s: SurfaceShape, u: number, v: number, upper: boole
   const t = pf?.thickness ?? s.thicknessRoot + (s.thicknessTip - s.thicknessRoot) * u;
   const chord = pf ? pf.chord : s.rootChordM + (s.tipChordM - s.rootChordM) * u;
   const le = pf ? pf.le : span * Math.tan((s.leadingEdgeSweepDeg * Math.PI) / 180);
-  const d = (s.dihedralDeg * Math.PI) / 180;
+  const path = s.spanPath?.(u);
+  const d = path?.angle ?? (s.dihedralDeg * Math.PI) / 180;
   const half = (s.halfThickness ? s.halfThickness(u, v) : nacaHalfThickness(Math.max(1e-4, v), t) * chord) * (upper ? 1 : -1);
   // Базис консоли: вдоль размаха и по нормали к её плоскости (для киля нормаль — вдоль z).
-  const spanDir = new THREE.Vector3(0, Math.sin(d), side * Math.cos(d));
+  const rise = path?.rise ?? span * Math.sin(d);
+  const run = path?.run ?? span * Math.cos(d);
   const normal = new THREE.Vector3(0, Math.cos(d), -side * Math.sin(d));
-  return new THREE.Vector3(s.root.x + le + v * chord, s.root.y, s.root.z)
-    .addScaledVector(spanDir, span)
+  return new THREE.Vector3(s.root.x + le + v * chord, s.root.y + rise, s.root.z + side * run)
     .addScaledVector(normal, half);
 }
 
@@ -583,13 +587,27 @@ export function engineCutaway(e: EngineSpec): EnginePiece[] {
 // контура), открытый кожух ядра, сопло внутреннего контура и конус — 1,44 м; высота 2,60 м.
 // Профили — радиус по длине в метрах для базовой гондолы; модель масштабирует их по рычагам.
 
-export type NacelleStyle = "longDuct" | "separateFlow" | "ps90a" | "rb211" | "pw2037";
+export type NacelleStyle = "cfm56-7b" | "longDuct" | "separateFlow" | "ps90a" | "rb211" | "pw2037";
 export interface NacelleSegment {
   id: "inlet" | "lip" | "fanCowl" | "reverser" | "nozzle" | "coreCowl" | "plug";
   geometry: THREE.BufferGeometry;
 }
 
 const NACELLE_PROFILES: Record<NacelleStyle, { referenceLength: number; radius: number; fanFaceX: number; segs: Record<string, [number, number][]> }> = {
+  // 737-800 template, axial sections of the lip, cowls and exhaust in metres.
+  // The separate core and unscalloped fan nozzle are visible behind the reverser.
+  "cfm56-7b": {
+    referenceLength: B737_800_NACELLE.lengthM, radius: B737_800_NACELLE.widthM / 2, fanFaceX: 0.86,
+    segs: {
+      lip: [[0.86, 0.79], [0.35, 0.82], [0.12, 0.86], [0.02, 0.93],
+        [0, 0.98], [0.06, 1.08], [0.26, 1.19], [0.51, 1.24]],
+      fanCowl: [[0.51, 1.24], [0.80, 1.265], [1.40, 1.265], [2.12, 1.24]],
+      reverser: [[2.12, 1.24], [2.43, 1.22], [2.98, 1.14], [3.38, 1.04], [3.58, 0.97], [3.58, 0.92]],
+      coreCowl: [[3.15, 0.80], [3.58, 0.68], [3.78, 0.61], [4.03, 0.56]],
+      nozzle: [[4.03, 0.56], [4.22, 0.48], [4.22, 0.44]],
+      plug: [[4.04, 0.29], [4.47, 0.22], [4.96, 0.07], [5.16, 0]],
+    },
+  },
   longDuct: {
     referenceLength: 4.44,
     radius: 1.15,
@@ -676,6 +694,20 @@ export function nacelleSegments(style: NacelleStyle, lengthK: number, radiusK: n
       48,
     );
     g.rotateZ(-Math.PI / 2);
+    if (style === "cfm56-7b") {
+      // The accessories widen the lower fan cowl. Keep the fan bore circular
+      // and smoothly flatten the underside of the outer lip and reverser.
+      const flattening = 1 - 2 * B737_800_NACELLE.lowerRadiusPerWidth;
+      const points = g.getAttribute("position");
+      for (let i = 0; i < points.count; i++) {
+        const y = points.getY(i), z = points.getZ(i);
+        const radius = Math.hypot(y, z) / radiusK;
+        const shell = THREE.MathUtils.smoothstep(radius, 0.79, 1.07);
+        const bottom = Math.max(0, -y / (P.radius * radiusK));
+        points.setY(i, y * (1 - flattening * shell * bottom * bottom));
+      }
+      g.computeVertexNormals();
+    }
     return { id: id as NacelleSegment["id"], geometry: g };
   });
 }

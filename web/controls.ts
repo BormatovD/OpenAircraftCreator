@@ -539,4 +539,4 @@ export const SCENARIOS: Scenario[] = [
 ];
 
 /** Сценарии 737 не переносятся автоматически на 757. */
-export const scenarioFamily = (aircraftId: string) => aircraftId.startsWith("tu214") ? "tu214" : aircraftId.startsWith("b757") ? "b757" : aircraftId.startsWith("b737") ? "b737" : "airbus";
+export const scenarioFamily = (aircraftId: string) => aircraftId.startsWith("tu214") ? "tu214" : aircraftId.startsWith("b757") ? "b757" : aircraftId.startsWith("b737") ? aircraftId : "airbus";

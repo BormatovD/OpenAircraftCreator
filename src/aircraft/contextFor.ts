@@ -7,6 +7,7 @@ import { type AircraftDefinition } from "../definition.ts";
 import { highLiftPerf } from "../highlift.ts";
 import { takeoffThrustN } from "../thrust.ts";
 import { A320_CONTEXT } from "./a320Context.ts";
+import { B737_800, B737_800_NACELLE } from "./b737ng.ts";
 import { b757NacelleFor } from "./b757.ts";
 import { comparisonAssumptionsFor } from "./missionProfiles.ts";
 
@@ -37,6 +38,13 @@ export function contextFor(def: AircraftDefinition): EvalContext {
       takeoffThrustN: takeoffThrustN(def),
       clMaxTakeoff: clTo,
       baseLengthM: def.fuselage.lengthM,
+      ...(def.id === B737_800.id && {
+        nacelleClearanceM: B737_800_NACELLE.clearanceM,
+        nacelleWidthM: B737_800_NACELLE.widthM,
+        nacelleLowerRadiusPerWidth: B737_800_NACELLE.lowerRadiusPerWidth,
+        provenMinClearanceM: B737_800_NACELLE.clearanceM,
+        clearanceReference: "737-800W при максимальной рулёжной массе, Boeing §2.3.3",
+      }),
       ...(nacelle757 && { nacelleClearanceM: nacelle757.clearance_m, nacelleWidthM: nacelle757.width_m }),
       // For Tu-214, use the provisional installed PS-90A reference from its own
       // three-view shape, not the A320 nacelle datum (0.58 m).

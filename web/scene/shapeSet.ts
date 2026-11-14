@@ -7,6 +7,7 @@
 //  • tu214 — пользовательский Ту-204-200 трёхвид + УИ ГА 2024 → tools/tu214_shapes.py.
 
 import A320 from "../../data/ac/a320-shapes.json" with { type: "json" };
+import { B737_800, B737_800_NACELLE } from "../../src/aircraft/b737ng.ts";
 import B737 from "../../data/ac/b737-8-shapes.json" with { type: "json" };
 import B757 from "../../data/ac/b757-shapes.json" with { type: "json" };
 import PHOTO_FOREBODIES from "../../data/ac/photo-forebodies.json" with { type: "json" };
@@ -421,6 +422,12 @@ export function useShapes(def: AircraftDefinition): ShapeSet {
   const base = SETS[def.shapeSet ?? "a320"];
   const nacelle = base.id === "b757"
     ? nacelle757(b757NacelleFor(def.engine))
+    : def.id === B737_800.id ? {
+      ...base.nacelle,
+      refLengthM: B737_800_NACELLE.lengthM,
+      clearanceM: B737_800_NACELLE.clearanceM,
+      axisY: base.groundY + B737_800_NACELLE.clearanceM + B737_800_NACELLE.widthM * B737_800_NACELLE.lowerRadiusPerWidth,
+    }
     : base.nacelle;
   current = { ...base, nacelle, stretchReference: def.fuselage.shapeStretch };
   return current;

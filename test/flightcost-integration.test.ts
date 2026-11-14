@@ -64,6 +64,7 @@ test("Fuselage stretch changes the physical seats and exported cabin plan togeth
 test("Sane trailing partial rows 194, 178, 225 and 239 are not rounded up", () => {
   for (const [id, layout, expected] of [
     ["a320neo", "a320-194", 194],
+    ["b737-800", "b738-189", 189],
     ["b737-8", "b38m-178", 178],
     ["b757-200-pw", "b752-225", 225],
     ["b757-200-rb", "b752-239", 239],

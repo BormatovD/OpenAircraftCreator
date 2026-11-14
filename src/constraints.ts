@@ -22,6 +22,9 @@ export interface ConstraintReference {
   /** Клиренс гондолы при MRW, м (AC 2-3-0: CFM56-5B ≈0,57–0,59). */
   nacelleClearanceM: number;
   nacelleWidthM: number;
+  /** Ось — низ гондолы, в долях её ширины. Для круглой гондолы 0,5. */
+  nacelleLowerRadiusPerWidth?: number;
+  clearanceReference?: string;
   /** Угол касания хвостом при обжатой стойке, ° (Airbus Safety First / FCOM: 11,7°). */
   tailStrikeDeg: number;
   /** Расстояние от основных стоек до точки касания хвостом, м. Откалибровано по A321. */
@@ -65,15 +68,16 @@ export function checkConstraints(
         : "Код D: стоянки и рулёжки для более широких самолётов, часть аэропортов недоступна. Решение у 777X — складные законцовки",
   });
 
-  // 2. Клиренс гондолы: нижняя кромка опускается на половину прироста ширины гондолы, плюс подъём установки.
-  const clearance = ref.nacelleClearanceM - (def.engine.nacelleWidthM - ref.nacelleWidthM) / 2 + def.engine.nacelleRaiseM;
+  // При изменении размера нижний радиус масштабируется вместе с гондолой.
+  const radiusChange = (def.engine.nacelleWidthM - ref.nacelleWidthM) * (ref.nacelleLowerRadiusPerWidth ?? 0.5);
+  const clearance = ref.nacelleClearanceM - radiusChange + def.engine.nacelleRaiseM;
   out.push({
     id: "nacelle-clearance",
     label: "Клиренс под гондолой",
     // Допуск 0,005 м — точность значений AC.
     status: clearance >= ref.provenMinClearanceM - 0.005 ? "ok" : clearance >= 0.3 ? "warning" : "violation",
     value: `${clearance.toFixed(2)} м`,
-    limit: `≥ ${ref.provenMinClearanceM} м (как у A320neo); < 0,30 м — условный предел модели`,
+    limit: `≥ ${ref.provenMinClearanceM} м (${ref.clearanceReference ?? "как у A320neo"}); < 0,30 м — условный предел модели`,
     message:
       clearance >= ref.provenMinClearanceM - 0.005
         ? "Помещается без изменений пилона и шасси"

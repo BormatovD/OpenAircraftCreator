@@ -15,6 +15,15 @@ test("выбор типов сохраняет доступный вариант
   assert.equal(AIRCRAFT["b757-200-pw"].engine.name, "PW2037");
 });
 
+test("737 NG and MAX keep separate engines, cabins and scenarios", () => {
+  assert.deepEqual(variantsFor("b737"), ["b737-8", "b737-800"]);
+  assert.notEqual(scenarioFamily("b737-800"), scenarioFamily("b737-8"));
+  const ng = AIRCRAFT["b737-800"];
+  assert.equal(ng.engine.name, "CFM56-7B26");
+  assert.equal(ng.wing.tip, "blended");
+  assert.ok(!controlsFor(ng).some(c => c.id === "lrc" || c.id === "sharklets"));
+});
+
 test("757: UI показывает M0,80, не применяет рычагов по умолчанию и не наследует сценарии 737", () => {
   for (const id of variantsFor("b757")) {
     const def = AIRCRAFT[id];

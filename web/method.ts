@@ -85,6 +85,12 @@ export const SOURCES: Source[] = [
     note: "737-300: массы, OEW, топливо, размеры (2.1.6, 2.2.3), нагрузка–дальность (3.2.6)",
   },
   {
+    id: "b737ng",
+    title: "Boeing. Next-Generation 737 Airplane Characteristics for Airport Planning, D6-58325-7, ред. C (октябрь 2025)",
+    url: "https://www.boeing.com/content/dam/boeing/v2/airports/acaps/737NG_REV_C.pdf#page=40",
+    note: "737-800 с винглетами, §2.3.3, строка D. Номинальный клиренс двигателя при MTW и OEW.",
+  },
+  {
     id: "b737max",
     title: "Boeing. D6-38A004 737 MAX Airplane Characteristics for Airport Planning, ред. K (июль 2025)",
     url: "https://www.boeing.com/commercial/airports/plan-manuals",
@@ -767,6 +773,9 @@ function constraintsSection(): string {
     ${tex(String.raw`h = h_0 - \frac{D_{\text{гонд}} - D_{\text{гонд},0}}{2} + \Delta h_{\text{подъём}}`)}
     <p>${t(String.raw`h_0 = ${nf(r.nacelleClearanceM, 2)}`)} м — CFM56-5B при MRW ${ref("ac-a320")}. Норма — не меньше ${nf(r.provenMinClearanceM, 2)} м (A320neo по AC);
     чистая геометрия NEO даёт ≈0,40 м, поэтому подъём установки на ≈6 см выведен, а не взят из источника. Порог 0,30 м — условный.</p>
+    <p>Для 737-800 с винглетами исходная модель использует номинальные 0,48 м при максимальной рулёжной массе
+    (0,64 м при эксплуатационной массе пустого самолёта) ${ref("b737ng")}. В сцене стойки зафиксированы в положении для рулёжной массы.
+    При изменении ширины гондолы её сплюснутый нижний профиль масштабируется вместе с ней.</p>
     <h3>Угол касания хвостом</h3>
     ${tex(String.raw`\theta = \arctan\frac{l \tan\theta_0}{l + \Delta L/2}`)}
     <p>${t(String.raw`\theta_0 = ${nf(r.tailStrikeDeg, 1)}^\circ`)} — A320 при обжатых стойках ${ref("safety-first")}; плечо ${t(String.raw`l = ${nf(r.tailContactArmM, 1)}`)} м подобрано так,

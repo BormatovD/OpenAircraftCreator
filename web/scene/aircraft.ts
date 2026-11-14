@@ -348,6 +348,23 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
       side,
     });
     add("wingtips", both((s) => surfaceGeometry(sharklet(s), 8, 14)), v3(0, -6.5, 0), v3(0, 1.8, 2), false, 4.5);
+  } else if (w.tip === "blended" && SH.id === "b737") {
+    // Rounded single NG winglet. Overall span follows Boeing; height and taper
+    // follow the winglet sections of the same -800 template as the wing.
+    const winglet = (side: 1 | -1) => {
+      const root = surfacePoint(wingShape(side), 1, 0, true);
+      const run = aeroSpanM(def) / 2 - Math.abs(root.z);
+      const height = 2.74;
+      return surfaceGeometry({
+        root, side, rootChordM: ct, tipChordM: 0.31, semiSpanM: height,
+        leadingEdgeSweepDeg: 37, dihedralDeg: 0, thicknessRoot: 0.09, thicknessTip: 0.07,
+        spanPath: u => ({
+          rise: height * u * u, run: run * u * (1.55 - 0.55 * u),
+          angle: Math.atan2(2 * height * u, run * (1.55 - 1.10 * u)),
+        }),
+      }, 22, 18);
+    };
+    add("wingtips", both(winglet), v3(0, -6.5, 0), v3(0, 1.8, 2), false, 4.5);
   } else if (w.tip === "blended" && SH.id === "tu214") {
     // Ту-214: загнутые кверху законцовки без нижней пластины A320. Взят внешний силуэт
     // с фотографии пользователя; точный радиус сопряжения и площадь пока оценочные.
@@ -562,13 +579,14 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   const axisY = (SH.nacelle.axisY ?? groundY + SH.nacelle.clearanceM + 2.37 / 2) + e.nacelleRaiseM;
   // Гондола по AC 2-12-0: тип по двухконтурности (длинный канал CFM56 или раздельные потоки LEAP),
   // длина и радиус — от базовой гондолы этого типа, масштабированной по определению.
-  const style = pw2037 ? "pw2037" : rb211 ? "rb211" : ps90a ? "ps90a" : nacelleStyleFor(e.bypassRatio);
+  const style = e.name === "CFM56-7B26" ? "cfm56-7b" : pw2037 ? "pw2037" : rb211 ? "rb211" : ps90a ? "ps90a" : nacelleStyleFor(e.bypassRatio);
   const { lengthK, radiusK } = nacelleScale(style, shellLength, e.nacelleWidthM);
   const nacelleParts: THREE.BufferGeometry[] = [];
   for (const side of [1, -1] as const) {
     for (const seg of nacelleSegments(style, lengthK, radiusK)) {
       seg.geometry.translate(nacX, axisY, side * engZ);
       if (((ps90a || rb211) && seg.id === "nozzle") || seg.id === "lip") seg.geometry.userData.tone = "detailSteel";
+      if (style === "cfm56-7b" && seg.id === "nozzle") seg.geometry.userData.tone = "detailSteel";
       if (pw2037 && seg.id === "coreCowl") seg.geometry.userData.tone = "detailSteel";
       if (pw2037 && (seg.id === "nozzle" || seg.id === "plug")) seg.geometry.userData.tone = "detailDark";
       // При разборе сегменты расходятся вдоль оси — видно, из чего состоит гондола.

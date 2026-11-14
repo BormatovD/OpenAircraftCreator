@@ -13,6 +13,12 @@ import { defaults, leversFor } from "../web/controls.ts";
 const runner = fileURLToPath(new URL("../scripts/flightcost-route.ts", import.meta.url));
 
 for (const preset of PRESETS) {
+  if (preset.aircraftId === "b737-800") {
+    test("737-800 preview does not advertise a route solver to FlightCost", () => {
+      assert.equal(preset.routeSolver, undefined);
+    });
+    continue;
+  }
   test(`Replay every saved cabin of ${preset.aircraftId} with its own engine and weight profile`, () => {
     const reference = AIRCRAFT[preset.aircraftId];
     const base = evaluate(reference, [], contextFor(reference));

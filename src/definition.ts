@@ -6,7 +6,7 @@ export interface WingDef {
   areaM2: number;
   /** Конструктивный размах без законцовок. */
   spanM: number;
-  /** Законцовки: blended = штатный загнутый наконечник Ту-214, без отдельной прибавки размаха/массы A320. */
+  /** Законцовки: blended = штатная загнутая законцовка. sharkletSpanM задаёт полный размах и для blended. */
   tip: "none" | "fence" | "sharklet" | "blended";
   sharkletSpanM: number;
   taper: number;
@@ -173,5 +173,5 @@ export interface AircraftDefinition {
 
 /** Размах, который «видит» аэродинамика: с шарклетами — их размах. */
 export function aeroSpanM(def: AircraftDefinition): number {
-  return def.wing.tip === "sharklet" ? def.wing.sharkletSpanM : def.wing.spanM;
+  return def.wing.tip === "sharklet" || def.wing.tip === "blended" ? def.wing.sharkletSpanM : def.wing.spanM;
 }

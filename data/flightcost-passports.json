@@ -100,6 +100,17 @@
       "oew_t": 59,
       "seats_max": 210,
       "seats_typical": 194
+    },
+    "B738": {
+      "cruise_mach": 0.789,
+      "engine": "CFM56-7B26",
+      "engine_count": 2,
+      "fuel_capacity_t": 26,
+      "mlw_t": 66.3,
+      "mtow_t": 79,
+      "oew_t": 41.4,
+      "seats_max": 189,
+      "seats_typical": 189
     }
   }
 }

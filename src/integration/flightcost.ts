@@ -5,7 +5,7 @@
  * Presets are modelling choices, not certified airline LOPA documents.
  */
 import DATA from "../../web/public/aircraft-configurations.v1.json" with { type: "json" };
-import type { AircraftDefinition } from "../definition.ts";
+import { aeroSpanM, type AircraftDefinition } from "../definition.ts";
 
 export interface CabinZone {
   class: "business" | "economy" | "premium";
@@ -179,7 +179,7 @@ export function flightCostDesign(def: AircraftDefinition, oewKg: number, control
     version: FC_VERSION,
     aircraft: { icao: preset.icao, aircraftId, engine: preset.engine, weightProfile: preset.weightProfile, layoutId, cabin, seats: def.systems.seats },
     weights: { oew_kg: oewKg, mtow_kg: def.weights.mtowKg, mzfw_kg: def.weights.mzfwKg, mlw_kg: def.weights.mlwKg, fuel_capacity_kg: def.systems.fuelVolumeL * fuelDensityKgL },
-    geometry: { length_m: def.fuselage.lengthM, span_m: def.wing.tip === "sharklet" ? def.wing.sharkletSpanM : def.wing.spanM },
+    geometry: { length_m: def.fuselage.lengthM, span_m: aeroSpanM(def) },
     model: { ...(routeSolver ? { routeSolver } : {}), mode, controls: { ...controls }, provisional: true },
   };
 }

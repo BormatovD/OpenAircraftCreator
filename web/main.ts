@@ -816,7 +816,9 @@ function renderScenarios(): void {
     b.addEventListener("click", () => applyScenario(b.dataset.scenario === state.scenarioId ? null : b.dataset.scenario!));
   const s = SCENARIOS.find((x) => x.id === state.scenarioId);
   const text = $("scenario-text");
-  text.textContent = s?.text ?? (fam === "b737"
+  text.textContent = s?.text ?? (fam === "b737-800"
+    ? "737-800 · CFM56-7B26. Для сравнения компоновок выберите салон."
+    : fam === "b737-8"
     ? "Сценарии про решения самого 737: что дал бы больший вентилятор, старое крыло, пилон."
     : fam === "tu214"
       ? "Ту-214 / ПС-90А: предварительный инженерный прогноз, не подтверждён по графикам РЛЭ. Масса, дальность и цикл двигателя требуют независимой проверки."
