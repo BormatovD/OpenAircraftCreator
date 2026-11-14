@@ -752,7 +752,8 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   for (const side of [1, -1] as const) {
     const reverserOrigin = v3(nacX, axisY, side * engZ);
     const segments = nacelleSegments(style, lengthK, radiusK);
-    const wingAt = (u: number) => surfacePoint(wingShape(side), engZ / semi, u, false).sub(reverserOrigin);
+    const mountSpan = ps90a ? engZ / wingWidth : engZ / semi;
+    const wingAt = (u: number, upper = false) => surfacePoint(wingShape(side), mountSpan, u, upper).sub(reverserOrigin);
     // Пилон: от верха гондолы к нижней поверхности крыла, передняя кромка скошена.
     let pg: THREE.BufferGeometry | undefined;
     if (rb211 || pw2037) {
@@ -790,31 +791,6 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
         bevelSize: 0.055 * radiusK, bevelSegments: 4, curveSegments: 20 });
       pg.translate(0, 0, side * engZ - 0.14 * radiusK);
       if (pw2037) pg.userData.tone = "detailPanel";
-    } else if (ps90a) {
-      // The plan view shows a narrow rounded fairing from behind the intake
-      // to the wing underside. Both attachment rings intersect their hosts.
-      const upper = surfacePoint(wingShape(side), engZ / semi, 0.18, false);
-      const lowerX = nacX + 1.12 * lengthK;
-      const lowerY = axisY + 0.86 * R;
-      const rootChordM = 3.70 * lengthK;
-      const tipChordM = upper.x - lePoint.x + 1.07 * lengthK;
-      const heightM = upper.y + 0.12 - lowerY;
-      pg = surfaceGeometry({
-        root: v3(lowerX, lowerY, side * engZ),
-        rootChordM, tipChordM, semiSpanM: heightM,
-        leadingEdgeSweepDeg: THREE.MathUtils.radToDeg(Math.atan2(lePoint.x - 1.05 * lengthK - lowerX, heightM)),
-        dihedralDeg: 90, thicknessRoot: 0.12, thicknessTip: 0.13,
-      }, 14, 32);
-      // Follow the narrowing cowl instead of leaving a gap below the aft pylon.
-      const points = pg.getAttribute("position");
-      for (let i = 0; i < points.count; i++) {
-        const u = (points.getY(i) - lowerY) / heightM;
-        const chordM = THREE.MathUtils.lerp(rootChordM, tipChordM, u);
-        const leadingX = THREE.MathUtils.lerp(lowerX, lePoint.x - 1.05 * lengthK, u);
-        const v = (points.getX(i) - leadingX) / chordM;
-        points.setY(i, points.getY(i) - 0.38 * R * v * (1 - u));
-      }
-      pg.computeVertexNormals();
     } else if (!pylonSpec) {
       const pyl = new THREE.Shape();
       const x0 = nacX + 0.9 * lengthK;
@@ -830,22 +806,22 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
       pg.translate(0, 0, side * engZ - 0.16);
     }
     if (pylonSpec && pg) {
-      // Keep the drawing-registered 757 and Tu-214 side silhouettes. Round
-      // their fairings in plan while retaining the existing intake/nozzle clearance.
+      // Taper the 757 fairing in plan while keeping its registered side profile.
       const vertices = pg.getAttribute("position");
       pg.computeBoundingBox();
       const bounds = pg.boundingBox!;
       for (let i=0; i<vertices.count; i++) {
         const x=vertices.getX(i), z=vertices.getZ(i) - side*engZ;
         const t=THREE.MathUtils.inverseLerp(bounds.min.x,bounds.max.x,x);
-        const scale = rb211 || pw2037 ? (1-.66*THREE.MathUtils.smoothstep(t,.56,1)) : (.86+.14*Math.sin(t*Math.PI));
+        const scale = 1 - 0.66 * THREE.MathUtils.smoothstep(t, 0.56, 1);
         vertices.setZ(i, side*engZ + z*scale);
       }
       pg.boundingBox = null;
       pg.computeVertexNormals();
     }
     const localPylon = pg && pylonSpec ? pg.translate(-nacX, -axisY, -side * engZ) : undefined;
-    const installation = pylonSpec && installationGeometry(pylonSpec, segments, lengthK, radiusK, wingAt, localPylon);
+    const installation = pylonSpec && installationGeometry(pylonSpec, segments, lengthK, radiusK, wingAt,
+      localPylon, ps90a ? u => wingAt(u, true) : undefined);
     if (installation) pg = installation.fairing.translate(nacX, axisY, side * engZ);
     const shells = segments.flatMap(seg => {
       if (pylonSpec && (seg.id === "fanCowl" && pylonSpec.cowlPanels !== "undivided" ||
@@ -1148,10 +1124,15 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
       const route = rb211 ? [pyl, upperEntry, wingEntry, middle, engineEntry] : [pyl, wingEntry, middle, engineEntry];
       harness.push(bundle(route, false));
     } else if (ps90a) {
-      const insideWing = mid(engZ / semi);
-      insideWing.x -= 0.60 * lengthK;
-      harness.push(bundle([pyl, insideWing, v3(nacX + 3.30 * lengthK, axisY + R * 0.77, side * engZ),
-        v3(nacX + 2.80 * lengthK, axisY + R * 0.52, side * engZ)], false));
+      // Enter through the fixed wing skin above the saddle. Turning forward
+      // inside the pylon keeps the bundle behind its rounded leading edge.
+      const entry = surfacePoint(wingShape(side), engZ / wingWidth, .18, false);
+      entry.z = side * engZ;
+      const engineEntry = v3(nacX + 2.38 * lengthK, axisY + R * .77, side * engZ);
+      const turn = entry.clone().lerp(engineEntry, .22);
+      turn.x = entry.x - .10 * lengthK;
+      harness.push(bundle([pyl, entry, turn, engineEntry,
+        v3(nacX + 2.00 * lengthK, axisY + R * .52, side * engZ)], false));
     } else {
       harness.push(bundle([pyl, v3(pyl.x - 0.6, axisY + R * 0.9, side * engZ), v3(pyl.x - 1.6, axisY + R * 0.55, side * engZ)], false));
     }

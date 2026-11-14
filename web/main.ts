@@ -2048,6 +2048,12 @@ if (isLocalReview && (reviewPart === "engines" || reviewPart === "nacelles" || r
   }
   if (reviewPart === "pylons") {
     state.drawerTab = MOUNTS_TAB;
+    if (launchParams.get("view") === "side") {
+      const direction = new THREE.Vector3(0, 0, selectedSide || 1);
+      camera.position.copy(controls.target).addScaledVector(direction, 12);
+      camera.lookAt(controls.target);
+      controls.update();
+    }
     renderLevers();
     applySelection();
     requestCameraFrame();

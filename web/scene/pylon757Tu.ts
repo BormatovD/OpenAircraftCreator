@@ -61,12 +61,17 @@ export const pylon757Tu = {
     cowlPanels: "halves",
   },
   ps90a: {
-    noseX: 1.12,
-    shoulderX: 5.48,
-    noseRise: .73,
-    shoulderRise: .50,
-    halfWidth: .22,
-    aftWingFraction: .18,
+    fairingProfile: "ps90a",
+    // Photographic Tu-214 outline: a slim rounded foot grows aft along the
+    // crown to a nearly straight high roof and short upper-wing saddle. Scene fit
+    // parameters, not published pylon dimensions.
+    noseX: .72,
+    shoulderX: 3.80,
+    noseRise: .52,
+    shoulderRise: .60,
+    halfWidth: .18,
+    upperWingFraction: .14,
+    aftWingFraction: .38,
     // PS-90A has forward, middle, and rear support zones. The rear three-link
     // suspension carries direct/reverse thrust; the rear bracket reaches the
     // Tu pylon beam through a paired tie-rod connection.

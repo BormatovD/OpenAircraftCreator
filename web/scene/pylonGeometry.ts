@@ -4,12 +4,14 @@ import type { NacelleSegment } from "./shapes.ts";
 
 type MountStation = readonly [x: number, caseRadius: number, spread: number];
 export interface PylonSpec {
+  fairingProfile?: "ps90a";
   noseX: number;
   shoulderX: number;
   noseRise: number;
   shoulderRise: number;
   halfWidth: number;
   aftWingFraction: number;
+  upperWingFraction?: number;
   frontMount: MountStation;
   middleMount?: MountStation;
   rearMount: MountStation;
@@ -130,7 +132,8 @@ function join(geoms: THREE.BufferGeometry[], role: string, tone: string, name = 
 }
 
 export function installationGeometry(spec: PylonSpec, segments: NacelleSegment[], kx: number, kr: number,
-  wing: (chord: number) => THREE.Vector3, existingFairing?: THREE.BufferGeometry) {
+  wing: (chord: number) => THREE.Vector3, existingFairing?: THREE.BufferGeometry,
+  wingUpper: (chord: number) => THREE.Vector3 = wing) {
   // Work in installed metres about the inlet centre, +X aft, +Y up.
   const skin = skinDatum(segments.find(s => s.id === "fanCowl")!.geometry);
   const le = wing(0), aft = wing(spec.aftWingFraction);
@@ -200,7 +203,98 @@ export function installationGeometry(spec: PylonSpec, segments: NacelleSegment[]
     g.computeVertexNormals();
     return g;
   }
-  const fairing = existingFairing ?? loft();
+  function ps90Loft() {
+    // Photos establish the external silhouette, not wing-to-pylon fittings:
+    // a short rounded nose, a nearly straight high roof and a short upper saddle.
+    const points: number[] = [], indices: number[] = [];
+    const count = 112, sides = 40;
+    // The inlet has inner and outer branches at different x stations. A
+    // radius interpolated through all profile rings can incorrectly follow
+    // the duct branch. Sample the rendered outer skin from above instead.
+    const crownMaterial = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+    const crownMeshes = segments.filter(s => !s.geometry.userData.reverserMotion ||
+      ["frame", "sleeve"].includes(s.geometry.userData.reverserMotion.role))
+      .map(s => new THREE.Mesh(s.geometry, crownMaterial));
+    const crownRay = new THREE.Raycaster(v(0, 20 * kr, .001 * kr), v(0, -1, 0));
+    const crownCache = new Map<number, number>();
+    const outerCrown = (x: number) => {
+      let y = crownCache.get(x);
+      if (y !== undefined) return y;
+      crownRay.ray.origin.x = x;
+      y = crownRay.intersectObjects(crownMeshes).find(hit => hit.point.y > 0)?.point.y ?? crownY(x);
+      crownCache.set(x, y);
+      return y;
+    };
+    const upperFraction = spec.upperWingFraction ?? spec.aftWingFraction;
+    const upperSeat = wingUpper(0), upperAft = wingUpper(upperFraction);
+    const fore = Math.min(nose + .78 * kx, lerp(nose, upperSeat.x, .16));
+    const noseTop = outerCrown(nose) + .018 * kr;
+    const seatY = upperSeat.y - .018 * kr;
+    const foreTop = Math.max(noseTop + .025 * kr, lerp(noseTop, seatY, .63));
+    const roofSlope = (seatY - foreTop) / (upperSeat.x - fore);
+    const fractionAt = (x: number) => clamp((x - upperSeat.x) / (aft.x - upperSeat.x), 0, 1) * spec.aftWingFraction;
+    const buried = (f: number) => lerp(wingUpper(f).y, wing(f).y, .55);
+    const upper = (x: number) => {
+      if (x < fore) {
+        const t = clamp((x - nose) / (fore - nose), 0, 1);
+        // Enter the straight line tangentially, without a vertical nose wall.
+        const rise = foreTop - noseTop, endTangent = roofSlope * (fore - nose);
+        return noseTop + t * ((2 - t) * rise - (1 - t) * endTangent);
+      }
+      const line = foreTop + roofSlope * (x - fore);
+      if (x <= upperSeat.x) return line;
+      // Carry the same tangent through the wing nose. Following the rapid
+      // rise of the airfoil here exposes a pointed ridge on the swept wing.
+      const f = fractionAt(x);
+      return Math.min(line, wingUpper(f).y - .018 * kr,
+        lerp(line, buried(f), smoothstep(f, 0, upperFraction)));
+    };
+    const lower = (x: number) => {
+      const liftStart = Math.max(spec.rearMount[0] * kx, shoulder);
+      const endFloor = buried(spec.aftWingFraction) - .016 * kr;
+      return lerp(outerCrown(x) - .018 * kr, endFloor, smoothstep(x, liftStart, aft.x));
+    };
+    for (let i = 0; i <= count; i++) {
+      // Cosine station spacing resolves both rounded leading and trailing ends.
+      const t = .5 - .5 * Math.cos(Math.PI * i / count), x = lerp(nose, aft.x, t);
+      const roof = upper(x), floor = Math.min(roof - .012 * kr, lower(x));
+      const noseBlend = Math.sqrt(Math.max(0, 1 - (1 - clamp((x - nose) / (.70 * kx), 0, 1)) ** 2));
+      const tailBlend = 1 - .92 * smoothstep(x, seated.x, aft.x);
+      const width = halfWidth * (.045 + .955 * noseBlend) * tailBlend;
+      for (let j = 0; j < sides; j++) {
+        const a = 2 * Math.PI * j / sides, cy = Math.cos(a), sz = Math.sin(a);
+        const z = width * Math.sign(sz) * Math.abs(sz) ** .72;
+        const across = Math.sqrt(Math.max(0, outerCrown(x) ** 2 - z ** 2)) - outerCrown(x);
+        const y = lerp(floor + across * (1 - smoothstep(x, seated.x, aft.x)), roof,
+          .5 + .5 * Math.sign(cy) * Math.abs(cy) ** .72);
+        points.push(x, y, z);
+        if (i < count) {
+          const a0 = i * sides + j, a1 = i * sides + (j + 1) % sides;
+          indices.push(a0, a1, a1 + sides, a0, a1 + sides, a0 + sides);
+        }
+      }
+    }
+    // Separate centre vertices close the two small rounded end sections.
+    for (const end of [0, count]) {
+      const base = end * sides, center = points.length / 3;
+      let centerY = 0;
+      for (let j = 0; j < sides; j++) centerY += points[3 * (base + j) + 1] / sides;
+      points.push(points[3 * base], centerY, 0);
+      for (let j = 0; j < sides; j++) {
+        const a = base + j, b = base + (j + 1) % sides;
+        if (end === 0) indices.push(center, b, a); else indices.push(center, a, b);
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(points, 3));
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    geometry.userData.fairingProfile = "ps90a";
+    geometry.userData.pylonLoft = { nose, fore, shoulder, seated: seated.toArray(), upperSeat: upperSeat.toArray(), upperAft: upperAft.toArray(), aft: aft.toArray(), count, sides };
+    crownMaterial.dispose();
+    return geometry;
+  }
+  const fairing = existingFairing ?? (spec.fairingProfile === "ps90a" ? ps90Loft() : loft());
   // Recompute after changes in plan and translation into inlet coordinates.
   // Raycaster uses the bounding sphere as well as the vertex buffer.
   fairing.computeBoundingSphere();
@@ -211,19 +305,30 @@ export function installationGeometry(spec: PylonSpec, segments: NacelleSegment[]
   const mat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
   const shell = new THREE.Mesh(fairing, mat);
   const ray = new THREE.Raycaster(v(0, 10, .001 * kr), v(0, -1, 0));
-  const frameY = (x: number) => {
+  const frameCache = new Map<number, { y: number; depth: number }>();
+  const frameSection = (x: number) => {
+    const cached = frameCache.get(x);
+    if (cached) return cached;
     ray.ray.origin.x = x;
     const hits = ray.intersectObject(shell);
-    if (!hits.length) return top(x) - .055 * kr;
-    const ceiling = hits[0].point.y, keel = hits.at(-1)!.point.y;
-    return ceiling - Math.min(.09 * kr, (ceiling - keel) * .45);
+    const ceiling = hits[0]?.point.y ?? top(x), keel = hits.at(-1)?.point.y ?? ceiling - .12 * kr;
+    const section = { y: hits.length ? ceiling - Math.min(.09 * kr, (ceiling - keel) * .45) : top(x) - .055 * kr,
+      depth: ceiling - keel };
+    frameCache.set(x, section);
+    return section;
   };
+  const frameY = (x: number) => frameSection(x).y;
   const beamStart = spec.frontMount[0] * kx, beamEnd = Math.max(aft.x - .09, spec.rearMount[0] * kx);
   const beam: THREE.BufferGeometry[] = [];
   for (let i = 0; i < 8; i++) {
     const x0 = lerp(beamStart, beamEnd, i / 8), x1 = lerp(beamStart, beamEnd, (i + 1) / 8);
     const a = v(x0, frameY(x0), 0), b = v(x1, frameY(x1), 0);
-    const beamSection = new THREE.BoxGeometry(a.distanceTo(b) + .004 * kr, .092 * kr, Math.min(.18 * kr, halfWidth * .92));
+    // At a raised or enlarged PS-90A the available web can become shallow.
+    // Preserve a continuous beam inside that actual body instead of leaving
+    // its fixed-height box protruding through the external fairing.
+    const depth = spec.fairingProfile === "ps90a" ? Math.min(.092 * kr,
+      .55 * Math.min(frameSection(x0).depth, frameSection(x1).depth, frameSection((x0 + x1) / 2).depth)) : .092 * kr;
+    const beamSection = new THREE.BoxGeometry(a.distanceTo(b) + .004 * kr, depth, Math.min(.18 * kr, halfWidth * .92));
     const center = a.clone().lerp(b, .5);
     beam.push(beamSection.rotateZ(Math.atan2(b.y - a.y, b.x - a.x)).translate(center.x, center.y, 0));
   }
