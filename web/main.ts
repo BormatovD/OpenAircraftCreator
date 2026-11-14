@@ -56,6 +56,8 @@ const COMPOSITE_PARTS: Record<string, string> = { compositeBox: "wing.box", comp
 
 const launchParams = new URLSearchParams(window.location.search);
 const flightCostOrigin = import.meta.env.VITE_FLIGHTCOST_ORIGIN || FC_ORIGIN;
+const cardPreview = launchParams.get("view") === "aircraft-preview";
+if (cardPreview) document.documentElement.classList.add("aircraft-preview");
 const isFlightCostEmbed = launchParams.get("embed") === "flightcost" && window.parent !== window;
 const hasFlightCostParams = ["ac", "aircraft", "engine", "layout"].some((key) => launchParams.has(key));
 const requested = hasFlightCostParams ? resolveFlightCostAircraft(launchParams) : null;
@@ -148,6 +150,7 @@ function run(): void {
   buildScene();
   timing.scene = performance.now() - t;
   t = performance.now();
+  if (cardPreview) return;
   renderMetrics();
   renderFlightCostRoute();
   renderPassport();
@@ -162,7 +165,7 @@ function run(): void {
 
 // ——— Сцена ———
 const viewport = $("viewport");
-const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: cardPreview, preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 viewport.appendChild(renderer.domElement);
 const labelRenderer = new CSS2DRenderer();
@@ -174,9 +177,30 @@ viewport.appendChild(labelRenderer.domElement);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(32, 1, 0.5, 2500);
 // Только исходный ракурс: центр и расстояние определятся по геометрии выбранного типа.
-camera.position.set(-60, 17.5, 56);
+if (cardPreview) camera.position.set(-36, 22, 70);
+else camera.position.set(-60, 17.5, 56);
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = !reduceMotion;
+controls.enableDamping = !reduceMotion && !cardPreview;
+if (cardPreview) {
+  controls.enablePan = false;
+  controls.enableZoom = false;
+  renderer.domElement.tabIndex = 0;
+  renderer.domElement.setAttribute("aria-label", initialId);
+  window.addEventListener("keydown", (event) => {
+    const step = Math.PI / 18;
+    switch (event.key) {
+      case "Escape":
+        if (window.parent !== window) window.parent.postMessage({ type: "aircraft-preview-close" }, flightCostOrigin);
+        break;
+      case "ArrowLeft": controls.rotateLeft(step); break;
+      case "ArrowRight": controls.rotateLeft(-step); break;
+      case "ArrowUp": controls.rotateUp(step); break;
+      case "ArrowDown": controls.rotateUp(-step); break;
+      default: return;
+    }
+    event.preventDefault();
+  });
+}
 controls.update();
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0x334455, 1.1));
@@ -352,7 +376,7 @@ function buildScene(): void {
       }
     });
     const node = masses.byId.get(part.id);
-    if (!node || node.kg < 1) continue;
+    if (cardPreview || !node || node.kg < 1) continue;
     const center = partCenter(part);
     const labelPos = center.clone().add(part.labelOffset);
     const el = document.createElement("div");
@@ -372,6 +396,12 @@ function buildScene(): void {
     callouts.set(part.id, { el, obj, line });
   }
 
+  if (cardPreview) {
+    applyExplode();
+    requestCameraFrame();
+    edgeMat.dispose();
+    return;
+  }
   applySelection();
   renderTree();
   requestCameraFrame();
@@ -719,7 +749,7 @@ function frameCamera(): void {
   });
   // Если новая панель уже перекрывает самолёт, вписываем сразу. Плавное приближение
   // безопасно, когда весь самолёт помещается и в начальный, и в конечный кадр.
-  if (!cameraFrameReady || reduceMotion || !currentFits) {
+  if (cardPreview || !cameraFrameReady || reduceMotion || !currentFits) {
     controls.target.copy(frame.target);
     camera.position.copy(frame.position);
     aim = null;
@@ -1446,7 +1476,7 @@ const pointer = new THREE.Vector2();
 let downAt: { x: number; y: number } | null = null;
 renderer.domElement.addEventListener("pointerdown", (e) => (downAt = { x: e.clientX, y: e.clientY }));
 renderer.domElement.addEventListener("pointerup", (e) => {
-  if (!downAt || !model) return;
+  if (cardPreview || !downAt || !model) return;
   const moved = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y);
   downAt = null;
   if (moved > 4) return;
@@ -1459,7 +1489,7 @@ renderer.domElement.addEventListener("pointerup", (e) => {
 
 let hoverFrame = 0;
 renderer.domElement.addEventListener("pointermove", (e) => {
-  if (!model || downAt) return;
+  if (cardPreview || !model || downAt) return;
   cancelAnimationFrame(hoverFrame);
   hoverFrame = requestAnimationFrame(() => {
     const r = renderer.domElement.getBoundingClientRect();
@@ -1630,6 +1660,7 @@ try {
 } catch {
   state.livery = "night";
 }
+if (cardPreview) state.livery = "blue";
 function renderLiveries(): void {
   const box = $<HTMLSelectElement>("livery");
   const opts = [...LIVERIES.map((l) => [l.id, l.label]), [NO_LIVERY, "Без окраски"]];
@@ -1702,13 +1733,13 @@ function resize(): void {
 }
 window.addEventListener("resize", resize);
 // Перенос строк шапки, смена вкладки и открытие панели меняют сцену без window.resize.
-new ResizeObserver(resize).observe(viewport);
+if (!cardPreview) new ResizeObserver(resize).observe(viewport);
 const panelObserver = new ResizeObserver(requestCameraFrame);
 panelObserver.observe($("metrics"));
 panelObserver.observe($("drawer"));
 
 try {
-  const saved = localStorage.getItem("oac-theme");
+  const saved = cardPreview ? "dark" : localStorage.getItem("oac-theme");
   if (saved === "light" || saved === "dark") {
     document.documentElement.dataset.theme = saved;
     themeBtn.textContent = saved === "dark" ? "Светлая тема" : "Тёмная тема";
@@ -1718,7 +1749,10 @@ try {
 }
 resize();
 scene.background = new THREE.Color(css("--bg"));
-env.setTheme(document.documentElement.dataset.theme !== "light");
+if (cardPreview) {
+  env.group.visible = false;
+  scene.background = null;
+} else env.setTheme(document.documentElement.dataset.theme !== "light");
 syncHeader();
 renderScenarios();
 run();
@@ -1758,24 +1792,42 @@ function animateLights(dt: number): void {
     }
   }
 }
-const clock = new THREE.Clock();
-renderer.setAnimationLoop(() => {
-  const dt = Math.min(clock.getDelta(), 0.1);
-  if (document.body.classList.contains("method-mode")) return;
-  env.update(dt, state.spin && !reduceMotion);
-  stepCamera(dt);
-  pose();
-  animateLights(dt);
-  if (model && !reduceMotion && state.spin) {
-    const eng = model.parts.get("engines");
-    if (eng)
-      for (const o of eng.group.children) {
-        const sp = o.userData.spin as "lp" | "hp" | null;
-        if (sp) o.rotation.x += SPIN[sp] * dt;
-      }
+if (cardPreview) {
+  // The card is a still scene. Draw only when the viewport or the orbit changes.
+  const draw = () => renderer.render(scene, camera);
+  const fit = () => {
+    if (!viewport.clientWidth || !viewport.clientHeight) return;
+    resize();
+    frameCamera();
+    controls.update();
+    draw();
+  };
+  new ResizeObserver(fit).observe(viewport);
+  controls.addEventListener("change", draw);
+  fit();
+  if (!launchError && window.parent !== window) {
+    window.parent.postMessage({ type: "aircraft-preview-ready", aircraft: initialId, layout: initialLayoutId }, flightCostOrigin);
   }
-  controls.update();
-  renderer.render(scene, camera);
-  labelRenderer.render(scene, camera);
-  declutter(performance.now());
-});
+} else {
+  const clock = new THREE.Clock();
+  renderer.setAnimationLoop(() => {
+    const dt = Math.min(clock.getDelta(), 0.1);
+    if (document.body.classList.contains("method-mode")) return;
+    env.update(dt, state.spin && !reduceMotion);
+    stepCamera(dt);
+    pose();
+    animateLights(dt);
+    if (model && !reduceMotion && state.spin) {
+      const eng = model.parts.get("engines");
+      if (eng)
+        for (const o of eng.group.children) {
+          const sp = o.userData.spin as "lp" | "hp" | null;
+          if (sp) o.rotation.x += SPIN[sp] * dt;
+        }
+    }
+    controls.update();
+    renderer.render(scene, camera);
+    labelRenderer.render(scene, camera);
+    declutter(performance.now());
+  });
+}
