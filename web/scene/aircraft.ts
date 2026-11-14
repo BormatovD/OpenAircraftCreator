@@ -16,6 +16,8 @@ import { pylonFor } from "./pylonPackages.ts";
 import { cowlDoors, installationGeometry, isSuspensionHardware } from "./pylonGeometry.ts";
 import { fleetMountTravel } from "./fleetClearance.ts";
 import { fleetPackages, isFleetStyle } from "./fleetPackages.ts";
+import { cutBayOpenings, type BayOpening } from "./gearOpenings.ts";
+import { bayProfile, mainDoors, noseDoors } from "./gearBay.ts";
 import { mainLandingGear, noseLandingGear } from "./landingGear.ts";
 import { cockpitGlazing } from "./cockpit.ts";
 import { cabinOpenings } from "./features.ts";
@@ -359,7 +361,8 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
     ft.geometry.userData.tone = ft.tone;
     return ft.geometry;
   });
-  add("fuselage", [fuselageGeometry(f), fairing, ...glazing, ...fittings], v3(0, 0, 0), v3(7, 2.6, 3));
+  const hull = fuselageGeometry(f);
+  add("fuselage", [hull, fairing, ...glazing, ...fittings], v3(0, 0, 0), v3(7, 2.6, 3));
 
   // ——— Крыло ———
   const w = def.wing;
@@ -897,9 +900,63 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   const pivotY = wingMidAt(G.mainZ);
   const anchorY = wingMidAt(G.mainZ - 1.35 * (G.mainZ / 3.795));
   const tandem = def.gear.mainWheels / def.gear.mainStruts === 4;
-  const legs = ([1, -1] as const).flatMap(side => mainLandingGear(G, side, v3(mainX, pivotY, side * G.mainZ), groundY, anchorY, tandem));
+  const profile = bayProfile(SH.id);
+  // Close the panels against the installed surfaces (including the centre-section fairing),
+  // not against a flat datum. Keep small seams and clearance to prevent coincident faces.
+  const belly = (x: number, z: number) => {
+    const { hw, hh, cy } = fuselageSection(f, x);
+    if (z > hw) return Infinity;
+    let low = cy - hh, high = cy;
+    for (let i = 0; i < 12; i++) {
+      const mid = (low + high) / 2;
+      if (fuselageHalfWidthAt(f, x, mid) < z) low = mid; else high = mid;
+    }
+    return low;
+  };
+  const mainSkin = (x: number, z: number) => {
+    const B = SH.fairing;
+    const section = Math.max(0, 1 - ((x - modelX(L, B.x)) / B.sx) ** 2);
+    const u = z / semi, { le, chord } = wingPlanform(u);
+    const chordPos = Math.max(0, Math.min(1, (x - wingRoot.x - le) / chord));
+    const wy = surfacePoint(wingShape(1), u, chordPos, false).y;
+    const shell = Math.min(wy, belly(x, z));
+    // The coarse centre-section ellipsoid ends in a vertical rim above the wing.
+    // Fair the moving panel around that rim with a tangent cubic instead of
+    // jumping across the open edge from the bottom of the fairing to the wing.
+    const edge = B.sz * Math.sqrt(section), mix = .75;
+    const start = edge * mix, end = edge + .45;
+    let fairingY = Infinity;
+    if (edge > 0 && z <= start) {
+      fairingY = B.y - B.sy * Math.sqrt(section - (z / B.sz) ** 2);
+    } else if (edge > 0 && z < end) {
+      const root = Math.sqrt(section * (1 - mix ** 2));
+      const y0 = B.y - B.sy * root;
+      const slope = B.sy * start / (B.sz ** 2 * root);
+      const t = (z - start) / (end - start);
+      fairingY = THREE.MathUtils.lerp(y0, wy, t * t * (3 - 2 * t))
+        + slope * (end - start) * t * (1 - t) ** 2;
+    }
+    return Math.min(shell, fairingY) - .014;
+  };
+  const legs = ([1, -1] as const).flatMap(side => {
+    const pivot = v3(mainX, pivotY, side * G.mainZ);
+    return [...mainLandingGear(G, side, pivot, groundY, anchorY, tandem, profile),
+    ...(profile ? mainDoors(profile, G, side, pivot, mainSkin) : [])];
+  });
   add("gear.main", legs, v3(0, -9, 0), v3(9, -2.5, -4));
-  add("gear.nose", noseLandingGear(G, groundY), v3(-2.5, -8, 0), v3(-1.5, -1.4, -1.5));
+  const nose = noseLandingGear(G, groundY, profile);
+  if (profile) nose.push(...noseDoors(profile, G, nose[0].userData.basePos, (x, z) => belly(x, z) - .014));
+  if (profile) {
+    const openings = (geometries: THREE.BufferGeometry[]) => geometries.flatMap(g =>
+      g.userData.bayOpening ? [g.userData.bayOpening as BayOpening] : []);
+    const mainOpenings = openings(legs);
+    cutBayOpenings(hull, [...openings(nose), ...mainOpenings], true);
+    cutBayOpenings(fairing, mainOpenings, false);
+    for (const mesh of parts.get("wing.box")!.group.children as THREE.Mesh[]) {
+      cutBayOpenings(mesh.geometry, mainOpenings, true);
+    }
+  }
+  add("gear.nose", nose, v3(-2.5, -8, 0), v3(-1.5, -1.4, -1.5));
 
   // ——— Бортовые системы (внутри фюзеляжа, при разлёте поднимаются над ним ярусами) ———
   add("avionics", avionicsRack(2.95), v3(0, 6.5, 0), v3(-1, 1, -1.5));

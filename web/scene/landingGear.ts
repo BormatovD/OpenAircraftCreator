@@ -2,10 +2,12 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { ShapeSet } from "./shapeSet.ts";
 
+import { mainTravelAngle, type GearProfile } from "./gearBay.ts";
+
 type Gear = ShapeSet["gear"];
 type Side = -1 | 1;
 type Retraction = { axis: "x" | "z"; angle: number };
-type Brace = { pin: THREE.Vector3; anchor: THREE.Vector3; downElbow: THREE.Vector3; retraction: Retraction; upper: boolean };
+type Brace = { pin: THREE.Vector3; anchor: THREE.Vector3; downElbow: THREE.Vector3; retraction: Retraction; foldToward?: THREE.Vector3; upper: boolean };
 
 const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 const yAxis = v(0, 1, 0);
@@ -80,14 +82,14 @@ function forkLinks(length: number, gauge: number) {
   return join("torque-links", "detailSteel", links);
 }
 
-function bracePair(anchor: THREE.Vector3, pin: THREE.Vector3, elbow: THREE.Vector3, gauge: number, retraction: Retraction) {
+function bracePair(anchor: THREE.Vector3, pin: THREE.Vector3, elbow: THREE.Vector3, gauge: number, retraction: Retraction, foldToward?: THREE.Vector3) {
   return [true, false].map(upper => {
     const a = upper ? anchor : elbow, b = upper ? elbow : pin;
     const g = join(upper ? "upper-stay" : "lower-stay", "detailPanel", [
       rod(a, b, gauge * (upper ? .048 : .040)), bearing(a, gauge * .064, gauge * .083),
       ...(upper ? [] : [bearing(b, gauge * .064, gauge * .082)]),
     ]);
-    g.userData.gearBrace = { pin, anchor, downElbow: elbow, retraction, upper } satisfies Brace;
+    g.userData.gearBrace = { pin, anchor, downElbow: elbow, retraction, foldToward, upper } satisfies Brace;
     return g;
   });
 }
@@ -99,7 +101,7 @@ const elbowNow = new THREE.Vector3(), oldDir = new THREE.Vector3(), newDir = new
  * The middle joint follows the chosen folding side of the two-sphere intersection.
  * Called after the normal exploded-view translation has been applied to the mesh. */
 export function applyGearBracePose(mesh: THREE.Mesh, gearUp: number): void {
-  const { pin, anchor, downElbow, retraction, upper } = mesh.geometry.userData.gearBrace as Brace;
+  const { pin, anchor, downElbow, retraction, foldToward, upper } = mesh.geometry.userData.gearBrace as Brace;
   mesh.quaternion.identity();
   pinNow.copy(pin).applyAxisAngle(hingeAxes[retraction.axis], gearUp * retraction.angle);
   line.subVectors(pinNow, anchor);
@@ -108,7 +110,12 @@ export function applyGearBracePose(mesh: THREE.Mesh, gearUp: number): void {
   line.divideScalar(distance);
   const a = anchor.distanceTo(downElbow), b = pin.distanceTo(downElbow);
   const along = (a * a - b * b + distance * distance) / (2 * distance);
-  bend.subVectors(downElbow, anchor).addScaledVector(line, -bend.dot(line));
+  // A controlled folding plane keeps the knee inside the well when the two end pins
+  // come close together. The nose brace folds upward in the longitudinal plane;
+  // the main side brace folds aft. The two links retain their individual lengths.
+  if (foldToward) bend.copy(foldToward);
+  else bend.subVectors(downElbow, anchor);
+  bend.addScaledVector(line, -bend.dot(line));
   const height = Math.sqrt(Math.max(0, a * a - along * along));
   elbowNow.copy(anchor).addScaledVector(line, along).addScaledVector(bend.normalize(), height);
   const start = upper ? anchor : downElbow, target = upper ? anchor : elbowNow;
@@ -120,10 +127,10 @@ export function applyGearBracePose(mesh: THREE.Mesh, gearUp: number): void {
   if (retraction.axis === "z") mesh.visible = gearUp < .97;
 }
 
-export function mainLandingGear(g: Gear, side: Side, pivot: THREE.Vector3, ground: number, anchorY: number, tandem: boolean) {
+export function mainLandingGear(g: Gear, side: Side, pivot: THREE.Vector3, ground: number, anchorY: number, tandem: boolean, profile?: GearProfile) {
   const length = pivot.y - ground - g.mainR;
   const gauge = g.mainR / .584;
-  const retract: Retraction = { axis: "x", angle: side * THREE.MathUtils.degToRad(g.retractDeg) };
+  const retract: Retraction = { axis: "x", angle: side * mainTravelAngle(profile, g) };
   const p = (h: number) => v(0, -length * h, 0);
   const axleXs = tandem && g.axleSpacingM ? [-g.axleSpacingM / 2, g.axleSpacingM / 2] : [0];
   const leg = [
@@ -143,17 +150,24 @@ export function mainLandingGear(g: Gear, side: Side, pivot: THREE.Vector3, groun
     leg.push(join("axle", "detailSteel", [bearing(axle, .082 * gauge, g.mainWheelGap)]));
     for (const k of [-1, 1] as const) leg.push(...wheel(g.mainR, g.mainTireW, v(x, -length, k * g.mainWheelGap), k, true));
   }
-  for (const part of leg) Object.assign(part.userData, { basePos: pivot, side, retract });
+  const bogieNames = new Set(["bogie-beam", "axle", "tyre", "wheel-hub", "wheel-brake"]);
+  for (const part of leg) {
+    Object.assign(part.userData, { basePos: pivot, side, retract, gearProfile: profile });
+    if (profile && tandem && bogieNames.has(part.name)) part.userData.gearBogie = v(0, -length + .11 * gauge, 0);
+  }
   const anchor = v(.09 * gauge, anchorY - pivot.y, -side * 1.35 * (g.mainZ / 3.795));
   const pin = v(0, -.53 * length, 0);
-  const elbow = anchor.clone().lerp(pin, .5).add(v(.18 * gauge, -.07 * gauge, 0));
-  const stays = bracePair(anchor, pin, elbow, gauge, retract);
-  for (const part of stays) Object.assign(part.userData, { side, basePos: pivot });
+  const fold = profile ? v(1, 0, 0) : undefined;
+  const elbow = anchor.clone().lerp(pin, .5).add(fold ? fold.clone().multiplyScalar(.18 * gauge) : v(.18 * gauge, -.07 * gauge, 0));
+  const stays = bracePair(anchor, pin, elbow, gauge, retract, fold);
+  for (const part of stays) Object.assign(part.userData, { side, basePos: pivot, gearProfile: profile });
   return [...leg, ...stays];
 }
 
-export function noseLandingGear(g: Gear, ground: number) {
-  const length = g.noseLegM, rake = THREE.MathUtils.degToRad(g.rakeDeg);
+export function noseLandingGear(g: Gear, ground: number, profile?: GearProfile) {
+  // The old external leg stopped at the belly. Extend the trunnion inside the bay
+  // so the forward-folding tyre actually clears the closed doors. Keep the axle station on the ground.
+  const length = g.noseLegM + (profile ? g.noseR + .13 : 0), rake = THREE.MathUtils.degToRad(g.rakeDeg);
   const gauge = g.noseR / .381;
   const gap = g.noseWheelGap ?? .3, width = g.noseTireW ?? .22;
   const pivot = v(g.noseX + length * Math.sin(rake), ground + g.noseR + length * Math.cos(rake), 0);
@@ -173,11 +187,12 @@ export function noseLandingGear(g: Gear, ground: number) {
   // Position the wheels after strut rake so the discretised tyre crown still contacts the ground.
   const axle = p(1).applyAxisAngle(hingeAxes.z, -rake);
   for (const k of [-1, 1] as const) leg.push(...wheel(g.noseR, width, v(axle.x, axle.y, k * gap), k, false));
-  for (const part of leg) Object.assign(part.userData, { basePos: pivot, retract });
+  for (const part of leg) Object.assign(part.userData, { basePos: pivot, retract, gearProfile: profile });
   const pin = p(.52).applyAxisAngle(hingeAxes.z, -rake);
   const anchor = v(-length * .66, .04 * length, 0);
-  const elbow = anchor.clone().lerp(pin, .5).add(v(0, 0, .12 * gauge));
-  const stays = bracePair(anchor, pin, elbow, gauge * .75, retract);
-  for (const part of stays) part.userData.basePos = pivot;
+  const fold = profile ? v(0, 1, 0) : undefined;
+  const elbow = anchor.clone().lerp(pin, .5).add(fold ? fold.clone().multiplyScalar(.12 * gauge) : v(0, 0, .12 * gauge));
+  const stays = bracePair(anchor, pin, elbow, gauge * .75, retract, fold);
+  for (const part of stays) Object.assign(part.userData, { basePos: pivot, gearProfile: profile });
   return [...leg, ...stays];
 }

@@ -4,7 +4,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { CSS2DObject, CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import { isSuspensionHardware } from "./scene/pylonGeometry.ts";
 import { pylonFor } from "./scene/pylonPackages.ts";
-import { AIRCRAFT, AIRCRAFT_CHOICES, AIRCRAFT_LABEL, aircraftForType, typeOf, variantsFor } from "./aircraftCatalog.ts";
+import { AIRCRAFT, AIRCRAFT_LABEL, typeOf } from "./aircraftCatalog.ts";
+import { bindAircraftPickers } from "./aircraftPickers.ts";
 import { contextFor } from "../src/aircraft/contextFor.ts";
 import { type ConstraintResult } from "../src/constraints.ts";
 import { type AircraftDefinition } from "../src/definition.ts";
@@ -21,6 +22,7 @@ import { applyReverserMotion, coreRadiusFor, lptStagesFor, nacelleStyleFor, type
 import { scenarioFamily, CONTROLS, type Control, type Mode, SCENARIOS, type Values, controlsFor, defaults, isChanged, leversFor } from "./controls.ts";
 import { type AircraftModel, type Family, FAMILY, buildAircraft, installedGroundClearance, installationLimits, partCenter } from "./scene/aircraft.ts";
 import { applyGearBracePose } from "./scene/landingGear.ts";
+import { applyGearBayPose, gearLegTravel } from "./scene/gearBay.ts";
 import { applyHighLiftHinge, type HighLiftHinge } from "./scene/highLiftHinge.ts";
 import { Environment, PHASES, type Phase } from "./scene/environment.ts";
 import { LIVERIES, NO_LIVERY, PLAIN_FIN, finLiveryTexture, liveryById } from "./scene/livery.ts";
@@ -501,10 +503,15 @@ const selectEdgeMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 
 function paintEdges(): void {
   if (!model) return;
   selectEdgeMat.color.set(css("--accent"));
+  const bay = inspectingGearBay();
   for (const part of model.parts.values()) {
     const on = part.id === state.selected || !!state.focus?.has(part.id);
+    const glass = (!!state.focus && !state.focus.has(part.id)) || (bay && part.id !== state.selected);
     part.group.traverse((o) => {
-      if (o instanceof THREE.LineSegments && o.userData.isEdge) o.material = on ? selectEdgeMat : (o.userData.baseMat as THREE.Material);
+      if (o instanceof THREE.LineSegments && o.userData.isEdge) {
+        o.material = on ? selectEdgeMat : (o.userData.baseMat as THREE.Material);
+        o.visible = !glass;
+      }
     });
   }
 }
@@ -515,12 +522,14 @@ const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 
  * Положение каждой детали: разбор (k), выпуск механизации и уборка шасси по фазе полёта.
  * Вызывается каждый кадр — фаза меняется плавно.
  */
-function pose(phase: { gear: number; flaps: number } = env.current): void {
+function pose(phase: { gear: number; flaps: number } = env.current, groundDrop = env.current.drop): void {
   if (!model) return;
   const k = ease(state.explode);
   const inspecting = state.drawerTab === TRAVEL_TAB ? mechanismFor(state.selected) : null;
   const retraction = (1 - (inspecting === "gear" ? inspectionTravel.gear : phase.gear)) * (1 - k);
   const flaps = inspecting === "highLift" ? inspectionTravel.highLift : phase.flaps;
+  // The truck levels under load on the runway. Blend to its free angle as the aircraft lifts.
+  const unloaded = THREE.MathUtils.smoothstep(groundDrop, 0, PHASES.takeoff.groundDrop);
   const inspectingReverser = state.selected === "nacelles" && state.drawerTab === REVERSER_TAB;
   const inspectingMounts = state.selected === "nacelles" && state.drawerTab === MOUNTS_TAB;
   for (const part of model.parts.values()) {
@@ -549,18 +558,20 @@ function pose(phase: { gear: number; flaps: number } = env.current): void {
       // посадка — 40° и 27°. Каретка выдвигается быстрее, чем растёт угол (так устроен Фаулер).
       const h = o.userData.hinge as HighLiftHinge | null;
       if (h) applyHighLiftHinge(o, h, flaps * (1 - kp));
-      // Подкосы складываются при уборке — в модели их просто убираем, пока стойка не выпущена.
       if (o.userData.hideRetracted) o.visible = gearUp < 0.08;
+      const profile = o.geometry.userData.gearProfile;
+      const legTravel = profile ? gearLegTravel(profile, gearUp) : gearUp;
       const r = o.userData.retract as { axis: "x" | "z"; angle: number } | null;
       if (r) {
-        o.rotation[r.axis] = r.angle * gearUp;
-        // Передняя стойка у A320 закрывается створками полностью — в убранном положении её не видно.
+        if (profile) o.rotation.set(0, 0, 0);
+        o.rotation[r.axis] = r.angle * legTravel;
         if (r.axis === "z") o.visible = inspecting === "gear" || gearUp < 0.97;
       }
       if (o.geometry.userData.gearBrace) {
-        applyGearBracePose(o, gearUp);
+        applyGearBracePose(o, legTravel);
         if (inspecting === "gear") o.visible = true;
       }
+      if (profile) applyGearBayPose(o, gearUp, unloaded);
     }
   }
   env.setGround(model.groundY, 11 * k);
@@ -697,20 +708,26 @@ function declutter(now: number): void {
   }
 }
 
+function inspectingGearBay(): boolean {
+  const type = typeOf(state.aircraftId);
+  return state.drawerTab === TRAVEL_TAB && mechanismFor(state.selected) === "gear" && (type === "b757" || type === "tu214");
+}
+
 function applySelection(): void {
   if (!model) return;
   const accent = new THREE.Color(css("--accent"));
   const warn = new THREE.Color(css("--warn"));
   const bad = new THREE.Color(css("--bad"));
   const focus = state.focus;
+  const inspectingBay = inspectingGearBay();
   const assembledFan = !focus && state.selected !== "engines" && state.explode < 0.12;
   for (const part of model.parts.values()) {
     const on = part.id === state.selected || !!focus?.has(part.id);
     const t = tint.get(part.id);
-    const glass = !!focus && !focus.has(part.id);
+    const glass = (!!focus && !focus.has(part.id)) || (inspectingBay && part.id !== state.selected);
     part.group.traverse((o) => {
-      if (o instanceof THREE.LineSegments && o.userData.isEdge) o.visible = !glass;
       if (o instanceof THREE.Mesh && !o.userData.isEdge) {
+        if (o.geometry.userData.gearWell) o.visible = !(inspectingBay && part.id === state.selected);
         const m = o.material as THREE.MeshStandardMaterial;
         const tone = o.userData.tone;
         const fanFace = tone === "fanBlade" || tone === "fanSpinner";
@@ -845,13 +862,25 @@ function frameCamera(): void {
   const previous = selK;
   const next = state.selected ? 1 : 0;
   const phase = PHASES[state.phase];
-  if (next !== previous || phase.gear !== env.current.gear || phase.flaps !== env.current.flaps) {
+  if (next !== previous || phase.gear !== env.current.gear || phase.flaps !== env.current.flaps || phase.groundDrop !== env.current.drop) {
     selK = next;
-    pose(phase);
+    pose(phase, phase.groundDrop);
     const final = meshFramePoints(subject, selectedSide);
     if (selected && final.length) points = final;
     else points.push(...final);
     selK = previous;
+    pose();
+  }
+  if (selected && state.drawerTab === TRAVEL_TAB && mechanismFor(selected.id) === "gear") {
+    // Frame the sweep once, so the doors and truck stay in view while dragging the slider.
+    const extension = inspectionTravel.gear;
+    for (const sample of [0, .25, .5, .75, 1]) {
+      if (extension === sample) continue;
+      inspectionTravel.gear = sample;
+      pose();
+      points.push(...meshFramePoints(subject, selectedSide));
+    }
+    inspectionTravel.gear = extension;
     pose();
   }
   if (!points.length) points = meshFramePoints(model.root);
@@ -979,16 +1008,10 @@ function applyScenario(id: string | null): void {
 }
 
 function syncHeader(): void {
-  for (const o of document.querySelectorAll<HTMLButtonElement>("[data-aircraft]")) o.setAttribute("aria-checked", String(o.dataset.aircraft === state.aircraftId));
   const nameNow = AIRCRAFT[state.aircraftId].shortName ?? AIRCRAFT_LABEL[state.aircraftId];
   document.querySelector(".brand h1")!.textContent = `${nameNow} в разборе`;
   document.title = `${nameNow} в разборе`;
-  const type = typeOf(state.aircraftId);
-  for (const o of document.querySelectorAll<HTMLButtonElement>("[data-type]")) o.setAttribute("aria-checked", String(o.dataset.type === type));
-  const variants = variantsFor(type);
-  $("aircraft-variants").innerHTML = variants.map((id) =>
-    `<button role="radio" data-variant="${id}" aria-checked="${id === state.aircraftId}"${variants.length === 1 ? " disabled" : ""}>${AIRCRAFT_CHOICES[id].variantLabel}</button>`,
-  ).join("");
+  syncPickers();
   for (const o of document.querySelectorAll<HTMLButtonElement>("[data-mode]")) o.setAttribute("aria-checked", String(o.dataset.mode === state.mode));
   const select = $("cabin-layout") as HTMLSelectElement;
   const preset = presetFor(state.aircraftId);
@@ -1128,6 +1151,7 @@ function renderLevers(): void {
   for (const b of $("drawer-tabs").querySelectorAll<HTMLButtonElement>("button"))
     b.onclick = () => {
       state.drawerTab = b.dataset.dtab!;
+      if (mechanismFor(state.selected) === "gear") applySelection();
       renderLevers();
       requestCameraFrame();
     };
@@ -1147,6 +1171,9 @@ function renderLevers(): void {
     const pct = Math.round(100 * inspectionTravel[mechanism]);
     $<HTMLInputElement>("travel-range").value = String(pct);
     $("travel-position").textContent = pct + "%";
+    $("travel-hint").textContent = inspectingGearBay()
+      ? "0% — убрано, 100% — выпущено. Стенки выбранной ниши скрыты для осмотра."
+      : "Ход в 3D: 0% — убрано, 100% — выпущено.";
     return;
   }
   if (inspectingMounts && result) {
@@ -1772,28 +1799,7 @@ const pickAircraft = (id: string) => {
   renderScenarios();
   schedule();
 };
-for (const b of document.querySelectorAll<HTMLButtonElement>("[data-type]"))
-  b.addEventListener("click", () => {
-    const id = aircraftForType(b.dataset.type!, state.aircraftId);
-    if (id) pickAircraft(id);
-  });
-$("aircraft-variants").addEventListener("click", (e) => {
-  const button = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-variant]");
-  if (button && !button.disabled) pickAircraft(button.dataset.variant!);
-});
-for (const b of document.querySelectorAll<HTMLButtonElement>("[data-aircraft]")) {
-  b.addEventListener("click", () => {
-    if (state.aircraftId === b.dataset.aircraft) return;
-    state.aircraftId = b.dataset.aircraft!;
-    state.layoutId = presetFor(state.aircraftId)?.defaultLayoutId ?? state.layoutId;
-    state.flightCostError = null;
-    state.scenarioId = null;
-    state.values = defaults(AIRCRAFT[state.aircraftId]);
-    syncHeader();
-    renderScenarios();
-    schedule();
-  });
-}
+const syncPickers = bindAircraftPickers(() => state.aircraftId, pickAircraft);
 // Конфигурация салона общая для 3D, масс и FlightCost.
 $("cabin-layout").addEventListener("change", (event) => {
   state.layoutId = (event.target as HTMLSelectElement).value;
@@ -2005,6 +2011,11 @@ run();
 route();
 const reviewPart = launchParams.get("part");
 if (isLocalReview && (reviewPart === "engines" || reviewPart === "nacelles" || reviewPart === "pylons" || mechanismFor(reviewPart))) {
+  const extension = launchParams.get("extension");
+  const mechanism = mechanismFor(reviewPart);
+  if (mechanism && extension !== null && /^(?:100|[1-9]?\d)$/.test(extension)) {
+    inspectionTravel[mechanism] = Number(extension) / 100;
+  }
   select(reviewPart === "pylons" ? "nacelles" : reviewPart);
   if (reviewPart === "pylons") {
     state.drawerTab = MOUNTS_TAB;
