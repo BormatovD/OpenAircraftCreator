@@ -1,23 +1,52 @@
-// Компактный паспорт базового типа: цифры определения, а не результаты изменённых рычагов.
-import { type AircraftDefinition } from "../src/definition.ts";
+import snapshot from "../data/flightcost-passports.json" with { type: "json" };
 
-export interface PassportRow { label: string; value: string }
-const fmt = (n: number, digits = 0) => n.toLocaleString("ru-RU", { maximumFractionDigits: digits, minimumFractionDigits: digits });
+const numericRows = [
+  ["seats_typical", "Мест · типовая компоновка", 0, ""],
+  ["seats_max", "Мест · максимум", 0, ""],
+  ["mtow_t", "MTOW", 2, " т"],
+  ["mlw_t", "MLW", 2, " т"],
+  ["mzfw_t", "MZFW", 2, " т"],
+  ["oew_t", "OEW", 2, " т"],
+  ["fuel_capacity_t", "Запас топлива", 2, " т"],
+  ["cruise_mach", "Крейсерский Мах", 2, ""],
+] as const;
+type NumericField = typeof numericRows[number][0] | "engine_count";
+export type Passport = Partial<Record<NumericField, number>> & { engine?: string };
+export const savedPassports: Readonly<Record<string, Passport | undefined>> = snapshot.types;
+export const passportSnapshotDate = snapshot.retrieved.split("-").reverse().join(".");
 
-/** Предел мест показываем только там, где он задан в доступных источниках; иначе —. */
-export function passportRows(def: AircraftDefinition, oewKg: number, mach: number): PassportRow[] {
-  const typical = def.systems.seats;
-  const maximum = def.shapeSet === "tu214" ? 210 : def.id.startsWith("a320") ? 194 : null;
-  const kgPerL = def.shapeSet === "tu214" ? 0.78 : 0.785;
-  return [
-    { label: "Мест · типовая компоновка", value: fmt(typical) },
-    { label: "Мест · максимум", value: maximum === null ? "не подтверждено" : fmt(maximum) },
-    { label: "MTOW", value: `${fmt(def.weights.mtowKg / 1000, 2)} т` },
-    { label: "MLW", value: `${fmt(def.weights.mlwKg / 1000, 2)} т` },
-    { label: "MZFW", value: `${fmt(def.weights.mzfwKg / 1000, 2)} т` },
-    { label: "OEW · базовая модель", value: `${fmt(oewKg / 1000, 2)} т` },
-    { label: `Топливо · плотность ${fmt(kgPerL, 3)} кг/л`, value: `${fmt(def.systems.fuelVolumeL * kgPerL / 1000, 2)} т` },
-    { label: "Крейсерский Мах · модель", value: fmt(mach, 2) },
-    { label: "Двигатели", value: `${def.engine.count} × ${def.engine.name}` },
-  ];
+/** The public FlightCost endpoint returns facts as rows with separate numeric and text values. */
+export async function fetchPassport(icao: string): Promise<Passport> {
+  const response = await fetch(`/api/aircraft/type?icao=${encodeURIComponent(icao)}`, {
+    credentials: "omit", signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw new Error(`FlightCost HTTP ${response.status}`);
+  const data = await response.json();
+  if (data.icao !== icao || !Array.isArray(data.fields)) throw new Error("Некорректный паспорт FlightCost");
+  const fields = new Map<string, unknown>();
+  for (const row of data.fields) {
+    if (row && typeof row.field === "string") fields.set(row.field, row.field === "engine" ? row.text : row.value);
+  }
+  const passport: Passport = {};
+  const keys: NumericField[] = [...numericRows.map(([key]) => key), "engine_count"];
+  for (const key of keys) {
+    const value = fields.get(key);
+    if (typeof value === "number" && Number.isFinite(value)) passport[key] = value;
+  }
+  const engine = fields.get("engine");
+  if (typeof engine === "string" && engine.trim()) passport.engine = engine.trim();
+  if (!Object.keys(passport).length) throw new Error("Паспорт FlightCost пуст");
+  return passport;
+}
+
+export function passportRows(passport: Passport): { label: string; value: string }[] {
+  const rows = numericRows.map(([key, label, digits, unit]) => {
+    const n = passport[key];
+    return { label: String(label), value: n === undefined ? "—" :
+      n.toLocaleString("ru-RU", { minimumFractionDigits: digits, maximumFractionDigits: digits }) + unit };
+  });
+  const { engine, engine_count: count } = passport;
+  const engineLabel = engine && count !== undefined && !/^\d+\s*[×xх]/i.test(engine) ? `${count} × ${engine}` : engine;
+  rows.push({ label: "Двигатели · базовый тип", value: engineLabel ?? "—" });
+  return rows;
 }

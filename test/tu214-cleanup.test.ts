@@ -7,7 +7,8 @@ import { TU214_FACTORY, TU214_PS90A } from "../src/aircraft/tu214.ts";
 import { contextFor } from "../src/aircraft/contextFor.ts";
 import { evaluate } from "../src/evaluate.ts";
 import { PS90A_EMERGENCY_OEI } from "../src/thrust.ts";
-import { passportRows } from "../web/passport.ts";
+import { passportRows, savedPassports } from "../web/passport.ts";
+import { PRESETS } from "../src/integration/flightcost.ts";
 import { AIRCRAFT_CHOICES } from "../web/aircraftCatalog.ts";
 
 const ref = (d: typeof TU214_PS90A) => evaluate(d, [], contextFor(d));
@@ -50,17 +51,17 @@ test("OEI чрезвычайный: A320 и Boeing 757 не наследуют �
   }
 });
 
-test("Паспорт берёт исходные данные определения и не выдумывает maximum seats", () => {
-  const e = ref(TU214_PS90A);
-  const r = passportRows(e.definition, e.oewKg, e.missionAssumptions.cruiseMach);
-  const get = (label: string) => r.find(x => x.label.startsWith(label))?.value;
-  assert.equal(get("OEW"), "61,83 т");
-  assert.equal(get("MZFW"), "84,20 т");
-  assert.equal(get("Двигатели"), "2 × ПС-90А");
-  assert.equal(get("Мест · максимум"), "210");
-  assert.equal(get("Топливо"), "35,71 т");
-  const b = evaluate(B757_RB211, [], contextFor(B757_RB211));
-  assert.equal(passportRows(b.definition, b.oewKg, b.missionAssumptions.cruiseMach).find(x => x.label === "Мест · максимум")!.value, "не подтверждено");
+test("Паспорт базового типа показывает факты FlightCost для всех поддерживаемых типов", () => {
+  for (const { icao } of PRESETS) assert.ok(savedPassports[icao], icao);
+  const rows = new Map(passportRows(savedPassports.A321!).map(r => [r.label, r.value]));
+  assert.equal(rows.get("Мест · типовая компоновка"), "210");
+  assert.equal(rows.get("Мест · максимум"), "220");
+  assert.equal(rows.get("OEW"), "48,50 т");
+  assert.equal(rows.get("Запас топлива"), "30,03 т");
+  assert.equal(rows.get("MZFW"), "—");
+  assert.equal(rows.get("Двигатели · базовый тип"), "2 × CFM56-5B1");
+  const tu = new Map(passportRows(savedPassports.T204!).map(r => [r.label, r.value]));
+  assert.equal(tu.get("Двигатели · базовый тип"), "2 × ОДК-ПМ ПС-90А (16 тс)");
 });
 
 test("Сцена не красит весь кессон при нормальном ICAO code D", () => {

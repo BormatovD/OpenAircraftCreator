@@ -11,7 +11,7 @@ import { type MassNode, NODES } from "../src/mass/massTree.ts";
 import { evaluateConfiguration } from "../src/integration/configuration.ts";
 import { engineCycle, tsfcFactor } from "../src/propulsion.ts";
 import { renderMethod } from "./method.ts";
-import { passportRows } from "./passport.ts";
+import { fetchPassport, passportRows, passportSnapshotDate, savedPassports, type Passport } from "./passport.ts";
 import { engineDiagram } from "./engineDiagram.ts";
 import { coreRadiusFor, lptStagesFor } from "./scene/shapes.ts";
 import { scenarioFamily, CONTROLS, type Control, type Mode, SCENARIOS, type Values, controlsFor, defaults, isChanged, leversFor } from "./controls.ts";
@@ -21,7 +21,7 @@ import { LIVERIES, NO_LIVERY, PLAIN_FIN, finLiveryTexture, liveryById } from "./
 import { fuselageTexture, htailTexture, wingTexture } from "./scene/textures.ts";
 import { finishForTone, technicalRelief, TECHNICAL_RELIEF_SCALE_M } from "./scene/technicalFinish.ts";
 import { FRA_BCN_NM, flightCostRoute } from "../src/integration/flightcostRoute.ts";
-import { FC_ORIGIN, FC_PROTOCOL, FC_VERSION, PRESETS, seatsInLayout, flightCostDesign, layoutFor, presetFor, resolveFlightCostAircraft, withCabinLayout, routeModelFor } from "../src/integration/flightcost.ts";
+import { FC_ORIGIN, FC_PROTOCOL, FC_VERSION, PRESETS, flightCostDesign, layoutFor, presetFor, resolveFlightCostAircraft, withCabinLayout, routeModelFor } from "../src/integration/flightcost.ts";
 import { SELECTED_EXPLODE_FRACTION, fitAircraftFrame, meshFramePoints, type SceneFrameArea } from "./scene/framing.ts";
 
 const FAMILY_LABEL: Record<Family, string> = {
@@ -1069,19 +1069,38 @@ function renderMetrics(): void {
       : `Самолёт масштабируется под ту же нагрузку и ${nf(Math.round(rd!.designRangeNm))} nm: площадь крыла ${nf(d.wing.areaM2, 1)} м², размах ${nf(d.wing.spanM, 2)} м, тяга ×${nf(d.engine.thrustScale, 3)}.${rd!.converged ? "" : " <b>Итерации не сошлись.</b>"}`;
 }
 
-/** Свернутый паспорт исходной конфигурации; не зависит от рычагов и не меняет состояние details. */
+// Both powerplant variants share the public passport for their ICAO type.
+const livePassports = new Map<string, Passport>();
+const passportRequests = new Map<string, number>();
 function renderPassport(): void {
-  const base = baseOf(state.aircraftId);
-  const def = AIRCRAFT[state.aircraftId];
-  const title = document.querySelector<HTMLElement>("#aircraft-passport .passport-name");
-  if (title) title.textContent = def.shortName ?? def.label;
-  $("passport-body").innerHTML = passportRows(def, base.oewKg, base.missionAssumptions.cruiseMach)
-    .map(({ label, value }) => `<dt>${label}</dt><dd>${value}</dd>`).join("");
-  const layout = layoutFor(state.aircraftId, state.layoutId);
-  if (layout) $("passport-body").insertAdjacentHTML("afterbegin", `<dt>Выбранный салон (3D и расчёт)</dt><dd>${result.ev.seats} мест</dd>`);
-  const maxCatalog = Math.max(0, ...(presetFor(state.aircraftId)?.layouts.map(seatsInLayout) ?? []));
-  if (maxCatalog) $("passport-body").insertAdjacentHTML("beforeend", `<dt>Максимальная схема каталога · не сертификат</dt><dd>${maxCatalog} мест</dd>`);
+  const icao = presetFor(state.aircraftId)?.icao;
+  if (!icao) return;
+  const details = $<HTMLDetailsElement>("aircraft-passport");
+  const source = $<HTMLAnchorElement>("passport-source");
+  source.href = `${FC_ORIGIN}/ru/type/${encodeURIComponent(icao)}`;
+  details.querySelector<HTMLElement>(".passport-name")!.textContent = icao;
+  const live = livePassports.get(icao);
+  const facts = live ?? savedPassports[icao];
+  $("passport-status").textContent = live ? "" : facts ? ` · копия от ${passportSnapshotDate}` : " · данные недоступны";
+  const rows = facts ? passportRows(facts) : [];
+  if (layoutFor(state.aircraftId, state.layoutId)) {
+    rows.unshift({ label: "Выбранный салон (3D и расчёт)", value: `${result.ev.seats} мест` });
+  }
+  $("passport-body").replaceChildren(...rows.flatMap(({ label, value }) => {
+    const dt = document.createElement("dt"), dd = document.createElement("dd");
+    dt.textContent = label;
+    dd.textContent = value;
+    return [dt, dd];
+  }));
+
+  if (!details.open || location.protocol === "file:" || live || Date.now() < (passportRequests.get(icao) ?? 0)) return;
+  passportRequests.set(icao, Date.now() + 60_000);
+  void fetchPassport(icao).then(passport => {
+    livePassports.set(icao, passport);
+    if (presetFor(state.aircraftId)?.icao === icao) renderPassport();
+  }).catch(() => { /* Keep the dated FlightCost copy visible if the service is unavailable. */ });
 }
+$("aircraft-passport").addEventListener("toggle", renderPassport);
 
 /** Правая панель — вкладки вместо длинной прокрутки. */
 function setRightTab(tab: string): void {

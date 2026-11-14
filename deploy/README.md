@@ -20,6 +20,8 @@ bash deploy/ship.sh deploy@YOUR_VPS_IP
 
 This script checks tests/TypeScript, builds `dist/`, uploads it to a timestamped release, switches `/srv/aircraft-designer/current` and verifies the **exact new release ID** at `https://aircraft-designer.app/release-id.txt` (not merely an old cached homepage). On failure it attempts rollback.
 
+For existing installations, apply the passport proxy from `deploy/aircraft-designer.caddy` to the active site fragment, validate the Caddyfile and reload Caddy. The live passport uses `GET /api/aircraft/type?icao=A321`. Until the proxy is active, the UI shows the dated FlightCost snapshot bundled in the release.
+
 ## Roll back the last deployment
 
 ```bash

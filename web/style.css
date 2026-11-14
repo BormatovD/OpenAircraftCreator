@@ -2017,6 +2017,7 @@ button.kpi-tile {
   font-size: 11px;
   color: var(--ink-soft);
 }
+.passport-caption a { color: inherit; }
 .passport-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);

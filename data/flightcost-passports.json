@@ -1,0 +1,105 @@
+{
+  "source": "https://flightcost.app/api/aircraft/type?icao=",
+  "retrieved": "2026-11-14",
+  "types": {
+    "A319": {
+      "cruise_mach": 0.78,
+      "engine": "V2524-A5",
+      "engine_count": 2,
+      "fuel_capacity_t": 30.19,
+      "mlw_t": 62.5,
+      "mtow_t": 75.5,
+      "oew_t": 40.8,
+      "seats_max": 156,
+      "seats_typical": 140
+    },
+    "A19N": {
+      "cruise_mach": 0.78,
+      "engine": "PW1124G1-JM",
+      "engine_count": 2,
+      "fuel_capacity_t": 29.7,
+      "mlw_t": 62.5,
+      "mtow_t": 75.5,
+      "oew_t": 42.6,
+      "seats_max": 160,
+      "seats_typical": 150
+    },
+    "A320": {
+      "cruise_mach": 0.78,
+      "engine": "CFM56-5B4",
+      "engine_count": 2,
+      "fuel_capacity_t": 24.21,
+      "mlw_t": 66,
+      "mtow_t": 78,
+      "oew_t": 42.6,
+      "seats_max": 180,
+      "seats_typical": 170
+    },
+    "A20N": {
+      "cruise_mach": 0.78,
+      "engine": "PW1127G-JM",
+      "engine_count": 2,
+      "fuel_capacity_t": 29.7,
+      "mlw_t": 66,
+      "mtow_t": 79,
+      "oew_t": 44.3,
+      "seats_max": 194,
+      "seats_typical": 180
+    },
+    "A321": {
+      "cruise_mach": 0.78,
+      "engine": "CFM56-5B1",
+      "engine_count": 2,
+      "fuel_capacity_t": 30.03,
+      "mlw_t": 77.8,
+      "mtow_t": 93.5,
+      "oew_t": 48.5,
+      "seats_max": 220,
+      "seats_typical": 210
+    },
+    "A21N": {
+      "cruise_mach": 0.78,
+      "engine": "PW1133G-JM",
+      "engine_count": 2,
+      "fuel_capacity_t": 33,
+      "mlw_t": 77.8,
+      "mtow_t": 97,
+      "oew_t": 50,
+      "seats_max": 244,
+      "seats_typical": 220
+    },
+    "B38M": {
+      "cruise_mach": 0.79,
+      "engine": "LEAP-1B",
+      "engine_count": 2,
+      "fuel_capacity_t": 26,
+      "mlw_t": 66.3,
+      "mtow_t": 82,
+      "oew_t": 45,
+      "seats_max": 210,
+      "seats_typical": 178
+    },
+    "B752": {
+      "cruise_mach": 0.8,
+      "engine": "RB211-535E4",
+      "engine_count": 2,
+      "fuel_capacity_t": 43.5,
+      "mlw_t": 92.2,
+      "mtow_t": 115.6,
+      "oew_t": 58.4,
+      "seats_max": 239,
+      "seats_typical": 225
+    },
+    "T204": {
+      "cruise_mach": 0.79,
+      "engine": "2 × ОДК-ПМ ПС-90А (16 тс)",
+      "engine_count": 2,
+      "fuel_capacity_t": 35.71,
+      "mlw_t": 93,
+      "mtow_t": 110.75,
+      "oew_t": 59,
+      "seats_max": 210,
+      "seats_typical": 194
+    }
+  }
+}

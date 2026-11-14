@@ -7,6 +7,17 @@ aircraft-designer.app {
     header @html Cache-Control "no-store, max-age=0"
     header X-Content-Type-Options nosniff
     header Referrer-Policy strict-origin-when-cross-origin
+    # Public base-type facts only. FlightCost's API does not enable cross-origin browser requests.
+    @passport {
+        method GET
+        path /api/aircraft/type
+    }
+    reverse_proxy @passport https://flightcost.app {
+        header_up Host flightcost.app
+        header_up -Cookie
+        header_up -Authorization
+        header_down -Set-Cookie
+    }
     # Public, versioned preset table; permit FlightCost to read it without a proxy.
     @fc_catalog path /aircraft-configurations.v1.json
     header @fc_catalog Access-Control-Allow-Origin "https://flightcost.app"
