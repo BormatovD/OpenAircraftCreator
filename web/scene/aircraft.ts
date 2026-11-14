@@ -10,10 +10,13 @@ import { type ShapeSet, useShapes } from "./shapeSet.ts";
 import { B737_300 } from "../../src/aircraft/b737.ts";
 import { A320CEO, A320NEO } from "../../src/aircraft/a320.ts";
 import { B737_8 } from "../../src/aircraft/b737max.ts";
+import { leadingEdge737 } from "./leadingEdge737.ts";
+import { B737_800_NACELLE } from "../../src/aircraft/b737ng.ts";
 import { pylonFor } from "./pylonPackages.ts";
 import { cowlDoors, installationGeometry, isSuspensionHardware } from "./pylonGeometry.ts";
 import { fleetMountTravel } from "./fleetClearance.ts";
 import { fleetPackages, isFleetStyle } from "./fleetPackages.ts";
+import { mainLandingGear, noseLandingGear } from "./landingGear.ts";
 import { cockpitGlazing } from "./cockpit.ts";
 import { cabinOpenings } from "./features.ts";
 import { fuselageFittings, wingtipLights } from "./fittings.ts";
@@ -380,6 +383,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   const mountStyle = nacelleStyleFor(def.engine);
   const mount = installedNacelle(def, SH, mountStyle);
   const slatBreak = SH.id === "b757" ? b757NacelleFor(def.engine).width_m / 2 + .15
+    : mountStyle === "cfm56-7b" ? B737_800_NACELLE.widthM / 2 + .15
     : isFleetStyle(mountStyle) ? fleetPackages[mountStyle].radius + (mountStyle === "cfm5b" ? .35 : .15) : 0;
   const fixedLE = slatBreak > 0 ? {
     spanFrom: Math.max(uSide, (engZ - slatBreak) / wingWidth),
@@ -387,7 +391,15 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   } : null;
   const slatSpans = fixedLE ? [[uSide, fixedLE.spanFrom], [fixedLE.spanTo, uTipDevices]] : [[uSide, uTipDevices]];
   const wingSeg = (u0: number, u1: number) => Math.max(4, Math.round((u1 - u0) * 48));
+  const edge737 = new Map<number, ReturnType<typeof leadingEdge737>>();
+  if (hl.slats && SH.id === "b737" && fixedLE) {
+    for (const side of [1, -1] as const) {
+      edge737.set(side, leadingEdge737(wingShape(side), uSide, fixedLE.spanFrom, fixedLE.spanTo,
+        uTipDevices, def.id === "b737-300" ? 3 : 4));
+    }
+  }
   const boxPieces = (s: 1 | -1) => [
+    ...(edge737.get(s)?.fixed ?? []),
     surfaceGeometry(wingShape(s, { chordFrom: SLAT, chordTo: FLAP }), 48),
     ...(hl.slats && fixedLE ? [surfaceGeometry(wingShape(s, { chordTo: SLAT, ...fixedLE }), wingSeg(fixedLE.spanFrom, fixedLE.spanTo), 8)] : []),
     ...(hl.slats
@@ -449,8 +461,8 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
         ]
       : [hinged(surfaceGeometry(wingShape(s, { chordFrom: FLAP, spanFrom: uSide, spanTo: uFlapEnd }), wingSeg(uSide, uFlapEnd), 8), s, v3(2.6, -0.7, 0), "flap", uSide, uFlapEnd, FLAP, 40, flapSlide)];
   const highLift = (s: 1 | -1) => [
-    ...(hl.slats ? slatSpans.map(([u0, u1]) => hinged(surfaceGeometry(wingShape(s, { chordTo: SLAT, spanFrom: u0, spanTo: u1 }),
-      wingSeg(u0, u1), 8), s, v3(-2.2, -0.3, 0), "slat", u0, u1, SLAT, 27, slatSlide)) : []),
+    ...(edge737.get(s)?.moving ?? (hl.slats ? slatSpans.map(([u0, u1]) => hinged(surfaceGeometry(wingShape(s, { chordTo: SLAT, spanFrom: u0, spanTo: u1 }),
+      wingSeg(u0, u1), 8), s, v3(-2.2, -0.3, 0), "slat", u0, u1, SLAT, 27, slatSlide)) : [])),
     ...flaps(s),
     moved(surfaceGeometry(wingShape(s, { chordFrom: AIL, spanFrom: uFlapEnd + 0.005, spanTo: uTipDevices }), 6, 8), s, v3(2.0, 0.3, 0)),
   ];
@@ -874,149 +886,20 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   }
   add("engines", engineGeoms, v3(-6.5, -10.5, 0), v3(-2.5, -2.4, 2), false, 3);
 
-  // ——— Шасси ———
-  // Земля задаётся клиренсом базовой гондолы CEO (0,57 м при MRW): стойки не меняются рычагами.
-  // База шасси 12,64 м и колея 7,59 м — по AC 2-3-0.
-
+  // Ground contact fixes the parked axle height. Each hinge is anchored at the
+  // existing wing or body station and also serves as the pivot of the detailed parts.
   const G = SH.gear;
-  const mainX = modelX(L, G.noseX + G.wheelbaseM);
-  // Стойки — по AC 2-9-0. Основная: от оси шарнира до оси колёс 2,869 м выпущенная, ход амортизатора 0,47 м,
-  // шарнир на 3,795 м от оси самолёта, уборка внутрь на 80°30′. Передняя: 1,957 м, ход 0,43 м, наклон 9°,
-  // уборка вперёд на 92°. Колёса: основные 46×17R20 (Ø1,17 м), передние 30×8,8R15 (Ø0,76 м).
-  // Геометрия строится вокруг шарнира (basePos), чтобы уборка была поворотом.
-  const tire = (r: number, width: number) => {
-    const rin = r * 0.55;
-    const pts: THREE.Vector2[] = [];
-    const n = 10;
-    for (let k = 0; k <= n; k++) {
-      const a = -Math.PI / 2 + (k / n) * Math.PI;
-      pts.push(new THREE.Vector2(r - width * 0.28 + Math.cos(a) * width * 0.28, Math.sin(a) * width * 0.5));
-    }
-    pts.unshift(new THREE.Vector2(rin, -width * 0.5));
-    pts.push(new THREE.Vector2(rin, width * 0.5));
-    const g = new THREE.LatheGeometry(pts, 32);
-    g.rotateX(Math.PI / 2);
-    const hub = new THREE.CylinderGeometry(rin, rin, width * 0.7, 24);
-    hub.rotateX(Math.PI / 2);
-    return mergeGeometries([g.toNonIndexed(), hub.toNonIndexed()])!;
-  };
-  const cyl = (r: number, y0: number, y1: number, x = 0, z = 0) => {
-    const g = new THREE.CylinderGeometry(r, r, Math.abs(y1 - y0), 14);
-    g.translate(x, (y0 + y1) / 2, z);
-    return g;
-  };
-  const bar = (a: THREE.Vector3, b: THREE.Vector3, r: number) => {
-    const len = a.distanceTo(b);
-    const g = new THREE.CylinderGeometry(r, r, len, 10);
-    g.translate(0, len / 2, 0);
-    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(v3(0, 1, 0), b.clone().sub(a).normalize()));
-    g.translate(a.x, a.y, a.z);
-    return g;
-  };
-  const plate = (pts: [number, number][], hole: [number, number][] | null, depth: number, plane: "xy" | "zy") => {
-    const sh = new THREE.Shape(pts.map(([a, b]) => new THREE.Vector2(a, b)));
-    if (hole) sh.holes.push(new THREE.Path(hole.map(([a, b]) => new THREE.Vector2(a, b))));
-    const g = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: false });
-    g.translate(0, 0, -depth / 2);
-    if (plane === "zy") g.rotateY(Math.PI / 2);
-    return g;
-  };
-  const merge = (gs: THREE.BufferGeometry[]) => mergeGeometries(gs.map((g) => (g.index ? g.toNonIndexed() : g)))!;
-
-  const mainR = G.mainR;
-  const mainWheelY = groundY + mainR;
-  // Шарнир — внутри крыла (на средней плоскости у заднего лонжерона); длина стойки — от шарнира до оси колёс
-  // на стоянке (у AC — 2,869 м в выпущенном положении минус обжатие), так что колёса стоят на земле.
+  const mainX = modelX(L, G.noseX + G.wheelbaseM - (G.wheelbaseForwardPlugM ?? 0));
   const wingMidAt = (z: number) => {
     const u = z / semi;
     return (surfacePoint(wingShape(1), u, 0.75, true).y + surfacePoint(wingShape(1), u, 0.75, false).y) / 2;
   };
   const pivotY = wingMidAt(G.mainZ);
-  const mainLeg = pivotY - mainWheelY;
-  const mainPivot = (side: 1 | -1) => v3(mainX, pivotY, side * G.mainZ);
-  // Детали стойки размечены по стойке A320 (2,32 м от шарнира до оси колёс) — у других типов растягиваются по высоте.
-  const km = mainLeg / 2.32;
-  const mainGear = (side: 1 | -1) => {
-    const inb = -side; // к оси самолёта
-    const parts: THREE.BufferGeometry[] = [
-      // Основная стойка: треугольная траверса с вырезом, цилиндр амортизатора и шток.
-      plate([[-0.42, 0.08], [0.3, 0.08], [0.1, -1.05 * km], [-0.08, -1.05 * km]], [[-0.22, -0.08], [0.16, -0.08], [0.04, -0.62 * km]], 0.16, "xy"),
-      cyl(0.15, -0.95 * km, -1.75 * km),
-      cyl(0.1, -1.75 * km, -mainLeg + 0.1),
-      // Шлиц-шарнир спереди.
-      bar(v3(-0.12, -1.55 * km, 0), v3(-0.32, -1.95 * km, 0), 0.035),
-      bar(v3(-0.32, -1.95 * km, 0), v3(-0.1, -mainLeg + 0.25, 0), 0.035),
-    ];
-    const wheelsPerStrut = def.gear.mainWheels / def.gear.mainStruts;
-    const axleXs = wheelsPerStrut === 4 && G.axleSpacingM ? [-G.axleSpacingM / 2, G.axleSpacingM / 2] : [0];
-    if (axleXs.length === 2) parts.push(bar(v3(axleXs[0], -mainLeg, 0), v3(axleXs[1], -mainLeg, 0), 0.13));
-    for (const axleX of axleXs) {
-      // По два колеса на ось; у 757 две оси с базой 45 in (D6-58327 §7.2).
-      parts.push((() => {
-        const a = new THREE.CylinderGeometry(0.07, 0.07, 2 * G.mainWheelGap + 0.13, 12);
-        a.rotateX(Math.PI / 2);
-        a.translate(axleX, -mainLeg, 0);
-        return a;
-      })());
-      for (const k of [1, -1]) {
-        const t = tire(mainR, G.mainTireW);
-        t.translate(axleX, -mainLeg, k * G.mainWheelGap);
-        parts.push(t);
-      }
-    }
-    const leg = merge(parts);
-    leg.userData = { side, basePos: mainPivot(side), retract: { axis: "x", angle: (side * G.retractDeg * Math.PI) / 180 } };
-    // Боковой подкос (складывающийся) и цилиндр уборки — к узлам на конструкции крыла; при уборке складываются.
-    // Узел подкоса — на конструкции у корня крыла (внутри, на средней плоскости крыла).
-    const braceTop = wingMidAt(G.mainZ - 1.35 * (G.mainZ / 3.795)) - pivotY;
-    const brace = merge([
-      bar(v3(0, -1.15 * km, 0), v3(0.05, (braceTop - 1.15 * km) / 2, inb * 0.7), 0.05),
-      bar(v3(0.05, (braceTop - 1.15 * km) / 2, inb * 0.7), v3(0.08, braceTop, inb * 1.35), 0.05),
-      bar(v3(0.05, -0.2, 0), v3(0.05, braceTop * 0.6 - 0.05, inb * 0.9), 0.06),
-    ]);
-    brace.userData = { side, basePos: mainPivot(side), hideRetracted: true };
-    return [leg, brace];
-  };
-  add("gear.main", [...mainGear(1), ...mainGear(-1)], v3(0, -9, 0), v3(9, -2.5, -4));
-
-  const noseR = G.noseR;
-  const noseWheelY = groundY + noseR;
-  const noseLegLen = G.noseLegM;
-  const rake = (G.rakeDeg * Math.PI) / 180;
-  const nosePivot = v3(G.noseX + noseLegLen * Math.sin(rake), noseWheelY + noseLegLen * Math.cos(rake), 0);
-  // Детали передней стойки размечены по A320 (1,72 м) — у других типов растягиваются по высоте.
-  const kn = noseLegLen / 1.72;
-  const noseParts: THREE.BufferGeometry[] = [
-    // Траверса передней стойки (вид спереди — «вилка» с вырезами), цилиндр, шток, рулевой узел.
-    plate([[-0.5, 0.05], [0.5, 0.05], [0.09, -0.75 * kn], [-0.09, -0.75 * kn]], [[-0.3, -0.05], [-0.06, -0.05], [-0.07, -0.45 * kn]], 0.12, "zy"),
-    cyl(0.11, -0.7 * kn, -1.15 * kn),
-    cyl(0.075, -1.15 * kn, -noseLegLen + 0.08),
-    (() => {
-      const b = new THREE.BoxGeometry(0.16, 0.12, 0.85);
-      b.translate(0, -0.85 * kn, 0);
-      return b;
-    })(),
-    bar(v3(-0.08, -1.2 * kn, 0), v3(-0.25, -1.45 * kn, 0), 0.03),
-    bar(v3(-0.25, -1.45 * kn, 0), v3(-0.06, -noseLegLen + 0.18, 0), 0.03),
-    (() => {
-      const a = new THREE.CylinderGeometry(0.05, 0.05, 0.7, 10);
-      a.rotateX(Math.PI / 2);
-      a.translate(0, -noseLegLen, 0);
-      return a;
-    })(),
-    // Подкос — вперёд-вверх к узлу на конструкции ниши.
-    bar(v3(0, -0.55 * kn, 0), v3(-0.95, 0.05, 0), 0.045),
-  ];
-  for (const k of [1, -1]) {
-    const t = tire(noseR, G.noseTireW ?? 0.22);
-    t.translate(0, -noseLegLen, k * (G.noseWheelGap ?? 0.3));
-    noseParts.push(t);
-  }
-  const noseLeg = merge(noseParts);
-  // Наклон стойки 9°: низ вперёд.
-  noseLeg.rotateZ(-rake);
-  noseLeg.userData = { basePos: nosePivot, retract: { axis: "z", angle: (-92 * Math.PI) / 180 } };
-  add("gear.nose", [noseLeg], v3(-2.5, -8, 0), v3(-1.5, -1.4, -1.5));
+  const anchorY = wingMidAt(G.mainZ - 1.35 * (G.mainZ / 3.795));
+  const tandem = def.gear.mainWheels / def.gear.mainStruts === 4;
+  const legs = ([1, -1] as const).flatMap(side => mainLandingGear(G, side, v3(mainX, pivotY, side * G.mainZ), groundY, anchorY, tandem));
+  add("gear.main", legs, v3(0, -9, 0), v3(9, -2.5, -4));
+  add("gear.nose", noseLandingGear(G, groundY), v3(-2.5, -8, 0), v3(-1.5, -1.4, -1.5));
 
   // ——— Бортовые системы (внутри фюзеляжа, при разлёте поднимаются над ним ярусами) ———
   add("avionics", avionicsRack(2.95), v3(0, 6.5, 0), v3(-1, 1, -1.5));

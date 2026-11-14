@@ -93,6 +93,8 @@ export interface ShapeSet {
   gear: {
     noseX: number;
     wheelbaseM: number;
+    /** Forward insert already included in this variant's published wheelbase. */
+    wheelbaseForwardPlugM?: number;
     mainZ: number;
     mainR: number;
     mainWheelGap: number;
@@ -192,11 +194,13 @@ const A320_SET: ShapeSet = {
     noseX: 5.07,
     wheelbaseM: 12.64,
     mainZ: 3.795,
-    mainR: 0.584,
-    mainWheelGap: 0.46,
-    mainTireW: 0.43,
+    mainR: 46 * .0254 / 2,
+    mainWheelGap: 0.927 / 2,
+    mainTireW: 17 * .0254,
     retractDeg: 80.5,
     noseR: 0.381,
+    noseTireW: 8.8 * .0254,
+    noseWheelGap: .25,
     noseLegM: 1.957 - 0.43 * 0.55,
     rakeDeg: 9,
   },
@@ -264,11 +268,13 @@ const B737_SET: ShapeSet = {
     noseX: 4.09,
     wheelbaseM: 15.6,
     mainZ: 2.86,
-    mainR: 0.565,
-    mainWheelGap: 0.405,
-    mainTireW: 0.41,
+    mainR: 44.5 * .0254 / 2,
+    mainWheelGap: 34 * .0254 / 2,
+    mainTireW: 16.5 * .0254,
     retractDeg: 88,
-    noseR: 0.343,
+    noseR: 27 * .0254 / 2,
+    noseTireW: 7.75 * .0254,
+    noseWheelGap: 16 * .0254 / 2,
     noseLegM: 1.28,
     rakeDeg: 4,
   },
@@ -433,6 +439,19 @@ export function useShapes(def: AircraftDefinition): ShapeSet {
       axisY: base.groundY + B737_800_NACELLE.clearanceM + B737_800_NACELLE.widthM * B737_800_NACELLE.lowerRadiusPerWidth,
     }
     : base.nacelle;
-  current = { ...base, nacelle, stretchReference: def.fuselage.shapeStretch };
+  // AC pavement footprints describe axle centres on the assembled aeroplane.
+  // Subtract the built-in barrel insert at the scene station, so another
+  // fuselage-length adjustment still moves the gear together with the wing.
+  let gear = base.gear;
+  if (def.id.startsWith("a319")) {
+    gear = { ...gear, wheelbaseM: 11.039, wheelbaseForwardPlugM: def.fuselage.shapeStretch?.forwardM };
+  } else if (def.id.startsWith("a321")) {
+    gear = { ...gear, wheelbaseM: 16.906, wheelbaseForwardPlugM: def.fuselage.shapeStretch?.forwardM,
+      mainR: 1.270 / 2, mainTireW: .455 };
+  } else if (def.id === "b737-300") {
+    gear = { ...gear, wheelbaseM: 12.45, wheelbaseForwardPlugM: (32.18 - base.baseLengthM) / 2,
+      mainZ: 5.23 / 2, mainR: 40 * .0254 / 2, mainTireW: 14.5 * .0254, mainWheelGap: 30.5 * .0254 / 2 };
+  }
+  current = { ...base, gear, nacelle, stretchReference: def.fuselage.shapeStretch };
   return current;
 }

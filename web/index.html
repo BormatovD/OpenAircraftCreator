@@ -94,6 +94,11 @@
         <div class="drawer-body">
           <div id="levers" class="lever-grid" role="group" aria-label="Рычаги — вертикальная прокрутка" tabindex="0"></div>
           <div id="detail" class="detail" hidden></div>
+          <div id="travel-panel" class="lever range" hidden>
+            <div class="lever-top"><label id="travel-label" class="lever-label" for="travel-range">Выпуск</label><output id="travel-position" for="travel-range">100%</output></div>
+            <input id="travel-range" type="range" min="0" max="100" step="1" value="100" aria-describedby="travel-hint" />
+            <span id="travel-hint" class="lever-hint">Ход в 3D: 0% — убрано, 100% — выпущено.</span>
+          </div>
           <section id="pylon-panel" hidden>
             <label><input type="checkbox" id="expose-mounts" /> Показать выбранную подвеску без обшивки</label>
             <dl>

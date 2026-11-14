@@ -161,9 +161,11 @@ shape = {
   'groundY':-4.39,
   'gear': {
     'noseX':5.15,'wheelbaseM':16.967,'mainZ':3.91,
-    'mainR':0.61,'mainWheelGap':0.47,'mainTireW':0.41,
-    'axleSpacingM':1.10,'retractDeg':84,'noseR':0.38,
-    'noseTireW':0.30,'noseWheelGap':0.28,'noseLegM':2.0,'rakeDeg':5,
+    # KT-196M / KT-197 tyres (UI GA 2024, §5.1); main wheels from table 3.3
+    # of Russian Ministry of Industry Order 1215, Appendix 3.
+    'mainR':0.535,'mainWheelGap':0.40,'mainTireW':0.390,
+    'axleSpacingM':1.27,'retractDeg':84,'noseR':0.42,
+    'noseTireW':0.29,'noseWheelGap':0.28,'noseLegM':2.0,'rakeDeg':5,
   },
   'cabin': {'floorY':-0.48,'fwdDoorEnd':round(port_openings[0]['x1'] + 0.25, 3),'aftDoorX':port_openings[-1]['x0']},
   'titleX':[6.5,13.6],

@@ -20,6 +20,8 @@ import { engineDiagram } from "./engineDiagram.ts";
 import { applyReverserMotion, coreRadiusFor, lptStagesFor, nacelleStyleFor, type Spool } from "./scene/shapes.ts";
 import { scenarioFamily, CONTROLS, type Control, type Mode, SCENARIOS, type Values, controlsFor, defaults, isChanged, leversFor } from "./controls.ts";
 import { type AircraftModel, type Family, FAMILY, buildAircraft, installedGroundClearance, installationLimits, partCenter } from "./scene/aircraft.ts";
+import { applyGearBracePose } from "./scene/landingGear.ts";
+import { applyHighLiftHinge, type HighLiftHinge } from "./scene/highLiftHinge.ts";
 import { Environment, PHASES, type Phase } from "./scene/environment.ts";
 import { LIVERIES, NO_LIVERY, PLAIN_FIN, finLiveryTexture, liveryById } from "./scene/livery.ts";
 import { fuselageTexture, htailTexture, wingTexture } from "./scene/textures.ts";
@@ -103,6 +105,14 @@ const individualSideParts = new Set(["engines", "nacelles", "gear.main", "wing.b
 const ABOUT_TAB = "about";
 const REVERSER_TAB = "Реверс";
 const MOUNTS_TAB = "Подвеска";
+const TRAVEL_TAB = "Ход механизма";
+// The preview moves only the scene, independently of the flight calculation.
+const inspectionTravel = { gear: 1, highLift: 1 };
+function mechanismFor(id: string | null) {
+  if (id === "gear.main" || id === "gear.nose") return "gear";
+  if (id === "wing.highLift") return "highLift";
+  return null;
+}
 let exposeMounts = false;
 
 /** Постоянные выноски — только у агрегатов тяжелее этой доли OEW; остальные — при наведении или изменении. */
@@ -386,6 +396,10 @@ function buildScene(): void {
             m.roughness = tone === "detailSteel" ? .42 : tone === "detailPanel" ? .58 : .65;
             m.metalness = tone === "detailSteel" ? .55 : tone === "detailPanel" ? .33 : .20;
           }
+          if (tone === "gearRubber") {
+            m.roughness = .92;
+            m.metalness = .02;
+          }
           if (tone === "glassFrame") {
             // Одинаковая яркость на передних и боковых стёклах даже при разных нормалях.
             m.metalness = 0.04;
@@ -504,15 +518,16 @@ const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 
 function pose(phase: { gear: number; flaps: number } = env.current): void {
   if (!model) return;
   const k = ease(state.explode);
-  const retraction = (1 - phase.gear) * (1 - k);
-  const flaps = phase.flaps;
+  const inspecting = state.drawerTab === TRAVEL_TAB ? mechanismFor(state.selected) : null;
+  const retraction = (1 - (inspecting === "gear" ? inspectionTravel.gear : phase.gear)) * (1 - k);
+  const flaps = inspecting === "highLift" ? inspectionTravel.highLift : phase.flaps;
   const inspectingReverser = state.selected === "nacelles" && state.drawerTab === REVERSER_TAB;
   const inspectingMounts = state.selected === "nacelles" && state.drawerTab === MOUNTS_TAB;
   for (const part of model.parts.values()) {
     // Выбор слегка отделяет агрегат; полного разлёта добиваются общим ползунком.
     // Expose the selected landing gear for inspection even in cruise.
-    const gearUp = retraction * (part.id === selPart ? 1 - ease(selK) : 1);
-    const kp = part.id === selPart && !inspectingReverser && !inspectingMounts ? Math.max(k, ease(selK) * SELECTED_EXPLODE_FRACTION) : k;
+    const gearUp = retraction * (!inspecting && part.id === selPart ? 1 - ease(selK) : 1);
+    const kp = part.id === selPart && !inspecting && !inspectingReverser && !inspectingMounts ? Math.max(k, ease(selK) * SELECTED_EXPLODE_FRACTION) : k;
     part.group.position.copy(part.explode).multiplyScalar(kp);
     for (const o of part.group.children) {
       if (!(o instanceof THREE.Mesh)) continue;
@@ -532,22 +547,19 @@ function pose(phase: { gear: number; flaps: number } = env.current): void {
       o.position.z += (b?.z ?? 0) + (o.userData.side ?? 0) * part.sideSpread * kp + (off?.z ?? 0) * kp;
       // Механизация: выдвижение и поворот вокруг шарнира. Взлёт (≈0,45) — закрылки ≈10–15°, предкрылки ≈18°;
       // посадка — 40° и 27°. Каретка выдвигается быстрее, чем растёт угол (так устроен Фаулер).
-      const h = o.userData.hinge as { kind: "flap" | "slat"; pivot: THREE.Vector3; axis: THREE.Vector3; angle: number; slide: THREE.Vector3 } | null;
-      if (h) {
-        const f = flaps * (1 - kp);
-        const ang = h.angle * (h.kind === "flap" ? Math.pow(f, 1.6) : Math.sqrt(f));
-        const sl = h.kind === "flap" ? Math.pow(f, 0.6) : Math.sqrt(f);
-        o.quaternion.setFromAxisAngle(h.axis, ang);
-        const rotated = h.pivot.clone().applyQuaternion(o.quaternion);
-        o.position.add(h.pivot).sub(rotated).addScaledVector(h.slide, sl);
-      }
+      const h = o.userData.hinge as HighLiftHinge | null;
+      if (h) applyHighLiftHinge(o, h, flaps * (1 - kp));
       // Подкосы складываются при уборке — в модели их просто убираем, пока стойка не выпущена.
       if (o.userData.hideRetracted) o.visible = gearUp < 0.08;
       const r = o.userData.retract as { axis: "x" | "z"; angle: number } | null;
       if (r) {
         o.rotation[r.axis] = r.angle * gearUp;
         // Передняя стойка у A320 закрывается створками полностью — в убранном положении её не видно.
-        if (r.axis === "z") o.visible = gearUp < 0.97;
+        if (r.axis === "z") o.visible = inspecting === "gear" || gearUp < 0.97;
+      }
+      if (o.geometry.userData.gearBrace) {
+        applyGearBracePose(o, gearUp);
+        if (inspecting === "gear") o.visible = true;
       }
     }
   }
@@ -766,6 +778,16 @@ function select(id: string | null, hitSide = 0): void {
     const groups = linkedGroups(state.selected);
     state.drawerOpen = true;
     state.drawerTab = groups[0] ?? ABOUT_TAB;
+    // Approach the main strut from behind the nacelle. Keep this initial
+    // inspection angle separate from framing so the user can orbit freely.
+    if (state.selected === "gear.main" || state.selected === "gear.nose") {
+      const side = selectedSide || (camera.position.z < controls.target.z ? -1 : 1);
+      const direction = new THREE.Vector3(state.selected === "gear.main" ? .62 : -.42, .06, side).normalize();
+      const distance = camera.position.distanceTo(controls.target);
+      camera.position.copy(controls.target).addScaledVector(direction, distance);
+      camera.lookAt(controls.target);
+      controls.update();
+    }
   } else state.drawerOpen = false;
   applySelection();
   renderLevers();
@@ -889,6 +911,7 @@ function linkedControls(id: string | null): Control[] {
 /** Группы рычагов агрегата — вкладки нижней панели. */
 function linkedGroups(id: string | null): string[] {
   const groups: string[] = [...new Set(linkedControls(id).map((c) => c.group))];
+  if (mechanismFor(id)) groups.unshift(TRAVEL_TAB);
   if (id === "nacelles" && model?.parts.get(id)?.group.children.some(o =>
     o instanceof THREE.Mesh && o.geometry.userData.reverserOrigin)) groups.unshift(REVERSER_TAB);
   if (id === "nacelles" && result && pylonFor(nacelleStyleFor(result.ev.definition.engine))) groups.splice(groups.includes(REVERSER_TAB) ? 1 : 0,0,MOUNTS_TAB);
@@ -1061,6 +1084,14 @@ $("expose-mounts").addEventListener("change", event => {
   exposeMounts = (event.currentTarget as HTMLInputElement).checked;
   applyExplode();
 });
+$("travel-range").addEventListener("input", event => {
+  const mechanism = mechanismFor(state.selected);
+  if (!mechanism) return;
+  const pct = (event.currentTarget as HTMLInputElement).valueAsNumber;
+  inspectionTravel[mechanism] = pct / 100;
+  $("travel-position").textContent = pct + "%";
+  pose();
+});
 function renderLevers(): void {
   const def = AIRCRAFT[state.aircraftId];
   const notice = $("mount-notice");
@@ -1105,9 +1136,19 @@ function renderLevers(): void {
   drawer.dataset.content = about ? "detail" : reverser ? "reverser" : "levers";
   $("reverser-panel").hidden = !reverser;
   $("detail").hidden = !about;
+  const mechanism = state.drawerTab === TRAVEL_TAB ? mechanismFor(sel) : null;
+  $("travel-panel").hidden = !mechanism;
   const inspectingMounts = state.drawerTab === MOUNTS_TAB;
   $("pylon-panel").hidden = !inspectingMounts;
-  $("levers").hidden = about || reverser || inspectingMounts;
+  $("levers").hidden = about || reverser || inspectingMounts || !!mechanism;
+  if (mechanism) {
+    drawer.dataset.content = "travel";
+    $("travel-label").textContent = mechanism === "gear" ? "Выпуск шасси" : "Выпуск механизации крыла";
+    const pct = Math.round(100 * inspectionTravel[mechanism]);
+    $<HTMLInputElement>("travel-range").value = String(pct);
+    $("travel-position").textContent = pct + "%";
+    return;
+  }
   if (inspectingMounts && result) {
     drawer.dataset.content = "mounts";
     const spec = pylonFor(nacelleStyleFor(result.ev.definition.engine));
@@ -1963,7 +2004,7 @@ renderScenarios();
 run();
 route();
 const reviewPart = launchParams.get("part");
-if (isLocalReview && (reviewPart === "engines" || reviewPart === "nacelles" || reviewPart === "pylons")) {
+if (isLocalReview && (reviewPart === "engines" || reviewPart === "nacelles" || reviewPart === "pylons" || mechanismFor(reviewPart))) {
   select(reviewPart === "pylons" ? "nacelles" : reviewPart);
   if (reviewPart === "pylons") {
     state.drawerTab = MOUNTS_TAB;
