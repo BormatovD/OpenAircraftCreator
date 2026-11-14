@@ -40,7 +40,7 @@ const tex = (s: string, display = true): string => {
 const t = (s: string) => tex(s, false);
 const nf = (v: number, d = 0) => v.toLocaleString("ru-RU", { minimumFractionDigits: d, maximumFractionDigits: d }).replace("-", "−");
 /** Число для формулы: запятая — в фигурных скобках, разряды — тонкой шпацией. */
-const L = (v: number, d = 0) => nf(v, d).replace("−", "-").replace(/\s/g, "\\,").replace(",", "{,}");
+const L = (v: number, d = 0) => nf(v, d).replace("−", "-").replace(",", "{,}").replace(/\s/g, "\\,");
 /** Подстановка значений текущего варианта под формулой — мелко и серым, рядом с теорией. */
 let NOW = "";
 const now = (latex: string, note = "") =>
