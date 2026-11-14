@@ -4,7 +4,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { CSS2DObject, CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import { isSuspensionHardware } from "./scene/pylonGeometry.ts";
 import { pylonFor } from "./scene/pylonPackages.ts";
-import { AIRCRAFT, AIRCRAFT_LABEL, typeOf } from "./aircraftCatalog.ts";
+import { AIRCRAFT, AIRCRAFT_LABEL } from "./aircraftCatalog.ts";
 import { bindAircraftPickers } from "./aircraftPickers.ts";
 import { contextFor } from "../src/aircraft/contextFor.ts";
 import { type ConstraintResult } from "../src/constraints.ts";
@@ -565,7 +565,7 @@ function pose(phase: { gear: number; flaps: number } = env.current, groundDrop =
       if (r) {
         if (profile) o.rotation.set(0, 0, 0);
         o.rotation[r.axis] = r.angle * legTravel;
-        if (r.axis === "z") o.visible = inspecting === "gear" || gearUp < 0.97;
+        if (r.axis === "z") o.visible = !!o.geometry.userData.bayOpening || inspecting === "gear" || gearUp < 0.97;
       }
       if (o.geometry.userData.gearBrace) {
         applyGearBracePose(o, legTravel);
@@ -709,8 +709,7 @@ function declutter(now: number): void {
 }
 
 function inspectingGearBay(): boolean {
-  const type = typeOf(state.aircraftId);
-  return state.drawerTab === TRAVEL_TAB && mechanismFor(state.selected) === "gear" && (type === "b757" || type === "tu214");
+  return state.drawerTab === TRAVEL_TAB && mechanismFor(state.selected) === "gear";
 }
 
 function applySelection(): void {

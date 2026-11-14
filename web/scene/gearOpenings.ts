@@ -1,8 +1,9 @@
-// Rectangular wheel-well boundaries in plan. Only rigid lower skins are trimmed;
+// Wheel-well boundaries in plan. Only rigid lower skins are trimmed;
 // keep the original vertex layout and UVs elsewhere, including the cockpit and wing tips.
 import * as THREE from "three";
 
-export type BayOpening = { x0: number; x1: number; z0: number; z1: number };
+type PlanPoint = { x: number; z: number };
+export type BayOpening = { x0: number; x1: number; z0: number; z1: number; polygon?: PlanPoint[] };
 /** A blind well has sidewalls and a ceiling, so an open bay is not a window into the cabin.
  * The lower edge follows its installed skin, and sits behind the narrow hinge sill. */
 export function wellLiner(name: string, x0: number, x1: number, halfWidth: number, roof: (x: number, z: number) => number,
@@ -43,14 +44,36 @@ export function wellLiner(name: string, x0: number, x1: number, halfWidth: numbe
 }
 
 type Vertex = { index: number; x: number; y: number; z: number; nx: number; ny: number; nz: number; u: number; v: number };
-type Axis = "x" | "z";
+type HalfPlane = { nx: number; nz: number; offset: number };
 
-function slice(polygon: Vertex[], axis: Axis, at: number, sign: number): [Vertex[], Vertex[]] {
+/** Inward-facing lines for a convex opening, including a faceted circular wheel port. */
+function openingPlanes({ x0, x1, z0, z1, polygon }: BayOpening): HalfPlane[] {
+  if (!polygon) return [
+    { nx: 1, nz: 0, offset: x0 }, { nx: -1, nz: 0, offset: -x1 },
+    { nx: 0, nz: 1, offset: z0 }, { nx: 0, nz: -1, offset: -z1 },
+  ];
+  const area = polygon.reduce((sum, a, i) => {
+    const b = polygon[(i + 1) % polygon.length];
+    return sum + a.x * b.z - b.x * a.z;
+  }, 0);
+  const winding = Math.sign(area);
+  return polygon.map((a, i) => {
+    const b = polygon[(i + 1) % polygon.length];
+    const nx = (a.z - b.z) * winding, nz = (b.x - a.x) * winding;
+    return { nx, nz, offset: nx * a.x + nz * a.z };
+  });
+}
+
+function slice(polygon: Vertex[], { nx, nz, offset }: HalfPlane): [Vertex[], Vertex[]] {
   const inside: Vertex[] = [], outside: Vertex[] = [];
+  const distances = polygon.map(p => nx * p.x + nz * p.z - offset);
+  if (distances.every(d => d >= 0)) return [polygon, outside];
+  if (distances.every(d => d <= 0)) return [inside, polygon];
   for (let i = 0; i < polygon.length; i++) {
-    const a = polygon[i], b = polygon[(i + 1) % polygon.length];
-    const da = (a[axis] - at) * sign, db = (b[axis] - at) * sign;
-    (da >= 0 ? inside : outside).push(a);
+    const next = (i + 1) % polygon.length;
+    const a = polygon[i], b = polygon[next], da = distances[i], db = distances[next];
+    if (da >= 0) inside.push(a);
+    if (da <= 0) outside.push(a);
     if (da * db >= 0) continue;
     const t = da / (da - db), mix = (a: number, b: number) => a + t * (b - a);
     const cut = {
@@ -63,14 +86,14 @@ function slice(polygon: Vertex[], axis: Axis, at: number, sign: number): [Vertex
   return [inside, outside];
 }
 
-function removeOpening(polygon: Vertex[], opening: BayOpening): Vertex[][] {
+function removeOpening(polygon: Vertex[], opening: BayOpening & { planes: HalfPlane[] }): Vertex[][] {
   const { x0, x1, z0, z1 } = opening;
   if (polygon.every(p => p.x <= x0) || polygon.every(p => p.x >= x1) ||
     polygon.every(p => p.z <= z0) || polygon.every(p => p.z >= z1)) return [polygon];
   const remains: Vertex[][] = [];
   let portion = polygon;
-  for (const [axis, at, sign] of [["x", x0, 1], ["x", x1, -1], ["z", z0, 1], ["z", z1, -1]] as const) {
-    const [inner, outer] = slice(portion, axis, at, sign);
+  for (const plane of opening.planes) {
+    const [inner, outer] = slice(portion, plane);
     if (outer.length >= 3) remains.push(outer);
     if (inner.length < 3) break;
     portion = inner;
@@ -81,6 +104,7 @@ function removeOpening(polygon: Vertex[], opening: BayOpening): Vertex[][] {
 export function cutBayOpenings(g: THREE.BufferGeometry, openings: BayOpening[], keepUpper: boolean) {
   const p = g.getAttribute("position"), n = g.getAttribute("normal"), uv = g.getAttribute("uv"), index = g.getIndex();
   if (!index || !uv || !n) return;
+  const cuts = openings.map(o => ({ ...o, planes: openingPlanes(o) }));
   const pos: number[] = [], normals: number[] = [], tex: number[] = [], faces: number[] = [];
   const read = (i: number): Vertex => ({
     index: i, x: p.getX(i), y: p.getY(i), z: p.getZ(i),
@@ -98,7 +122,7 @@ export function cutBayOpenings(g: THREE.BufferGeometry, openings: BayOpening[], 
   let cut = false;
   for (let i = 0; i < index.count; i += 3) {
     const a = index.getX(i), b = index.getX(i + 1), c = index.getX(i + 2);
-    const candidates = openings.filter(o =>
+    const candidates = cuts.filter(o =>
       Math.max(p.getX(a), p.getX(b), p.getX(c)) > o.x0 && Math.min(p.getX(a), p.getX(b), p.getX(c)) < o.x1 &&
       Math.max(p.getZ(a), p.getZ(b), p.getZ(c)) > o.z0 && Math.min(p.getZ(a), p.getZ(b), p.getZ(c)) < o.z1);
     if (!candidates.length || (keepUpper && n.getY(a) + n.getY(b) + n.getY(c) >= 0)) {

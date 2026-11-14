@@ -6,13 +6,14 @@ import { buildAircraft } from "../web/scene/aircraft.ts";
 import { applyGearBracePose } from "../web/scene/landingGear.ts";
 import { gearLegTravel, applyGearBayPose } from "../web/scene/gearBay.ts";
 
-const families = ["b757-200-rb", "tu214-ps90a"] as const;
+const tandemTypes = ["b757-200-rb", "tu214-ps90a"] as const;
 const v = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const near = (a: number, b: number, tol = 1e-5) => assert.ok(Math.abs(a - b) < tol, `${a} vs ${b}`);
 function pose(mesh: THREE.Mesh, up: number, unloaded: number) {
   const g = mesh.geometry.userData;
   mesh.rotation.set(0, 0, 0);
-  mesh.position.copy(mesh.userData.basePos);
+  mesh.position.set(0, 0, 0);
+  if (mesh.userData.basePos) mesh.position.copy(mesh.userData.basePos);
   const travel = gearLegTravel(g.gearProfile, up);
   if (g.retract) mesh.rotation[g.retract.axis as "x" | "z"] = g.retract.angle * travel;
   if (g.gearBrace) applyGearBracePose(mesh, travel);
@@ -50,24 +51,25 @@ function tyreClearance(door: THREE.Mesh, wheel: THREE.Mesh) {
   const doorBox = door.geometry.boundingBox!.clone().applyMatrix4(transform);
   if (doorBox.max.z < -half || doorBox.min.z > half || doorBox.min.x > radius || doorBox.max.x < -radius ||
     doorBox.min.y > radius || doorBox.max.y < -radius) return Infinity;
-  const vertices = door.geometry.getAttribute("position"), index = door.geometry.getIndex()!;
+  const vertices = door.geometry.getAttribute("position"), index = door.geometry.getIndex();
   const points = Array.from({ length: vertices.count }, (_, i) => v().fromBufferAttribute(vertices, i).applyMatrix4(transform));
   let result = Infinity;
-  for (let i = 0; i < index.count; i += 3) {
-    let poly = [points[index.getX(i)], points[index.getX(i + 1)], points[index.getX(i + 2)]];
+  for (let i = 0; i < (index?.count ?? vertices.count); i += 3) {
+    let poly = [i, i + 1, i + 2].map(j => points[index ? index.getX(j) : j]);
     poly = slab(slab(poly, -half, 1), half, -1);
     result = Math.min(result, radialDistance(poly) - radius);
   }
   return result;
 }
 
-for (const id of families) {
+for (const id of Object.keys(AIRCRAFT)) {
   test(`${id}: installed doors clear the complete tyre envelopes throughout the normal stroke`, () => {
     const model = buildAircraft(AIRCRAFT[id]);
     for (const assembly of ["gear.main", "gear.nose"]) {
       const parts = model.parts.get(assembly)!.group.children as THREE.Mesh[];
-      const wheels = parts.filter(m => m.geometry.name === "tyre"), doors = parts.filter(m => m.geometry.name.endsWith("-door"));
-      assert.ok(doors.length >= 4);
+      const wheels = parts.filter(m => m.geometry.name === "tyre");
+      const doors = parts.filter(m => m.geometry.userData.gearDoor || (m.userData.retract && m.geometry.name.endsWith("-door")));
+      assert.ok(doors.length >= (id.startsWith("b737") && assembly === "gear.nose" ? 2 : 4), `${id} ${assembly}: ${doors.length} doors`);
       for (const m of [...wheels, ...doors]) m.geometry.computeBoundingBox();
       const worst = new Map<string, [number, number]>();
       for (let i = 0; i <= 100; i++) {
@@ -88,7 +90,55 @@ function sortedPoint(mesh: THREE.Mesh, index: number) {
   return v().fromBufferAttribute(mesh.geometry.getAttribute("position"), index).applyMatrix4(mesh.matrixWorld);
 }
 
-for (const id of families) {
+for (const id of ["b737-300", "b737-800", "b737-8"]) {
+  test(`${id}: both outboard wheel faces remain exposed in their own openings after retraction`, () => {
+    const model = buildAircraft(AIRCRAFT[id]);
+    const main = model.parts.get("gear.main")!.group.children as THREE.Mesh[];
+    const exterior = ["fuselage", "wing.box", "wing.highLift"].flatMap(key => model.parts.get(key)!.group.children) as THREE.Mesh[];
+    const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+    for (const mesh of [...main, ...exterior]) mesh.material = material;
+    for (const mesh of main) pose(mesh, 1, 1);
+    for (const side of [-1, 1]) {
+      const tyres = main.filter(o => o.geometry.name === "tyre" && o.userData.side === side);
+      assert.equal(tyres.length, 2);
+      const wheels = tyres.map(mesh => {
+        mesh.geometry.computeBoundingBox();
+        const local = mesh.geometry.boundingBox!.getCenter(v());
+        return { local, mesh, center: local.clone().applyMatrix4(mesh.matrixWorld) };
+      }).sort((a, b) => b.local.z * side - a.local.z * side);
+      const { mesh, center } = wheels[0];
+      const normal = v(0, 0, side).applyQuaternion(mesh.quaternion);
+      const axialRay = new THREE.Raycaster(center.clone().addScaledVector(normal, 2), normal.clone().negate());
+      const first = axialRay.intersectObjects([...main, ...exterior], false)[0]?.object as THREE.Mesh | undefined;
+      assert.ok(first && /hub|cap/i.test(first.geometry.name), `wheel face covered by ${first?.geometry.name || first?.parent?.name}`);
+      assert.equal(first.userData.side, side);
+      for (const tyre of tyres) {
+        const positions = tyre.geometry.getAttribute("position");
+        for (let i = 0; i < positions.count; i++) {
+          assert.ok(side * sortedPoint(tyre, i).z > 0, "the tyre crosses the centreline into the opposite gear");
+        }
+      }
+    }
+    const nose = model.parts.get("gear.nose")!.group.children as THREE.Mesh[];
+    const pair = nose.filter(o => o.geometry.userData.gearDoor);
+    assert.equal(pair.length, 2);
+    for (const door of pair) {
+      pose(door, 0, 1);
+      const down = door.quaternion.clone();
+      assert.ok(down.angleTo(new THREE.Quaternion()) > 1);
+      if (id === "b737-300") {
+        pose(door, .8, 1);
+        near(door.quaternion.angleTo(down), 0);
+      }
+      pose(door, 1, 1);
+      near(door.quaternion.angleTo(new THREE.Quaternion()), 0);
+    }
+    material.dispose();
+    model.root.traverse(o => { if (o instanceof THREE.Mesh) o.geometry.dispose(); });
+  });
+}
+
+for (const id of tandemTypes) {
   test(`${id}: parked and airborne truck angles, mirrored hinges and reversible normal sequence`, () => {
     const model = buildAircraft(AIRCRAFT[id]);
     for (const key of ["gear.main", "gear.nose"]) {

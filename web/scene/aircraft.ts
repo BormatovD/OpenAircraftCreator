@@ -17,7 +17,8 @@ import { cowlDoors, installationGeometry, isSuspensionHardware } from "./pylonGe
 import { fleetMountTravel } from "./fleetClearance.ts";
 import { fleetPackages, isFleetStyle } from "./fleetPackages.ts";
 import { cutBayOpenings, type BayOpening } from "./gearOpenings.ts";
-import { bayProfile, mainDoors, noseDoors } from "./gearBay.ts";
+import { mainDoors, noseDoors } from "./gearBay.ts";
+import { boeing737StowAngle } from "./boeing737Gear.ts";
 import { mainLandingGear, noseLandingGear } from "./landingGear.ts";
 import { cockpitGlazing } from "./cockpit.ts";
 import { cabinOpenings } from "./features.ts";
@@ -900,7 +901,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   const pivotY = wingMidAt(G.mainZ);
   const anchorY = wingMidAt(G.mainZ - 1.35 * (G.mainZ / 3.795));
   const tandem = def.gear.mainWheels / def.gear.mainStruts === 4;
-  const profile = bayProfile(SH.id);
+  const profile = SH.id;
   // Close the panels against the installed surfaces (including the centre-section fairing),
   // not against a flat datum. Keep small seams and clearance to prevent coincident faces.
   const belly = (x: number, z: number) => {
@@ -938,23 +939,22 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
     }
     return Math.min(shell, fairingY) - .014;
   };
+  const mainGear = profile === "b737" ? { ...G, retractDeg: boeing737StowAngle(G, pivotY, mainX, groundY, mainSkin) } : G;
   const legs = ([1, -1] as const).flatMap(side => {
     const pivot = v3(mainX, pivotY, side * G.mainZ);
-    return [...mainLandingGear(G, side, pivot, groundY, anchorY, tandem, profile),
-    ...(profile ? mainDoors(profile, G, side, pivot, mainSkin) : [])];
+    return [...mainLandingGear(mainGear, side, pivot, groundY, anchorY, tandem, profile),
+      ...mainDoors(profile, mainGear, side, pivot, mainSkin, groundY)];
   });
   add("gear.main", legs, v3(0, -9, 0), v3(9, -2.5, -4));
   const nose = noseLandingGear(G, groundY, profile);
-  if (profile) nose.push(...noseDoors(profile, G, nose[0].userData.basePos, (x, z) => belly(x, z) - .014));
-  if (profile) {
-    const openings = (geometries: THREE.BufferGeometry[]) => geometries.flatMap(g =>
-      g.userData.bayOpening ? [g.userData.bayOpening as BayOpening] : []);
-    const mainOpenings = openings(legs);
-    cutBayOpenings(hull, [...openings(nose), ...mainOpenings], true);
-    cutBayOpenings(fairing, mainOpenings, false);
-    for (const mesh of parts.get("wing.box")!.group.children as THREE.Mesh[]) {
-      cutBayOpenings(mesh.geometry, mainOpenings, true);
-    }
+  nose.push(...noseDoors(profile, G, nose[0].userData.basePos, (x, z) => belly(x, z) - .014));
+  const bayOpenings = (geometries: THREE.BufferGeometry[]) => geometries.flatMap(g =>
+    g.userData.bayOpening ? [g.userData.bayOpening as BayOpening] : []);
+  const mainOpenings = bayOpenings(legs);
+  cutBayOpenings(hull, [...bayOpenings(nose), ...mainOpenings], true);
+  cutBayOpenings(fairing, mainOpenings, false);
+  for (const mesh of parts.get("wing.box")!.group.children as THREE.Mesh[]) {
+    cutBayOpenings(mesh.geometry, mainOpenings, true);
   }
   add("gear.nose", nose, v3(-2.5, -8, 0), v3(-1.5, -1.4, -1.5));
 

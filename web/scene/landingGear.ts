@@ -157,7 +157,9 @@ export function mainLandingGear(g: Gear, side: Side, pivot: THREE.Vector3, groun
   }
   const anchor = v(.09 * gauge, anchorY - pivot.y, -side * 1.35 * (g.mainZ / 3.795));
   const pin = v(0, -.53 * length, 0);
-  const fold = profile ? v(1, 0, 0) : undefined;
+  // Direct the side-stay knee into its bay as the two end pins converge.
+  const forwardFold = profile === "a320" || profile === "b737";
+  const fold = forwardFold ? v(-1, .20, 0) : profile ? v(1, 0, 0) : undefined;
   const elbow = anchor.clone().lerp(pin, .5).add(fold ? fold.clone().multiplyScalar(.18 * gauge) : v(.18 * gauge, -.07 * gauge, 0));
   const stays = bracePair(anchor, pin, elbow, gauge, retract, fold);
   for (const part of stays) Object.assign(part.userData, { side, basePos: pivot, gearProfile: profile });

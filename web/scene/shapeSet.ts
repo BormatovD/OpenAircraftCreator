@@ -99,6 +99,7 @@ export interface ShapeSet {
     mainR: number;
     mainWheelGap: number;
     mainTireW: number;
+    boeing737Series?: "classic" | "ng" | "max";
     /** Расстояние между передней и задней осями четырёхколёсной тележки. */
     axleSpacingM?: number;
     retractDeg: number;
@@ -269,6 +270,7 @@ const B737_SET: ShapeSet = {
     wheelbaseM: 15.6,
     mainZ: 2.86,
     mainR: 44.5 * .0254 / 2,
+    boeing737Series: "ng",
     mainWheelGap: 34 * .0254 / 2,
     mainTireW: 16.5 * .0254,
     retractDeg: 88,
@@ -449,8 +451,11 @@ export function useShapes(def: AircraftDefinition): ShapeSet {
     gear = { ...gear, wheelbaseM: 16.906, wheelbaseForwardPlugM: def.fuselage.shapeStretch?.forwardM,
       mainR: 1.270 / 2, mainTireW: .455 };
   } else if (def.id === "b737-300") {
-    gear = { ...gear, wheelbaseM: 12.45, wheelbaseForwardPlugM: (32.18 - base.baseLengthM) / 2,
+    gear = { ...gear, boeing737Series: "classic", wheelbaseM: 12.45, wheelbaseForwardPlugM: (32.18 - base.baseLengthM) / 2,
       mainZ: 5.23 / 2, mainR: 40 * .0254 / 2, mainTireW: 14.5 * .0254, mainWheelGap: 30.5 * .0254 / 2 };
+  } else if (def.id === "b737-8") {
+    // The 737-8 nose strut is eight inches longer than the 737-800 reference mesh.
+    gear = { ...gear, boeing737Series: "max", noseLegM: gear.noseLegM + 8 * .0254 };
   }
   current = { ...base, gear, nacelle, stretchReference: def.fuselage.shapeStretch };
   return current;
