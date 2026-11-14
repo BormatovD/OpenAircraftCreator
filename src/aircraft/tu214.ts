@@ -85,13 +85,13 @@ export const TU214_PS90A: AircraftDefinition = {
       t4K: 1510, coolingFrac: 0.17, fanEff: 0.87, compEff: 0.87,
       hptEff: 0.87, lptEff: 0.88, gearbox: false,
     },
-    nacelleLengthM: 5.7, // внешний габарит по чертежу пока не идентифицирован точно
-    nacelleWidthM: 2.36, // приближение; диаметр вентилятора 1.9 м — отдельный заводской факт
+    nacelleLengthM: 5.7, // эффективная длина для модели массы и сопротивления; внешний габарит задан в shapes
+    nacelleWidthM: 2.36, // наружная ширина по виду сверху, диаметр вентилятора 1,9 м
     installation: "pylon", nacelleRaiseM: 0,
     takeoffThrustKn: 16000 * 9.80665 / 1000,
     thrustScale: 1,
     thrustReverser: true,
-    // ПС-90А — двухвальный, со смешением потоков; сейчас в 3D разделённые сопла.
+    // ПС-90А — двухвальный, с общим соплом для смешанного потока.
     architecture: { fanBlades: 33, boosterStages: 2, hpcStages: 13, hptStages: 2, spools: 2 },
   },
   systems: {

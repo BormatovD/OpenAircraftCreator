@@ -583,7 +583,7 @@ export function engineCutaway(e: EngineSpec): EnginePiece[] {
 // контура), открытый кожух ядра, сопло внутреннего контура и конус — 1,44 м; высота 2,60 м.
 // Профили — радиус по длине в метрах для базовой гондолы; модель масштабирует их по рычагам.
 
-export type NacelleStyle = "longDuct" | "separateFlow" | "rb211" | "pw2037";
+export type NacelleStyle = "longDuct" | "separateFlow" | "ps90a" | "rb211" | "pw2037";
 export interface NacelleSegment {
   id: "inlet" | "lip" | "fanCowl" | "reverser" | "nozzle" | "coreCowl" | "plug";
   geometry: THREE.BufferGeometry;
@@ -633,6 +633,20 @@ const NACELLE_PROFILES: Record<NacelleStyle, { referenceLength: number; radius: 
       coreCowl: [[3.30, 0.98], [3.78, 0.92], [4.35, 0.83], [4.92, 0.73]],
       nozzle: [[4.92, 0.73], [5.36, 0.65], [5.78, 0.575], [6.05, 0.54], [6.05, 0.51], [5.65, 0.57]],
       plug: [[5.48, 0.34], [5.70, 0.27], [5.86, 0.14], [5.94, 0]],
+    },
+  },
+  // Tu-204-200 side view. Distances from the inlet to the four cowl seams
+  // are 1.30, 2.55, 4.10 and 5.20 m. The common exhaust has an open lip.
+  ps90a: {
+    referenceLength: 6.15,
+    radius: 1.18,
+    fanFaceX: 1.15,
+    segs: {
+      inlet: [[1.15, 0.96], [0.55, 0.91], [0.18, 0.85], [0.05, 0.84], [0, 0.87],
+        [0, 0.90], [0.05, 0.96], [0.20, 1.04], [0.50, 1.12], [0.90, 1.16], [1.30, 1.18]],
+      fanCowl: [[1.30, 1.18], [1.55, 1.18], [2.00, 1.15], [2.55, 1.08]],
+      reverser: [[2.55, 1.08], [3.20, 0.99], [4.10, 0.84], [4.62, 0.75], [5.20, 0.60]],
+      nozzle: [[5.20, 0.60], [5.68, 0.59], [6.15, 0.57], [6.15, 0.54], [5.83, 0.55]],
     },
   },
   separateFlow: {

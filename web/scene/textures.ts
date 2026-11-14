@@ -28,6 +28,7 @@ export function fuselageTexture(def: AircraftDefinition, livery: Livery | null =
   const H = 1024;
   const f: FuselageShape = { lengthM: def.fuselage.lengthM, widthM: def.fuselage.widthM, heightM: def.fuselage.heightM };
   const L = f.lengthM;
+  const tu214 = S().id === "tu214";
   const cv = document.createElement("canvas");
   cv.width = W;
   cv.height = H;
@@ -149,7 +150,7 @@ export function fuselageTexture(def: AircraftDefinition, livery: Livery | null =
   for (const side of [1, -1] as const)
     for (const y of [1.55, 0.05, -1.25]) shape([[0.8, y], [L - 1.0, y]], side, null, PANEL_LINE, false);
   // Грузовые люки правого борта — по собственному набору типа.
-  for (const d of cargoOpenings(def)) roundRect(d.x0, d.x1, d.y0, d.y1, 1, null, SEAM);
+  for (const d of cargoOpenings(def)) roundRect(d.x0, d.x1, d.y0, d.y1, tu214 ? -1 : 1, null, SEAM);
   // Лючки обслуживания: кислород и наземное питание слева у носа, вода и дренаж сзади.
   for (const [x0, w, y0, y1, sd] of [
     [3.6, 0.35, -1.3, -1.0, -1],
@@ -166,10 +167,18 @@ export function fuselageTexture(def: AircraftDefinition, livery: Livery | null =
   g.fillRect(px(L - 1.6), 0, px(L) - px(L - 1.6), H);
 
   for (const side of [1, -1] as const) {
-    const placed = cabinWindows(def, side);
-    const openings = cabinOpenings(def, side);
+    // With x aft and y up, the port side seen with the nose pointing left is +z.
+    const cabinSide = tu214 ? (side === 1 ? -1 : 1) : side;
+    const placed = cabinWindows(def, cabinSide);
+    const openings = cabinOpenings(def, cabinSide);
     for (const w of placed) roundRect(w.x0, w.x1, w.y0, w.y1, side, WINDOW, null);
-    for (const d of openings) roundRect(d.x0, d.x1, d.y0, d.y1, side, null, SEAM);
+    for (const d of openings) {
+      roundRect(d.x0, d.x1, d.y0, d.y1, side, null, SEAM);
+      if (tu214) {
+        const cx = (d.x0 + d.x1) / 2;
+        roundRect(cx - 0.10, cx + 0.10, 0.43, 0.64, side, WINDOW, null);
+      }
+    }
     // Остекление кабины: на виде сбоку AC окна нарисованы незамкнутыми линиями — собираем стёкла
     // из их узлов (лобовое боковое, боковое, открываемая форточка).
     // Остекление кабины — отдельная геометрия (cockpit.ts), на текстуре его нет.

@@ -5,6 +5,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { B757_PW2037, B757_RB211 } from "../../src/aircraft/b757.ts";
+import { TU214_PS90A } from "../../src/aircraft/tu214.ts";
 import { useShapes } from "./shapeSet.ts";
 import { cockpitGlazing } from "./cockpit.ts";
 import { cabinOpenings } from "./features.ts";
@@ -546,10 +547,11 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   const engZ = Math.min(SH.nacelle.axisZ, 0.6 * semi);
   const lePoint = surfacePoint(wingShape(1), engZ / semi, 0, false);
   const R = e.nacelleWidthM / 2;
+  const ps90a = SH.id === "tu214";
   const rb211 = SH.id === "b757" && e.name.startsWith("RB211");
   const pw2037 = SH.id === "b757" && e.name.startsWith("PW");
   // Keep the measured shell dimensions independent of the calibrated drag/mass input.
-  const reference = pw2037 ? B757_PW2037 : rb211 ? B757_RB211 : undefined;
+  const reference = pw2037 ? B757_PW2037 : rb211 ? B757_RB211 : ps90a ? TU214_PS90A : undefined;
   const shellLength = reference ? SH.nacelle.refLengthM * (e.nacelleLengthM / reference.engine.nacelleLengthM) : e.nacelleLengthM;
   const nacX = modelX(L, SH.nacelle.inletX) - (shellLength - SH.nacelle.refLengthM) * 0.6;
   const wingLow = surfacePoint(wingShape(1), engZ / semi, 0.2, false).y;
@@ -560,13 +562,13 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   const axisY = (SH.nacelle.axisY ?? groundY + SH.nacelle.clearanceM + 2.37 / 2) + e.nacelleRaiseM;
   // Гондола по AC 2-12-0: тип по двухконтурности (длинный канал CFM56 или раздельные потоки LEAP),
   // длина и радиус — от базовой гондолы этого типа, масштабированной по определению.
-  const style = pw2037 ? "pw2037" : rb211 ? "rb211" : nacelleStyleFor(e.bypassRatio);
+  const style = pw2037 ? "pw2037" : rb211 ? "rb211" : ps90a ? "ps90a" : nacelleStyleFor(e.bypassRatio);
   const { lengthK, radiusK } = nacelleScale(style, shellLength, e.nacelleWidthM);
   const nacelleParts: THREE.BufferGeometry[] = [];
   for (const side of [1, -1] as const) {
     for (const seg of nacelleSegments(style, lengthK, radiusK)) {
       seg.geometry.translate(nacX, axisY, side * engZ);
-      if ((rb211 && seg.id === "nozzle") || seg.id === "lip") seg.geometry.userData.tone = "detailSteel";
+      if (((ps90a || rb211) && seg.id === "nozzle") || seg.id === "lip") seg.geometry.userData.tone = "detailSteel";
       if (pw2037 && seg.id === "coreCowl") seg.geometry.userData.tone = "detailSteel";
       if (pw2037 && (seg.id === "nozzle" || seg.id === "plug")) seg.geometry.userData.tone = "detailDark";
       // При разборе сегменты расходятся вдоль оси — видно, из чего состоит гондола.
@@ -602,6 +604,31 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
         bevelSize: 0.055 * radiusK, bevelSegments: 4, curveSegments: 20 });
       pg.translate(0, 0, side * engZ - 0.14 * radiusK);
       if (pw2037) pg.userData.tone = "detailPanel";
+    } else if (ps90a) {
+      // The plan view shows a narrow rounded fairing from behind the intake
+      // to the wing underside. Both attachment rings intersect their hosts.
+      const upper = surfacePoint(wingShape(side), engZ / semi, 0.18, false);
+      const lowerX = nacX + 1.12 * lengthK;
+      const lowerY = axisY + 0.86 * R;
+      const rootChordM = 3.70 * lengthK;
+      const tipChordM = upper.x - lePoint.x + 1.07 * lengthK;
+      const heightM = upper.y + 0.12 - lowerY;
+      pg = surfaceGeometry({
+        root: v3(lowerX, lowerY, side * engZ),
+        rootChordM, tipChordM, semiSpanM: heightM,
+        leadingEdgeSweepDeg: THREE.MathUtils.radToDeg(Math.atan2(lePoint.x - 1.05 * lengthK - lowerX, heightM)),
+        dihedralDeg: 90, thicknessRoot: 0.12, thicknessTip: 0.13,
+      }, 14, 32);
+      // Follow the narrowing cowl instead of leaving a gap below the aft pylon.
+      const points = pg.getAttribute("position");
+      for (let i = 0; i < points.count; i++) {
+        const u = (points.getY(i) - lowerY) / heightM;
+        const chordM = THREE.MathUtils.lerp(rootChordM, tipChordM, u);
+        const leadingX = THREE.MathUtils.lerp(lowerX, lePoint.x - 1.05 * lengthK, u);
+        const v = (points.getX(i) - leadingX) / chordM;
+        points.setY(i, points.getY(i) - 0.38 * R * v * (1 - u));
+      }
+      pg.computeVertexNormals();
     } else {
       const pyl = new THREE.Shape();
       const x0 = nacX + 0.9 * lengthK;
@@ -622,7 +649,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   // Двигатель — разрез: детали построены вокруг своей оси, чтобы роторы могли вращаться.
   // Положение оси хранится в basePos, разлёт деталей вдоль оси — в offset.
   const engineGeoms: THREE.BufferGeometry[] = [];
-  const engineBareLength = e.fanDiameterM * (1.7 + (0.09 * Math.max(0, e.bypassRatio - 5.7)) / 5.3);
+  const engineBareLength = ps90a ? (4.964 / 1.1) * lengthK : e.fanDiameterM * (1.7 + (0.09 * Math.max(0, e.bypassRatio - 5.7)) / 5.3);
   const pieces = engineCutaway({
     fanDiameterM: e.fanDiameterM,
     bypassRatio: e.bypassRatio,
@@ -633,7 +660,8 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   });
   for (const side of [1, -1] as const) {
     // The cutaway spinner starts at zero and its plug ends at 1.1 × lengthM.
-    const fanOffset = pw2037 ? 0.10 * engineBareLength : 0.1;
+    // Place the fan at the duct face and keep the 4.964 m PS-90A envelope inside the nozzle.
+    const fanOffset = ps90a || pw2037 ? 0.10 * engineBareLength : 0.1;
     // EASA E.061 §III.4 measures the -535E4 from spinner nose to common nozzle.
     const spinnerX = rb211 ? shellLength - 5.0359 * lengthK : nacelleFanFace(style, lengthK) - fanOffset;
     const basePos = v3(nacX + spinnerX, axisY, side * engZ);
@@ -862,6 +890,11 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
     if (rb211 || pw2037) {
       harness.push(bundle([pyl, v3(pyl.x - 0.12 * lengthK, axisY + R, side * engZ),
         v3(nacX + 4.05 * lengthK, axisY + R * 0.70, side * engZ)], false));
+    } else if (ps90a) {
+      const insideWing = mid(engZ / semi);
+      insideWing.x -= 0.60 * lengthK;
+      harness.push(bundle([pyl, insideWing, v3(nacX + 3.30 * lengthK, axisY + R * 0.77, side * engZ),
+        v3(nacX + 2.80 * lengthK, axisY + R * 0.52, side * engZ)], false));
     } else {
       harness.push(bundle([pyl, v3(pyl.x - 0.6, axisY + R * 0.9, side * engZ), v3(pyl.x - 1.6, axisY + R * 0.55, side * engZ)], false));
     }

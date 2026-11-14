@@ -284,7 +284,7 @@ const B737_SET: ShapeSet = {
 
 // Photo corrections belong to the visual shape set. Preserve the original
 // traced data and every aircraft definition used by the performance model.
-function photoForebody(base: ShapeSet["fuselage"], photo: typeof PHOTO_FOREBODIES.b757): ShapeSet["fuselage"] {
+function photoForebody(base: ShapeSet["fuselage"], photo: typeof PHOTO_FOREBODIES.tu214): ShapeSet["fuselage"] {
   const rows = photo.stations.concat(base.x.flatMap((x, i) => x > photo.joinM
     ? [[x, base.top[i], base.bottom[i], base.half_width[i]]] : []));
   return {
@@ -293,7 +293,7 @@ function photoForebody(base: ShapeSet["fuselage"], photo: typeof PHOTO_FOREBODIE
     tipBlendM: photo.tipBlendM, noseSegments: 128,
   };
 }
-function photoCockpit(photo: typeof PHOTO_FOREBODIES.b757): ShapeSet["cockpit"] {
+function photoCockpit(photo: typeof PHOTO_FOREBODIES.tu214): ShapeSet["cockpit"] {
   return {
     windscreen: photo.cockpit.windscreen as P2[], side: photo.cockpit.side as P2[][],
     sideJunction: { top: photo.cockpit.sideJunction.top as P2, bottom: photo.cockpit.sideJunction.bottom as P2 },
@@ -360,7 +360,7 @@ const B757_SET: ShapeSet = {
 /** Ту-214 — отдельные контуры, без масштабирования 757. Двери/сечение/пилоны ещё оценочные. */
 const TU214_SET: ShapeSet = {
   id: "tu214",
-  fuselage: TU214.fuselage,
+  fuselage: photoForebody(TU214.fuselage, PHOTO_FOREBODIES.tu214),
   section: { deg: TU214.section.deg, r: TU214.section.r, fullTurn: true },
   halfH: TU214.halfHeight,
   halfW: 1.9,
@@ -368,7 +368,8 @@ const TU214_SET: ShapeSet = {
   plugFwd: 10.0,
   plugAft: 32.0,
   features: TU214.features,
-  cockpit: { windscreen: TU214.cockpit.windscreen as P2[], side: TU214.cockpit.side as P2[][] },
+  featuresBySide: { left: TU214.features, right: TU214.starboardFeatures },
+  cockpit: { ...photoCockpit(PHOTO_FOREBODIES.tu214), sillBlendM: 0.24 },
   wing: {
     le: TU214.wing.le,
     teInner: TU214.wing.te_inner,

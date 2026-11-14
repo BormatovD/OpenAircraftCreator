@@ -9,6 +9,7 @@ import { comparisonAssumptionsFor } from "../src/aircraft/missionProfiles.ts";
 import { evaluate, DEFAULT_MISSION } from "../src/evaluate.ts";
 import { defaults, leversFor, scenarioFamily } from "../web/controls.ts";
 import { useShapes } from "../web/scene/shapeSet.ts";
+import { cabinOpenings, cabinWindows, cargoOpenings } from "../web/scene/features.ts";
 
 const shape = JSON.parse(readFileSync(new URL("../data/ac/tu214-shapes.json", import.meta.url), "utf8"));
 const close = (a: number, b: number, eps = 1e-8) => assert.ok(Math.abs(a - b) <= eps, `${a} != ${b}`);
@@ -25,7 +26,7 @@ test("Ту-214: собственный геометрический набор �
   close(shape.htail.tip_z * 2, 15.018);
   close(TU214_PS90A.fuselage.widthM, shape.halfWidth * 2);
   close(TU214_PS90A.fuselage.heightM, shape.halfHeight * 2);
-  close(shape.gear.wheelbaseM, 13.97);
+  close(shape.gear.wheelbaseM, 16.967);
   close(shape.gear.mainZ * 2, 7.82);
   assert.equal(useShapes(TU214_PS90A).id, "tu214");
   assert.equal(useShapes(A320CEO).id, "a320");
@@ -41,6 +42,22 @@ test("Ту-214: собственный геометрический набор �
   for (let i = 0; i < shape.vtail.table.y.length; i++)
     assert.ok(shape.vtail.table.te[i] > shape.vtail.table.le[i], `fin chord ${i}`);
   assert.ok(shape.features.every((f: { x0: number; x1: number }) => f.x0 >= 0 && f.x1 <= 45.22));
+});
+
+test("Ту-214: проёмы и ряды иллюминаторов следуют схеме каждого борта", () => {
+  for (const def of [TU214_PS90A, TU214_FACTORY]) {
+    useShapes(def);
+    assert.equal(cargoOpenings(def).length, 3);
+    for (const side of [-1, 1] as const) {
+      const doors = cabinOpenings(def, side);
+      assert.deepEqual(doors.map(d => d.kind), side === -1
+        ? ["door", "door", "exit", "door"] : ["door", "exit", "exit", "door"]);
+      for (const [i, center] of [4.57, 12.12, 25.61, 37.39].entries())
+        close((doors[i].x0 + doors[i].x1) / 2, center);
+      for (const w of cabinWindows(def, side))
+        assert.ok(doors.every(d => w.x1 <= d.x0 - 0.08 || w.x0 >= d.x1 + 0.08));
+    }
+  }
 });
 
 test("Ту-214: данные производителя ПС-90А не смешивают сухую и поставочную массу", () => {

@@ -1,5 +1,7 @@
 # Tu-214 nose — A321 forebody visual reference
 
+The A321-based contour below is the historical reference. The current scene uses the [photo-guided Tu-214 forebody](NOSE_PHOTO_REVIEW.md).
+
 ## Scope
 
 **Visual geometry only.** Following the owner's review, the previous 757-derived and later hand-smoothed Tu-214 nose was replaced with the established **A321-family forward fuselage and cockpit outline** already used by Aircraft Designer (`data/ac/a320-shapes.json`, `web/scene/shapeSet.ts`: `A320_SET`). The A321 uses the same forward family contour as A320; extra fuselage length is inserted aft of the nose.

@@ -28,10 +28,12 @@ sections_original = [
   (3.5, 1.97, -1.90, 1.78), (4.5, 2.05, -2.05, 1.90),
   (6.0, 2.05, -2.05, 1.90), (10.0, 2.05, -2.05, 1.90),
   (16.0, 2.05, -2.05, 1.90), (21.0, 2.05, -2.05, 1.90),
-  (28.0, 2.05, -2.05, 1.90), (34.0, 2.05, -2.05, 1.90),
-  (37.0, 2.025, -1.99, 1.86), (39.0, 1.96, -1.65, 1.73),
-  (41.0, 1.77, -1.27, 1.41), (42.7, 1.52, -.86, 1.09),
-  (44.0, 1.22, -.42, .68), (45.22, .69, .30, .12),
+  # Belly upsweep follows the side drawing aft of x=31.6 and the port photo of RA-64549.
+  (28.0, 2.05, -2.05, 1.90), (31.5, 2.05, -2.05, 1.90),
+  (33.0, 2.05, -1.96, 1.90), (34.0, 2.05, -1.85, 1.90),
+  (37.0, 2.025, -1.47, 1.86), (39.0, 1.96, -1.02, 1.73),
+  (41.0, 1.77, -.53, 1.41), (42.7, 1.56, -.06, 1.09),
+  (44.0, 1.42, .35, .68), (45.22, 1.20, .86, .12),
 ]
 
 def linear_at(xs, ys, x):
@@ -66,30 +68,41 @@ for x in nose_stations:
   sections.append((x,*dims))
 sections.extend(s for s in sections_original if s[0]>6.5)
 
-section_angles = list(range(0, 361, 15))
+section_angles = list(range(0, 361, 5))
 radial = []
 for deg in section_angles:
   ca, sa = math.cos(math.radians(deg)), math.sin(math.radians(deg))
   radial.append(round(1 / math.sqrt((ca / HALF_W)**2 + (sa / HALF_H)**2), 6))
 
-# Rectangular feature bounding boxes are traced locations, not measured free openings.
-features = []
-def feature(kind, x, width, y0, y1):
-  features.append({'kind': kind, 'x0': round(x, 3), 'x1': round(x+width, 3), 'y0': y0, 'y1': y1})
+# External outlines in metres, registered to the RA-64549 port photograph.
+# UIGA 2024 p. 7 identifies the different service doors and exits on starboard.
+def opening(kind, center, width, y0, y1):
+  return {'kind': kind, 'x0': round(center - width/2, 3),
+          'x1': round(center + width/2, 3), 'y0': y0, 'y1': y1}
 
-# Front and aft passenger entry points; overwing and intermediate positions are approximate.
-for x in (4.83, 12.30, 35.78):
-  feature('door', x, 0.88, -0.57, 1.36)
-for x in (16.25, 19.05):
-  feature('exit', x, 0.76, -0.18, 1.12)
-# Windows at roughly half-metre intervals; omit near doors and the swept wing/root obscuration.
-for n in range(64):
-  x = 6.3 + 0.474*n
-  if x > 36.4: break
-  if any(f['kind'] in ('door','exit') and x+0.28 > f['x0']-0.10 and x < f['x1']+0.10 for f in features):
-    continue
-  feature('window', x, 0.270, 0.25, 0.63)
-features.sort(key=lambda f:f['x0'])
+port_openings = [
+  opening('door', 4.57, 0.90, -0.48, 1.50),
+  opening('door', 12.12, 0.94, -0.48, 1.50),
+  opening('exit', 25.61, 0.76, -0.16, 1.10),
+  opening('door', 37.39, 0.90, -0.48, 1.50),
+]
+starboard_openings = [
+  opening('door', 4.57, 0.75, -0.48, 1.23),
+  opening('exit', 12.12, 0.76, -0.16, 1.10),
+  opening('exit', 25.61, 0.76, -0.16, 1.10),
+  opening('door', 37.39, 0.75, -0.48, 1.23),
+]
+
+def cabin_features(openings):
+  items = list(openings)
+  for n in range(65):
+    x = 6.3 + 0.474*n
+    if any(x + 0.27 > d['x0'] - 0.10 and x < d['x1'] + 0.10 for d in openings):
+      continue
+    items.append(opening('window', x + 0.135, 0.27, 0.25, 0.63))
+  return sorted(items, key=lambda f: f['x0'])
+
+features = cabin_features(port_openings)
 
 # Wing: LE on a 30.8° ray, TE nearly square inboard then swept from the flap-track kink.
 wing_le = {'slope': round(math.tan(math.radians(30.8)), 6), 'x0': 14.30}
@@ -120,6 +133,7 @@ shape = {
     'bottom':[v[2] for v in sections], 'half_width':[v[3] for v in sections]},
   'section': {'deg': section_angles, 'r': radial},
   'features': features,
+  'starboardFeatures': cabin_features(starboard_openings),
   # The A321-family five-sided windshield and multi-sided side glazing,
   # projected onto the transferred A321 nose. Visual reference only.
   'cockpit': {
@@ -143,17 +157,18 @@ shape = {
     'fillet_x':36.25, 'ref_span_m':7.775, 'ref_area_m2':34.295,'lines':[],
   },
   'fairing': {'x':19.7,'y':-1.54,'sx':5.2,'sy':0.75,'sz':2.10},
-  'nacelle': {'inlet_x':14.35,'ref_length_m':5.70,'axis_z':6.05,'axis_y':-2.42,'clearance_m':0.79},
+  'nacelle': {'inlet_x':14.25,'ref_length_m':6.15,'axis_z':6.52,'axis_y':-2.84,'clearance_m':0.37},
   'groundY':-4.39,
   'gear': {
-    'noseX':5.15,'wheelbaseM':13.97,'mainZ':3.91,
+    'noseX':5.15,'wheelbaseM':16.967,'mainZ':3.91,
     'mainR':0.61,'mainWheelGap':0.47,'mainTireW':0.41,
     'axleSpacingM':1.10,'retractDeg':84,'noseR':0.38,
     'noseTireW':0.30,'noseWheelGap':0.28,'noseLegM':2.0,'rakeDeg':5,
   },
-  'cabin': {'floorY':-0.48,'fwdDoorEnd':5.71,'aftDoorX':35.78},
+  'cabin': {'floorY':-0.48,'fwdDoorEnd':round(port_openings[0]['x1'] + 0.25, 3),'aftDoorX':port_openings[-1]['x0']},
   'titleX':[6.5,13.6],
-  'cargo': [[8.35,1.70,-1.84,-0.75],[30.2,1.55,-1.82,-0.75]],
+  # UIGA 2021 figs. 12–13: two main cargo holds and a smaller aft hatch, all to starboard.
+  'cargo': [[8.35,1.70,-1.84,-0.75],[27.38,1.55,-1.82,-0.75],[32.65,0.85,-1.53,-0.80]],
   'fin': {
     'box': {'x0':36.1,'x1':46.14,'y0':1.25,'y1':fin_tip_y+0.20},
     'logo': {'cx':42.0,'cy':5.65,'r':1.45},

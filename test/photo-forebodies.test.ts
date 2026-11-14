@@ -7,7 +7,7 @@ import { fuselageGeometry, fuselageSection, fuselageHalfWidthAt, cockpitHullFace
 import { cockpitGlazing } from "../web/scene/cockpit.ts";
 import { facetWidth } from "../web/scene/cockpitSurfaces.ts";
 
-for (const id of ["b757-200-rb", "b757-200-pw"] as const) {
+for (const id of ["tu214-ps90a", "b757-200-rb", "b757-200-pw"] as const) {
   test(`${id}: photo forebody removes the long crown and belly step without changing the barrel`, () => {
     const def=AIRCRAFT[id], f=def.fuselage, shape=useShapes(def);
     const g=fuselageGeometry(f), p=g.getAttribute("position"), n=g.getAttribute("normal");
@@ -15,24 +15,50 @@ for (const id of ["b757-200-rb", "b757-200-pw"] as const) {
     g.computeBoundingBox(); const size=g.boundingBox!.getSize(new THREE.Vector3());
     assert.ok(Math.abs(size.x-f.lengthM)<1e-5);
     assert.ok(Math.abs(size.z-f.widthM)<1e-5);
-    // Upper outline digitised independently from Boeing D6-58327 Rev H,
-    // §2.2.1. Read the crown of the final mesh at the published side-view scale.
-    const row = g.userData.radialSegments + 1;
-    const crownVertex = (rowIndex: number) => rowIndex * row + g.userData.radialSegments / 4;
-    for (const [x, upper] of [[1, 0.06], [1.5, 0.60], [2, 0.99], [2.5, 1.27],
-      [3, 1.49], [3.5, 1.64], [4, 1.72], [5, 1.85], [6, 1.95]]) {
-      let i = 1;
-      while (p.getX(crownVertex(i)) < x) i++;
-      const lo = crownVertex(i - 1), hi = crownVertex(i);
-      const t = (x - p.getX(lo)) / (p.getX(hi) - p.getX(lo));
-      const height = THREE.MathUtils.lerp(p.getY(lo), p.getY(hi), t);
-      assert.ok(Math.abs(height - upper) < 0.05, `757 crown at ${x} metres`);
+    if (id === "tu214-ps90a") {
+      // Visible roof landmarks on the owner's 880 × 440 RA-64549 photograph.
+      // Map once with the nose/body length and straight barrel; compare the
+      // rendered mesh rather than the source spline, which the glazing can clip.
+      const roof = new Map<number, number>();
+      for (let i = 0; i < p.count; i++) {
+        const x = p.getX(i);
+        if (x < 6) roof.set(x, Math.max(roof.get(x) ?? -Infinity, p.getY(i)));
+      }
+      const rows = [...roof];
+      for (let i = 1; i < rows.length; i++) {
+        assert.ok(rows[i][1] >= rows[i-1][1] - 1e-5, "no dip at the windscreen sill");
+      }
+      const outlinePx = [[37,263], [44,258.5], [49,256], [58,249], [68,239.5],
+        [77,234.5], [84,232], [90,230.5], [105,228.5]];
+      for (const [px, py] of outlinePx) {
+        const x = (px - 28.5) * 45.22 / (834 - 28.5);
+        const i = rows.findIndex(([station]) => station >= x);
+        assert.ok(i > 0);
+        const [x0, y0] = rows[i-1], [x1, y1] = rows[i];
+        const height = y0 + (y1 - y0) * (x - x0) / (x1 - x0);
+        const projectedY = 263 - height * 72 / 4.10;
+        assert.ok(Math.abs(projectedY - py) <= 2, `photo roof at x=${px} px`);
+      }
+    } else {
+      // Upper outline digitised independently from Boeing D6-58327 Rev H,
+      // §2.2.1. Read the crown of the final mesh at the published side-view scale.
+      const row = g.userData.radialSegments + 1;
+      const crownVertex = (rowIndex: number) => rowIndex * row + g.userData.radialSegments / 4;
+      for (const [x, upper] of [[1, 0.06], [1.5, 0.60], [2, 0.99], [2.5, 1.27],
+        [3, 1.49], [3.5, 1.64], [4, 1.72], [5, 1.85], [6, 1.95]]) {
+        let i = 1;
+        while (p.getX(crownVertex(i)) < x) i++;
+        const lo = crownVertex(i - 1), hi = crownVertex(i);
+        const t = (x - p.getX(lo)) / (p.getX(hi) - p.getX(lo));
+        const height = THREE.MathUtils.lerp(p.getY(lo), p.getY(hi), t);
+        assert.ok(Math.abs(height - upper) < 0.05, `757 crown at ${x} metres`);
+      }
     }
     for(let x=3.1;x<4.5;x+=.01) {
       const a=fuselageSection(f,x), b=fuselageSection(f,x+.01);
       assert.ok(Math.abs((a.cy-a.hh)-(b.cy-b.hh))<.002,"no inherited belly step");
     }
-    const join=8.5;
+    const join=id==="tu214-ps90a" ? 6.5 : 8.5;
     for(const x of [join-.1,join,join+.1]) {
       const s=fuselageSection(f,x);
       assert.ok(Math.abs(s.hw-f.widthM/2)<1e-6);
@@ -43,6 +69,7 @@ for (const id of ["b757-200-rb", "b757-200-pw"] as const) {
       const a=fuselageSection(f,tip-e)[key], b=fuselageSection(f,tip)[key], c=fuselageSection(f,tip+e)[key];
       assert.ok(Math.abs((b-a)/e-(c-b)/e)<.02,"round apex joins without a tangent jump");
     }
+    const row=g.userData.radialSegments+1;
     for(let i=0;i<p.count;i+=row) {
       const a=new THREE.Vector3().fromBufferAttribute(n,i), b=new THREE.Vector3().fromBufferAttribute(n,i+row-1);
       assert.ok(a.distanceTo(b)<1e-6,"UV seam has shared normals");
@@ -107,6 +134,31 @@ for (const id of ["b757-200-rb", "b757-200-pw"] as const) {
     hull.geometry.dispose();hull.material.dispose();
   });
 }
+
+test("Tu-214: side sections turn gradually under the cockpit sills", () => {
+  const aircraft = AIRCRAFT["tu214-ps90a"];
+  useShapes(aircraft);
+  const hull = fuselageGeometry(aircraft.fuselage);
+  const p = hull.getAttribute("position");
+  const segments = hull.userData.radialSegments, stride = segments + 1;
+  for (const x of [2.25, 2.65, 3, 3.35]) {
+    let start = 0;
+    for (let i = stride; i < p.count; i += stride)
+      if (Math.abs(p.getX(i) - x) < Math.abs(p.getX(start) - x)) start = i;
+    let checked = 0;
+    for (let j = 0; j < segments / 4; j++) {
+      const v = new THREE.Vector3().fromBufferAttribute(p, start + j);
+      if (v.y < -0.15 || v.y > 0.43) continue;
+      const prev = new THREE.Vector3().fromBufferAttribute(p, start + (j + segments - 1) % segments);
+      const next = new THREE.Vector3().fromBufferAttribute(p, start + j + 1);
+      assert.ok(v.clone().sub(prev).angleTo(next.sub(v)) < THREE.MathUtils.degToRad(6.5),
+        `sill curvature at x=${x}, y=${v.y}`);
+      checked++;
+    }
+    assert.ok(checked >= 5);
+  }
+  hull.dispose();
+});
 
 test("757-200: glazing follows the TF-FIW side-photo outline on both engine variants", () => {
   for (const id of ["b757-200-rb", "b757-200-pw"] as const) {
