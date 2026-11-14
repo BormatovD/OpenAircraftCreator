@@ -46,7 +46,7 @@
       <select id="cabin-layout" class="select" aria-label="Выбранная компоновка самолёта"></select>
       <div id="fc-warning" class="fc-warning" role="alert" hidden></div>
       <div class="fc-exchange" role="group" aria-label="Интеграция с FlightCost">
-        <div id="fc-route" hidden title="Пассажир с багажом 100 кг. Руление 26 мин, набор 300 уз, снижение 280 уз. Резерв считается отдельно.">
+        <div id="fc-route" hidden title="Пассажир с багажом 100 кг. Руление 26 мин. Набор и снижение по таблицам Designer при наличии данных, иначе по средним скоростям 300 и 280 уз. Резерв считается отдельно.">
           <label for="fc-load">FRA–BCN · загрузка</label>
           <input id="fc-load" type="range" min="40" max="100" value="82">
           <output id="fc-route-result" for="fc-load"></output>

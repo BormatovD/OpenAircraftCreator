@@ -20,8 +20,8 @@ import { Environment, PHASES, type Phase } from "./scene/environment.ts";
 import { LIVERIES, NO_LIVERY, PLAIN_FIN, finLiveryTexture, liveryById } from "./scene/livery.ts";
 import { fuselageTexture, htailTexture, wingTexture } from "./scene/textures.ts";
 import { finishForTone, technicalRelief, TECHNICAL_RELIEF_SCALE_M } from "./scene/technicalFinish.ts";
-import { FRA_BCN_NM, leapRoute } from "../src/integration/leapRoute.ts";
-import { FC_ORIGIN, FC_PROTOCOL, FC_VERSION, PRESETS, seatsInLayout, flightCostDesign, layoutFor, presetFor, resolveFlightCostAircraft, withCabinLayout } from "../src/integration/flightcost.ts";
+import { FRA_BCN_NM, flightCostRoute } from "../src/integration/flightcostRoute.ts";
+import { FC_ORIGIN, FC_PROTOCOL, FC_VERSION, PRESETS, seatsInLayout, flightCostDesign, layoutFor, presetFor, resolveFlightCostAircraft, withCabinLayout, routeModelFor } from "../src/integration/flightcost.ts";
 import { SELECTED_EXPLODE_FRACTION, fitAircraftFrame, meshFramePoints, type SceneFrameArea } from "./scene/framing.ts";
 
 const FAMILY_LABEL: Record<Family, string> = {
@@ -1511,13 +1511,13 @@ $("cabin-layout").addEventListener("change", (event) => {
 });
 
 function renderFlightCostRoute(): void {
-  const visible = state.aircraftId === "a320neo" && !state.flightCostError;
+  const visible = !!routeModelFor(state.aircraftId) && !state.flightCostError;
   $("fc-route").hidden = !visible;
   if (!visible || !result) return;
   const percent = Number(($("fc-load") as HTMLInputElement).value);
   const pax = Math.floor(result.ev.seats * percent / 100 + 0.5 + 1e-9);
   const distance = Number(launchParams.get("routeNm"));
-  const route = leapRoute(result, {
+  const route = flightCostRoute(result, {
     pax, distanceNm: isFlightCostEmbed && distance > 0 && Number.isFinite(distance) ? distance : FRA_BCN_NM,
   });
   const output = $("fc-route-result");
@@ -1553,7 +1553,7 @@ $("fc-send").addEventListener("click", () => {
   if (!design || !isFlightCostEmbed) return;
   pendingRequest = crypto.randomUUID();
   window.parent.postMessage({ protocol: FC_PROTOCOL, version: FC_VERSION, type: "DESIGN_EXPORT", requestId: pendingRequest, design,
-    routeLoad: state.aircraftId === "a320neo" ? Number(($("fc-load") as HTMLInputElement).value) : undefined }, flightCostOrigin);
+    routeLoad: routeModelFor(state.aircraftId) ? Number(($("fc-load") as HTMLInputElement).value) : undefined }, flightCostOrigin);
   $("fc-status").textContent = "Конфигурация отправлена FlightCost; ожидаем подтверждения сохранения";
 });
 window.addEventListener("message", (event: MessageEvent) => {

@@ -1,21 +1,23 @@
-// JSON stdin/stdout adapter for fca serve. Both the page and this runner call leapRoute.
+// JSON stdin/stdout adapter for fca serve. Both the page and this runner call flightCostRoute.
 import { readFileSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
-import { A320NEO } from "../src/aircraft/a320.ts";
+import { A320CEO, A320NEO } from "../src/aircraft/a320.ts";
 import { contextFor } from "../src/aircraft/contextFor.ts";
 import { evaluate } from "../src/evaluate.ts";
 import { evaluateConfiguration } from "../src/integration/configuration.ts";
-import { flightCostDesign, layoutFor, withCabinLayout, LEAP_ROUTE_MODEL, type FlightCostDesign } from "../src/integration/flightcost.ts";
-import { leapRoute, type RouteInput } from "../src/integration/leapRoute.ts";
+import { flightCostDesign, layoutFor, withCabinLayout, routeModelFor, type FlightCostDesign } from "../src/integration/flightcost.ts";
+import { flightCostRoute, type RouteInput } from "../src/integration/flightcostRoute.ts";
 import { controlsFor, leversFor } from "../web/controls.ts";
 
 function run(design: FlightCostDesign, route?: RouteInput) {
   const { aircraft, model } = design;
-  if (aircraft.aircraftId !== "a320neo" || (model.routeSolver !== undefined && model.routeSolver !== LEAP_ROUTE_MODEL))
-    throw Error("Несовместимая версия расчёта A320neo");
+  const solver = routeModelFor(aircraft.aircraftId);
+  const reference = aircraft.aircraftId === "a320ceo" ? A320CEO : A320NEO;
+  if (!solver || aircraft.engine !== reference.engine.name || (model.routeSolver !== undefined && model.routeSolver !== solver))
+    throw Error("Несовместимый двигатель или версия расчёта Designer");
   const layout = layoutFor(aircraft.aircraftId, aircraft.layoutId);
   if (!layout || !["fixed", "redesign"].includes(model.mode)) throw Error("Неизвестный салон или режим Designer");
-  const def = withCabinLayout(A320NEO, layout);
+  const def = withCabinLayout(reference, layout);
   const controls = controlsFor(def);
   if (!model.controls || Object.keys(model.controls).length !== controls.length) throw Error("Неполная конфигурация Designer");
   for (const c of controls) {
@@ -25,7 +27,7 @@ function run(design: FlightCostDesign, route?: RouteInput) {
       throw Error("Некорректный параметр Designer: " + c.id);
     }
   }
-  const base = evaluate(A320NEO, [], contextFor(A320NEO));
+  const base = evaluate(reference, [], contextFor(reference));
   const configuration = evaluateConfiguration(def, leversFor(def, model.controls), model.mode, base);
   const { ev, ctx } = configuration;
   const replay = flightCostDesign(ev.definition, ev.oewKg, model.controls, model.mode, aircraft.aircraftId, aircraft.layoutId, ctx.fuelDensityKgL);
@@ -35,7 +37,7 @@ function run(design: FlightCostDesign, route?: RouteInput) {
   }
   if (!isDeepStrictEqual(aircraft, replay.aircraft) || !matchNumbers(replay.weights, design.weights) ||
       !matchNumbers(replay.geometry, design.geometry)) throw Error("Салон, геометрия или массы отличаются от сохранённого проекта");
-  return { model: LEAP_ROUTE_MODEL, ...(route ? { route: leapRoute(configuration, route) } : {}) };
+  return { model: solver, ...(route ? { route: flightCostRoute(configuration, route) } : {}) };
 }
 try {
   const { design, route } = JSON.parse(readFileSync(0, "utf8"));

@@ -139,6 +139,13 @@ export function validatePresetCatalog(): string[] {
 }
 
 export const LEAP_ROUTE_MODEL = "a320neo-leap-mission-v1";
+export const CFM56_ROUTE_MODEL = "a320ceo-cfm56-5b-mission-v1";
+
+export function routeModelFor(aircraftId: string) {
+  if (aircraftId === "a320ceo") return CFM56_ROUTE_MODEL;
+  if (aircraftId === "a320neo") return LEAP_ROUTE_MODEL;
+  return undefined;
+}
 
 export interface FlightCostDesign {
   protocol: typeof FC_PROTOCOL;
@@ -146,7 +153,7 @@ export interface FlightCostDesign {
   aircraft: { icao: string; aircraftId: string; engine: string; weightProfile: string; layoutId: string; cabin: CabinZone[]; seats: number };
   weights: { oew_kg: number; mtow_kg: number; mzfw_kg: number; mlw_kg: number; fuel_capacity_kg: number };
   geometry: { length_m: number; span_m: number };
-  model: { routeSolver?: typeof LEAP_ROUTE_MODEL; mode: "fixed" | "redesign"; controls: Record<string, number | boolean>; provisional: true };
+  model: { routeSolver?: typeof LEAP_ROUTE_MODEL | typeof CFM56_ROUTE_MODEL; mode: "fixed" | "redesign"; controls: Record<string, number | boolean>; provisional: true };
 }
 
 /** No guess for fuel burn here: FlightCost must select and label its own method. */
@@ -156,6 +163,7 @@ export function flightCostDesign(def: AircraftDefinition, oewKg: number, control
   if (!preset || !layout) throw new TypeError("Неизвестная комбинация ICAO/двигатель/салон");
   // Encode the actual, lever-adjusted row plan. The selected preset is provenance,
   // not a claim that an altered fuselage still carries the original seat map.
+  const routeSolver = routeModelFor(aircraftId);
   const cabin: CabinZone[] = [];
   for (const row of cabinRowsFor(def)) {
     const prev = cabin.at(-1);
@@ -173,6 +181,6 @@ export function flightCostDesign(def: AircraftDefinition, oewKg: number, control
     aircraft: { icao: preset.icao, aircraftId, engine: preset.engine, weightProfile: preset.weightProfile, layoutId, cabin, seats: def.systems.seats },
     weights: { oew_kg: oewKg, mtow_kg: def.weights.mtowKg, mzfw_kg: def.weights.mzfwKg, mlw_kg: def.weights.mlwKg, fuel_capacity_kg: def.systems.fuelVolumeL * fuelDensityKgL },
     geometry: { length_m: def.fuselage.lengthM, span_m: def.wing.tip === "sharklet" ? def.wing.sharkletSpanM : def.wing.spanM },
-    model: { ...(aircraftId === "a320neo" ? { routeSolver: LEAP_ROUTE_MODEL } : {}), mode, controls: { ...controls }, provisional: true },
+    model: { ...(routeSolver ? { routeSolver } : {}), mode, controls: { ...controls }, provisional: true },
   };
 }
