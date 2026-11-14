@@ -12,10 +12,10 @@ export const DOOR_RIM_INSET = .024;
 // The shell has thickness; both the interior and the outside remain visible with back-face culling.
 export function panel(name: string, profile: GearProfile, side: Side,
   x0: number, x1: number, hingeZ: number, edgeZ: number, lower: Surface,
-  drive: DoorDrive, degrees: number) {
+  drive: DoorDrive, degrees: number, subdivisions?: readonly [number, number]) {
   const origin = new THREE.Vector3(x0, lower(x0, hingeZ), side * hingeZ);
   const axis = new THREE.Vector3(x1 - x0, lower(x1, hingeZ) - origin.y, 0).normalize();
-  const g = panelShell(name, side, x0, x1, hingeZ, edgeZ, lower);
+  const g = panelShell(name, side, x0, x1, hingeZ, edgeZ, lower, subdivisions);
   g.translate(-origin.x, -origin.y, -origin.z);
   Object.assign(g.userData, {
     basePos: origin, side, gearProfile: profile, gearDoor: {
@@ -24,9 +24,10 @@ export function panel(name: string, profile: GearProfile, side: Side,
   });
   return g;
 }
-export function panelShell(name: string, side: Side, x0: number, x1: number, z0: number, z1: number, lower: Surface) {
+export function panelShell(name: string, side: Side, x0: number, x1: number, z0: number, z1: number, lower: Surface,
+  subdivisions: readonly [number, number] = [6, 8]) {
   const pos: number[] = [], idx: number[] = [];
-  const nx = 6, nz = 8, span = (nx + 1) * (nz + 1), row = nz + 1;
+  const [nx, nz] = subdivisions, span = (nx + 1) * (nz + 1), row = nz + 1;
   for (let face = 0; face < 2; face++) {
     for (let ix = 0; ix <= nx; ix++) {
       for (let iz = 0; iz <= nz; iz++) {
@@ -66,5 +67,6 @@ export function panelShell(name: string, side: Side, x0: number, x1: number, z0:
   };
   g.name = name;
   g.userData.tone = "detailPanel";
+  g.userData.doorGrid = { nx, nz };
   return g;
 }

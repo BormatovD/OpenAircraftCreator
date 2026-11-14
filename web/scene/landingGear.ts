@@ -7,7 +7,7 @@ import { mainTravelAngle, type GearProfile } from "./gearBay.ts";
 type Gear = ShapeSet["gear"];
 type Side = -1 | 1;
 type Retraction = { axis: "x" | "z"; angle: number };
-type Brace = { pin: THREE.Vector3; anchor: THREE.Vector3; downElbow: THREE.Vector3; retraction: Retraction; foldToward?: THREE.Vector3; upper: boolean };
+type Brace = { pin: THREE.Vector3; anchor: THREE.Vector3; downElbow: THREE.Vector3; retraction: Retraction; foldToward?: THREE.Vector3; flattenFold?: boolean; upper: boolean };
 
 const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 const yAxis = v(0, 1, 0);
@@ -82,26 +82,27 @@ function forkLinks(length: number, gauge: number) {
   return join("torque-links", "detailSteel", links);
 }
 
-function bracePair(anchor: THREE.Vector3, pin: THREE.Vector3, elbow: THREE.Vector3, gauge: number, retraction: Retraction, foldToward?: THREE.Vector3) {
+function bracePair(anchor: THREE.Vector3, pin: THREE.Vector3, elbow: THREE.Vector3, gauge: number, retraction: Retraction, foldToward?: THREE.Vector3, flattenFold = false) {
   return [true, false].map(upper => {
     const a = upper ? anchor : elbow, b = upper ? elbow : pin;
     const g = join(upper ? "upper-stay" : "lower-stay", "detailPanel", [
       rod(a, b, gauge * (upper ? .048 : .040)), bearing(a, gauge * .064, gauge * .083),
       ...(upper ? [] : [bearing(b, gauge * .064, gauge * .082)]),
     ]);
-    g.userData.gearBrace = { pin, anchor, downElbow: elbow, retraction, foldToward, upper } satisfies Brace;
+    g.userData.gearBrace = { pin, anchor, downElbow: elbow, retraction, foldToward, flattenFold, upper } satisfies Brace;
     return g;
   });
 }
 
 const pinNow = new THREE.Vector3(), line = new THREE.Vector3(), bend = new THREE.Vector3();
+const flatBend = new THREE.Vector3();
 const elbowNow = new THREE.Vector3(), oldDir = new THREE.Vector3(), newDir = new THREE.Vector3(), shift = new THREE.Vector3();
 
 /** Two fixed-length links stay attached to the airframe and the retracting strut.
  * The middle joint follows the chosen folding side of the two-sphere intersection.
  * Called after the normal exploded-view translation has been applied to the mesh. */
 export function applyGearBracePose(mesh: THREE.Mesh, gearUp: number): void {
-  const { pin, anchor, downElbow, retraction, foldToward, upper } = mesh.geometry.userData.gearBrace as Brace;
+  const { pin, anchor, downElbow, retraction, foldToward, flattenFold, upper } = mesh.geometry.userData.gearBrace as Brace;
   mesh.quaternion.identity();
   pinNow.copy(pin).applyAxisAngle(hingeAxes[retraction.axis], gearUp * retraction.angle);
   line.subVectors(pinNow, anchor);
@@ -116,6 +117,13 @@ export function applyGearBracePose(mesh: THREE.Mesh, gearUp: number): void {
   if (foldToward) bend.copy(foldToward);
   else bend.subVectors(downElbow, anchor);
   bend.addScaledVector(line, -bend.dot(line));
+  if (flattenFold) {
+    // The A320 knee folds forward into the broad body aperture, with its final
+    // circle direction horizontal. Both directions lie in the same two-sphere
+    // plane, so blending changes only the knee angle, never either link length.
+    flatBend.set(-Math.abs(line.z), 0, Math.sign(line.z) * line.x).normalize();
+    bend.normalize().lerp(flatBend, THREE.MathUtils.smoothstep(gearUp, .25, .80));
+  }
   const height = Math.sqrt(Math.max(0, a * a - along * along));
   elbowNow.copy(anchor).addScaledVector(line, along).addScaledVector(bend.normalize(), height);
   const start = upper ? anchor : downElbow, target = upper ? anchor : elbowNow;
@@ -161,7 +169,7 @@ export function mainLandingGear(g: Gear, side: Side, pivot: THREE.Vector3, groun
   const forwardFold = profile === "a320" || profile === "b737";
   const fold = forwardFold ? v(-1, .20, 0) : profile ? v(1, 0, 0) : undefined;
   const elbow = anchor.clone().lerp(pin, .5).add(fold ? fold.clone().multiplyScalar(.18 * gauge) : v(.18 * gauge, -.07 * gauge, 0));
-  const stays = bracePair(anchor, pin, elbow, gauge, retract, fold);
+  const stays = bracePair(anchor, pin, elbow, gauge, retract, fold, profile === "a320");
   for (const part of stays) Object.assign(part.userData, { side, basePos: pivot, gearProfile: profile });
   return [...leg, ...stays];
 }

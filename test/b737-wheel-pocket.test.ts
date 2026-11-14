@@ -59,7 +59,7 @@ function crosses(a: THREE.Vector3, b: THREE.Vector3, tree: Octree) {
   });
 }
 
-for (const id of ["b737-300", "b737-800"]) {
+for (const id of ["b737-300", "b737-800", "b737-8"]) {
   test(`${id}: complete tyre meshes clear the fixed well, wing root and opposite gear at 101 positions`, () => {
     const model = buildAircraft(AIRCRAFT[id]); model.root.updateMatrixWorld(true);
     const main = model.parts.get("gear.main")!.group.children as THREE.Mesh[];

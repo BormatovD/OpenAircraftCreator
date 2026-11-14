@@ -25,6 +25,7 @@ for (const id of ["b737-300", "b737-800", "b737-8"]) {
       assert.equal(f.geometry.userData.tone, undefined, "fairing uses the belly paint, without panel markings");
       assert.equal(f.geometry.userData.retract, undefined);
     }
+    const shell = [...wing, ...body.filter(m => m.geometry.userData.fixedWingBody)];
     for (const mesh of [...body, ...wing]) mesh.material = material;
     for (const side of [-1, 1]) {
       const leg = main.find(m => m.geometry.name === "main-strut" && m.userData.side === side)!;
@@ -36,11 +37,16 @@ for (const id of ["b737-300", "b737-800", "b737-8"]) {
           const ray = new THREE.Raycaster(v(x, y, side * 5), v(0, 0, -side));
           const expected = ray.intersectObject(reference)[0]?.distance;
           const actual = ray.intersectObject(hull)[0]?.distance;
-          assert.ok(expected !== undefined && actual !== undefined && Math.abs(expected - actual) < 1e-5,
-            `sidewall cut above the wing at x=${x}, y=${y}`);
+          assert.ok(expected !== undefined, "expected stock barrel at this station");
+          if (actual === undefined || Math.abs(expected - actual) >= 1e-5) {
+            // The folded side stay passes through the buried barrel inside
+            // the separate root panel. The exterior must still cover that cut.
+            const cover = ray.intersectObjects(shell)[0];
+            assert.ok(cover && cover.distance < expected, `exposed sidewall cut at x=${x}, y=${y}`);
+          }
         }
         for (const z of [1.98, 2.2, pivot.z * side, pivot.z * side + .16]) {
-          const roof = new THREE.Raycaster(v(x, 3, side * z), v(0, -1, 0)).intersectObjects(wing)[0];
+          const roof = new THREE.Raycaster(v(x, 3, side * z), v(0, -1, 0)).intersectObjects(shell)[0];
           assert.ok(roof && roof.point.y > pivot.y - .015, `missing fixed roof at x=${x}, z=${z}`);
         }
       }

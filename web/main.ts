@@ -748,16 +748,16 @@ function applySelection(): void {
           m.opacity = glass ? Math.min(base.opacity, 0.09) : base.opacity;
           m.depthWrite = glass ? false : base.depthWrite;
         }
-        if (on) {
+        if (LIGHTS[tone]) {
+          // The selection outline identifies the part; its lamp keeps its signalling colour.
+          m.emissive.set(LIGHTS[tone]);
+        } else if (on) {
           // Лёгкое свечение акцентом поверх собственного цвета детали; основное выделение — контур.
           m.emissive.copy(accent);
           m.emissiveIntensity = 0.07;
         } else if ((t === "warn" || t === "bad") && !(fanFace && assembledFan)) {
           m.emissive.copy(t === "bad" ? bad : warn);
           m.emissiveIntensity = 0.4;
-        } else if (LIGHTS[o.userData.tone as string]) {
-          // Огни — своим цветом; яркость ведёт анимация.
-          m.emissive.set(LIGHTS[o.userData.tone as string]);
         } else if (o.userData.tone === "hot") {
           m.emissive.set(css("--hot"));
           m.emissiveIntensity = 0.5;
@@ -821,6 +821,7 @@ function select(id: string | null, hitSide = 0): void {
 let cameraFramePending = false;
 let cameraFrameReady = false;
 let cameraInteracting = false;
+let frameLowerBeacon: THREE.Mesh | undefined;
 let aim: {
   fromTarget: THREE.Vector3; toTarget: THREE.Vector3;
   direction: THREE.Vector3; fromDistance: number; toDistance: number; t: number;
@@ -888,6 +889,10 @@ function frameCamera(): void {
     }
     inspectionTravel.gear = extension;
     pose();
+  }
+  if (frameLowerBeacon) {
+    points.push(...meshFramePoints(frameLowerBeacon));
+    frameLowerBeacon = undefined;
   }
   if (!points.length) points = meshFramePoints(model.root);
   const frame = fitAircraftFrame(points, camera.position.clone().sub(controls.target), camera.up,
@@ -2028,6 +2033,15 @@ if (isLocalReview && (reviewPart === "engines" || reviewPart === "nacelles" || r
     inspectionTravel[mechanism] = Number(extension) / 100;
   }
   select(reviewPart === "pylons" ? "nacelles" : reviewPart);
+  if (reviewPart === "gear.main" && launchParams.get("view") === "underside") {
+    const body = scene.getObjectByName("fuselage");
+    frameLowerBeacon = body?.children.find((o): o is THREE.Mesh =>
+      o instanceof THREE.Mesh && o.geometry.name === "lower-beacon-lens");
+    camera.position.copy(controls.target).addScaledVector(
+      new THREE.Vector3(-.37, -1, .64 * (selectedSide || 1)).normalize(), 12);
+    camera.lookAt(controls.target);
+    controls.update();
+  }
   if (reviewPart === "pylons") {
     state.drawerTab = MOUNTS_TAB;
     renderLevers();

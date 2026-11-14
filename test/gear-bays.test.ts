@@ -94,11 +94,14 @@ function sortedPoint(mesh: THREE.Mesh, index: number) {
 test("737 MAX 8: continuous fuselage sidewall and fixed wing skin above the main well", () => {
   const def = AIRCRAFT["b737-8"], model = buildAircraft(def);
   const main = model.parts.get("gear.main")!.group.children as THREE.Mesh[];
-  const [hull] = model.parts.get("fuselage")!.group.children as THREE.Mesh[];
+  const body = model.parts.get("fuselage")!.group.children as THREE.Mesh[];
+  const [hull] = body;
+  const fairings = body.filter(m => m.geometry.userData.fixedWingBody);
   const wing = model.parts.get("wing.box")!.group.children as THREE.Mesh[];
   const mat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
   const reference = new THREE.Mesh(fuselageGeometry(def.fuselage), mat);
-  for (const mesh of [hull, ...wing]) mesh.material = mat;
+  const shell = [...fairings, ...wing];
+  for (const mesh of [hull, ...shell]) mesh.material = mat;
   for (const side of [-1, 1]) {
     const leg = main.find(m => m.geometry.name === "main-strut" && m.userData.side === side)!;
     const cut = main.find(m => m.geometry.name === "main-inner-door" && m.userData.side === side)!.geometry.userData.bayOpening;
@@ -106,11 +109,13 @@ test("737 MAX 8: continuous fuselage sidewall and fixed wing skin above the main
       const x = THREE.MathUtils.lerp(cut.x0, cut.x1, frac);
       for (const y of [-.80, -.56, -.29, -.06]) {
         const ray = new THREE.Raycaster(v(x, y, side * 5), v(0, 0, -side));
-        near(ray.intersectObject(hull)[0]?.distance, ray.intersectObject(reference)[0].distance);
+        const expected = ray.intersectObject(reference)[0].distance;
+        const cover = ray.intersectObjects(shell)[0];
+        if (!cover || cover.distance > expected) near(ray.intersectObject(hull)[0]?.distance, expected);
       }
       // Fixed panels alone must cover the hinge even when the flaps leave the wing.
       for (const z of [1.98, 2.2, 2.5, 2.86, 3.02]) {
-        const hits = new THREE.Raycaster(v(x, 3, side * z), v(0, -1, 0)).intersectObjects(wing);
+        const hits = new THREE.Raycaster(v(x, 3, side * z), v(0, -1, 0)).intersectObjects(shell);
         assert.ok(hits[0] && hits[0].point.y > leg.userData.basePos.y - .015, "missing roof over the strut");
       }
     }

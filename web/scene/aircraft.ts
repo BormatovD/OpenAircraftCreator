@@ -17,6 +17,7 @@ import { cowlDoors, installationGeometry, isSuspensionHardware } from "./pylonGe
 import { fleetMountTravel } from "./fleetClearance.ts";
 import { fleetPackages, isFleetStyle } from "./fleetPackages.ts";
 import { cutBayOpenings, type BayOpening } from "./gearOpenings.ts";
+import { wingRootFairing } from "./wingRootFairing.ts";
 import { DOOR_RIM_INSET } from "./gearDoors.ts";
 import { mainDoors, noseDoors } from "./gearBay.ts";
 import { boeing737StowAngle } from "./boeing737Gear.ts";
@@ -197,21 +198,6 @@ function wingGeometry(def: AircraftDefinition, SH: ShapeSet) {
     }
     return section;
   };
-  // A continuous upper fillet encloses the wheel bay inside the barrel and
-  // feathers into the wing above the folded side stay. Derive its planform
-  // from the installed gear, with its outer shoulder ahead of the moving flap.
-  const wheelReach = (g.axleSpacingM ?? 0) / 2 + g.mainR + .24;
-  const upperFillet = (x: number, z: number) => {
-    if (SH.gear.boeing737Series === "max" || z >= g.mainZ - .28) return 0;
-    const dx = Math.abs(x - mainX);
-    const longitudinal = 1 - THREE.MathUtils.smoothstep(dx, wheelReach, wheelReach + 1.55);
-    const across = 1 - THREE.MathUtils.smoothstep(z, sideZ - .30, g.mainZ - .28);
-    const end = wingPlanform(z / wingWidth);
-    const te = wingRoot.x + end.le + end.chord;
-    const wheelPocket = 2.4 * g.mainR * (1 - THREE.MathUtils.smoothstep(z, sideZ - .65, sideZ + .06));
-    const shoulder = SH.id === "b737" ? 0 : .78 * g.mainR * across;
-    return longitudinal * (wheelPocket + shoulder) * THREE.MathUtils.smoothstep(te - x, 0, .45);
-  };
   const wingShape = (side: 1 | -1, extra: Partial<SurfaceShape> = {}): SurfaceShape => ({
     root: wingRoot,
     rootChordM: cSide,
@@ -224,7 +210,6 @@ function wingGeometry(def: AircraftDefinition, SH: ShapeSet) {
     thicknessTip: P.thicknessTip,
     side,
     planform: wingPlanform,
-    upperFillet: extra.thicknessRoot === undefined && !extra.halfThickness ? upperFillet : undefined,
     ...extra,
   });
   return { wingShape, semi, engZ, sideZ, wingPlanform, wingRoot, cTip, flapStart, wingWidth, mainX };
@@ -386,24 +371,26 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
     heightM: def.fuselage.heightM,
   };
   const L = f.lengthM;
+  const { wingShape, semi, engZ, sideZ, wingPlanform, wingRoot, cTip, flapStart, wingWidth, mainX } = wingGeometry(def, SH);
   // Обтекатель центроплана («брюхо» под крылом) — по контуру на виде сбоку AC: от 11,4 до 21,2 м,
   // низ на 2,22 м под осью; шире фюзеляжа у корня крыла.
-  const fairing = new THREE.SphereGeometry(1, 40, 20);
+  const fairing = new THREE.SphereGeometry(1, 112, 64);
   fairing.userData.bellyPaint = true;
   fairing.scale(SH.fairing.sx, SH.fairing.sy, SH.fairing.sz);
   fairing.translate(modelX(L, SH.fairing.x), SH.fairing.y, 0);
   const glazing = cockpitGlazing(f);
   for (const g of glazing) if (!g.userData.tone) g.userData.tone = "glass";
-  const fittings = fuselageFittings(f).map((ft) => {
-    ft.geometry.userData.tone = ft.tone;
-    return ft.geometry;
-  });
   const hull = fuselageGeometry(f);
-  add("fuselage", [hull, fairing, ...glazing, ...fittings], v3(0, 0, 0), v3(7, 2.6, 3));
+  const fixedBody: THREE.BufferGeometry[] = [hull, fairing];
 
   // ——— Крыло ———
   const w = def.wing;
-  const { wingShape, semi, engZ, sideZ, wingPlanform, wingRoot, cTip, flapStart, wingWidth, mainX } = wingGeometry(def, SH);
+  const tandem = def.gear.mainWheels / def.gear.mainStruts === 4;
+  const fillet = wingRootFairing(wingShape(1), wingWidth, sideZ, SH.gear.mainZ, tandem,
+    (x, y) => fuselageHalfWidthAt(f, x, y));
+  for (const side of [1, -1] as const) {
+    fixedBody.push(fillet.geometry(side));
+  }
   const wingDown = v3(0, -6.5, 0);
   const both = (fn: (side: 1 | -1) => THREE.BufferGeometry) => [sided(fn(1), 1), sided(fn(-1), -1)];
   // Кессон и панели: всё, кроме подвижных частей. Предкрылки идут от борта до законцовки,
@@ -929,7 +916,6 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   // Ground contact fixes the parked axle height. Each hinge is anchored at the
   // existing wing or body station and also serves as the pivot of the detailed parts.
   const G = SH.gear;
-  const tandem = def.gear.mainWheels / def.gear.mainStruts === 4;
   const wingMidAt = (z: number) => {
     return wingRoot.y + z * Math.sin(THREE.MathUtils.degToRad(SH.wing.dihedralDeg));
   };
@@ -945,6 +931,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   const pivotY = Math.min(wingMidAt(G.mainZ), bearingLimit);
   const anchorY = wingMidAt(G.mainZ - 1.35 * (G.mainZ / 3.795));
   const profile = SH.id;
+  const airbusDoors = profile === "a320";
   // Close the panels against the installed surfaces (including the centre-section fairing),
   // not against a flat datum. Keep small seams and clearance to prevent coincident faces.
   const belly = (x: number, z: number) => {
@@ -978,11 +965,25 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
       fairingY = THREE.MathUtils.lerp(y0, wy, t * t * (3 - 2 * t))
         + slope * (end - start) * t * (1 - t) ** 2;
     }
-    return Math.min(shell, fairingY) - .014;
+    return Math.min(shell, fairingY) - (airbusDoors ? 0 : .014);
   };
   const mainGear = profile === "b737" ? { ...G, retractDeg: boeing737StowAngle(G, pivotY, mainX, groundY, mainSkin) } : G;
+  // The folded wheel is in the belly, inboard of the visible root junction.
+  // From the sidewall outwards the well roof stays inside the fillet and wing.
+  const retractAngle = THREE.MathUtils.degToRad(G.retractDeg);
+  const legLength = pivotY - groundY - G.mainR;
+  const stowedTyreTop = pivotY - (legLength - G.mainR) * Math.cos(retractAngle)
+    + (G.mainWheelGap + G.mainTireW / 2) * Math.sin(retractAngle);
+  const bayTop = (x: number, z: number) => {
+    const wing = wingSkinY(x, z, true);
+    const outside = wing + fillet.rise(x, z);
+    // Under the cabin, seat the roof just above the stowed tyre. Start the
+    // transition well inside the barrel so the liner cannot pierce the lap.
+    const inboard = 1 - THREE.MathUtils.smoothstep(z, sideZ - .38, sideZ - .17);
+    return THREE.MathUtils.lerp(outside, Math.max(SH.cabin.floorY, stowedTyreTop + .07), inboard);
+  };
   const wellSkin = {
-    roof: (x: number, z: number) => wingSkinY(x, z, true) - .035,
+    roof: (x: number, z: number) => bayTop(x, z) - .035,
     lower: (x: number, z: number) => wingSkinY(x, z, false),
     trailingEdge: (z: number) => {
       const { le, chord } = wingPlanform(z / wingWidth);
@@ -998,9 +999,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   const gearParts: THREE.BufferGeometry[] = [];
   for (const g of legs) {
     if (g.userData.fixedWingBody) {
-      const cheek = new THREE.Mesh(g);
-      cheek.userData.partId = "fuselage";
-      parts.get("fuselage")!.group.add(cheek);
+      fixedBody.push(g);
     } else gearParts.push(g);
   }
   add("gear.main", gearParts, v3(0, -9, 0), v3(9, -2.5, -4));
@@ -1014,10 +1013,20 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
     const panels = legs.filter(g => g.userData.side === side && g.userData.bayOpening);
     const wheel = panels.find(g => g.name === "main-body-door")!.userData.bayOpening as BayOpening;
     const leg = panels.filter(g => g.name !== "main-body-door");
-    const outer = Math.max(...leg.map(g => Math.max(Math.abs(g.userData.bayOpening.z0), Math.abs(g.userData.bayOpening.z1)))) + DOOR_RIM_INSET;
-    return [wheel, {
-      x0: Math.max(...leg.map(g => g.userData.bayOpening.x0)),
-      x1: Math.min(...leg.map(g => g.userData.bayOpening.x1)),
+    // The inner return of the tandem wing door sweeps past the nominal pin.
+    const hingeRelief = tandem ? .030 : 0;
+    const outer = Math.max(...leg.map(g => Math.max(Math.abs(g.userData.bayOpening.z0), Math.abs(g.userData.bayOpening.z1)))) + DOOR_RIM_INSET + hingeRelief;
+    // Door skins have a swept thickness at the fore and aft jambs.
+    // The fixed apron supplies the return around the resulting relief.
+    const jamb = DOOR_RIM_INSET + .013;
+    // Keep the fixed strip between the body-door hinges continuous at the
+    // skin datum. A narrow running seam lets the inner return rotate past it.
+    const hingeCut = DOOR_RIM_INSET + .007;
+    const wheelCut = { ...wheel, x0: wheel.x0 - jamb, x1: wheel.x1 + jamb,
+      z0: wheel.z0 - (side === 1 ? hingeCut : jamb), z1: wheel.z1 + (side === 1 ? jamb : hingeCut) };
+    return [wheelCut, {
+      x0: Math.max(...leg.map(g => g.userData.bayOpening.x0)) - jamb,
+      x1: Math.min(...leg.map(g => g.userData.bayOpening.x1)) + jamb,
       z0: side === 1 ? wheel.z1 : -outer,
       z1: side === 1 ? outer : wheel.z0,
     }];
@@ -1026,7 +1035,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   // Clip against the fillet at each station rather than cutting a flat notch
   // above the wing. Keep a small overlap between the two exterior skins.
   const buriedCut = (x: number, y: number, z: number) =>
-    (profile === "b737" ? wingRoot.y : wingSkinY(x, Math.abs(z), true) - .045) - y;
+    bayTop(x, Math.abs(z)) - .045 - y;
   const sideCuts = mainOpenings.map(o => ({ ...o, ceiling: buriedCut }));
   // Inside the barrel the tyre chamber is wider than its exterior door.
   // Remove hidden shell only below its roof. The permanent wheel-well liner
@@ -1047,8 +1056,17 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   for (const mesh of parts.get("wing.box")!.group.children as THREE.Mesh[]) {
     if (!mesh.geometry.getAttribute("uv")) continue;
     cutBayOpenings(mesh.geometry, mainOpenings, true);
+    // The wheel bay also passes through the buried upper wing inside the barrel.
+    cutBayOpenings(mesh.geometry, sideCuts, false);
     if (innerPockets.length) cutBayOpenings(mesh.geometry, innerPockets, false);
   }
+  // The lamp seats on the final fixed exterior, including the lip at the
+  // front of the wheel bay. The moving doors are never mounting surfaces.
+  const fittings = fuselageFittings(f, { aircraftId: def.id, lowerBeaconSkins: fixedBody }).map(({ geometry, tone }) => {
+    geometry.userData.tone = tone;
+    return geometry;
+  });
+  add("fuselage", [hull, fairing, ...glazing, ...fittings, ...fixedBody.slice(2)], v3(0, 0, 0), v3(7, 2.6, 3));
   add("gear.nose", nose, v3(-2.5, -8, 0), v3(-1.5, -1.4, -1.5));
 
   // ——— Бортовые системы (внутри фюзеляжа, при разлёте поднимаются над ним ярусами) ———

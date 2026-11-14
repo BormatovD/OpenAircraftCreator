@@ -47,7 +47,8 @@ export function wellLiner(name: string, x0: number, x1: number, halfWidth: numbe
 /** One blind main-gear chamber. Sample both axes of the installed roof,
  * including the wing/body fillet and any curvature towards the rear jamb. */
 export function mainWellLiner(side: -1 | 1, x0: number, x1: number, outer: number, roof: Surface,
-  lower: Surface, nx: number, nz: number, closedCentre: boolean) {
+  lower: Surface, nx: number, nz: number, closedCentre: boolean, innerWidth = 0,
+  endWallStart: (x: number) => number = () => innerWidth) {
   const positions: number[] = [];
   type Point = [number, number, number];
   const quad = (a: Point, b: Point, c: Point, d: Point) => positions.push(...a, ...b, ...c, ...a, ...c, ...d);
@@ -55,14 +56,17 @@ export function mainWellLiner(side: -1 | 1, x0: number, x1: number, outer: numbe
     top ? roof(x, z) : Math.min(lower(x, z) + .025, roof(x, z) - .015), side * z];
   for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
     const a = THREE.MathUtils.lerp(x0, x1, i / nx), b = THREE.MathUtils.lerp(x0, x1, (i + 1) / nx);
-    const c = outer * j / nz, d = outer * (j + 1) / nz;
+    const c = THREE.MathUtils.lerp(innerWidth, outer, j / nz), d = THREE.MathUtils.lerp(innerWidth, outer, (j + 1) / nz);
     quad(point(a, c, true), point(a, d, true), point(b, d, true), point(b, c, true));
   }
-  for (const x of [x0, x1]) for (let j = 0; j < nz; j++) {
-    const a = outer * j / nz, b = outer * (j + 1) / nz;
-    quad(point(x, a, false), point(x, b, false), point(x, b, true), point(x, a, true));
+  for (const x of [x0, x1]) {
+    const start = endWallStart(x);
+    for (let j = 0; j < nz; j++) {
+      const a = THREE.MathUtils.lerp(start, outer, j / nz), b = THREE.MathUtils.lerp(start, outer, (j + 1) / nz);
+      quad(point(x, a, false), point(x, b, false), point(x, b, true), point(x, a, true));
+    }
   }
-  for (const z of (closedCentre ? [0, outer] : [outer])) for (let i = 0; i < nx; i++) {
+  for (const z of (closedCentre ? [innerWidth, outer] : [outer])) for (let i = 0; i < nx; i++) {
     const a = THREE.MathUtils.lerp(x0, x1, i / nx), b = THREE.MathUtils.lerp(x0, x1, (i + 1) / nx);
     quad(point(a, z, false), point(b, z, false), point(b, z, true), point(a, z, true));
   }
