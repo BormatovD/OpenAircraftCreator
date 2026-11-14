@@ -64,7 +64,9 @@ const localModel = launchParams.get("model");
 const isLocalReview = !hasFlightCostParams && localModel !== null && Object.hasOwn(AIRCRAFT, localModel);
 const initialId = isLocalReview ? localModel : requested && "preset" in requested ? requested.preset.aircraftId
   : (hasFlightCostParams ? PRESETS.find((p) => p.icao === (launchParams.get("ac") ?? "").toUpperCase())?.aircraftId : undefined) ?? "a320ceo";
-const initialLayoutId = requested && "layout" in requested ? requested.layout.id : presetFor(initialId)?.defaultLayoutId ?? "a320-180";
+const localCabinId = isLocalReview ? layoutFor(initialId, launchParams.get("cabin") ?? undefined)?.id : undefined;
+const initialLayoutId = requested && "layout" in requested ? requested.layout.id
+  : localCabinId ?? presetFor(initialId)?.defaultLayoutId ?? AIRCRAFT[initialId].cabinLayout?.id ?? "";
 const state = {
   aircraftId: initialId,
   layoutId: initialLayoutId,
@@ -97,10 +99,13 @@ const REVERSER_TAB = "Реверс";
 const MOUNTS_TAB = "Подвеска";
 const TRAVEL_TAB = "Ход механизма";
 // The preview moves only the scene, independently of the flight calculation.
-const inspectionTravel = { gear: 1, highLift: 1 };
+const CABIN_TAB = "Компоновка";
+const cabinPart = (id: string | null) => id === "furnishings" || id === "operatorItems";
+const inspectionTravel = { gear: 1, highLift: 1, apu: .5 };
 function mechanismFor(id: string | null) {
   if (id === "gear.main" || id === "gear.nose") return "gear";
   if (id === "wing.highLift") return "highLift";
+  if (id === "apu") return "apu";
   return null;
 }
 let exposeMounts = false;
@@ -407,7 +412,7 @@ function buildScene(): void {
     });
     // Детали из чертежей AC — текстурами поверх формы.
     const detail: Record<string, () => THREE.Texture> = {
-      fuselage: () => cachedTexture(`fus|${ev.definition.id}|${ev.definition.fuselage.lengthM}|${ev.definition.fuselage.heightM}|none`, () => fuselageTexture(ev.definition)),
+      fuselage: () => cachedTexture(`fus|${ev.definition.id}|${ev.definition.fuselage.lengthM}|${ev.definition.fuselage.heightM}|${ev.definition.cabinLayout?.id ?? ""}|none`, () => fuselageTexture(ev.definition)),
       "wing.box": () => cachedTexture(`wing|${ev.definition.shapeSet ?? "a320"}`, wingTexture),
       "wing.highLift": () => cachedTexture(`wing|${ev.definition.shapeSet ?? "a320"}`, wingTexture),
       htail: () => cachedTexture(`htail|${ev.definition.shapeSet ?? "a320"}`, htailTexture),
@@ -492,10 +497,9 @@ const selectEdgeMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 
 function paintEdges(): void {
   if (!model) return;
   selectEdgeMat.color.set(css("--accent"));
-  const bay = inspectingGearBay();
   for (const part of model.parts.values()) {
     const on = part.id === state.selected || !!state.focus?.has(part.id);
-    const glass = (!!state.focus && !state.focus.has(part.id)) || (bay && part.id !== state.selected);
+    const glass = inspectionGhost(part.id);
     part.group.traverse((o) => {
       if (o instanceof THREE.LineSegments && o.userData.isEdge) {
         o.material = on ? selectEdgeMat : (o.userData.baseMat as THREE.Material);
@@ -525,7 +529,7 @@ function pose(phase: { gear: number; flaps: number } = env.current, groundDrop =
     // Выбор слегка отделяет агрегат; полного разлёта добиваются общим ползунком.
     // Expose the selected landing gear for inspection even in cruise.
     const gearUp = retraction * (!inspecting && part.id === selPart ? 1 - ease(selK) : 1);
-    const kp = part.id === selPart && !inspecting && !inspectingReverser && !inspectingMounts ? Math.max(k, ease(selK) * SELECTED_EXPLODE_FRACTION) : k;
+    const kp = part.id === selPart && state.drawerTab !== CABIN_TAB && !inspecting && !inspectingReverser && !inspectingMounts ? Math.max(k, ease(selK) * SELECTED_EXPLODE_FRACTION) : k;
     part.group.position.copy(part.explode).multiplyScalar(kp);
     for (const o of part.group.children) {
       if (!(o instanceof THREE.Mesh)) continue;
@@ -540,6 +544,11 @@ function pose(phase: { gear: number; flaps: number } = env.current, groundDrop =
       const origin = o.geometry.userData.reverserOrigin as THREE.Vector3 | undefined;
       if (origin) applyReverserMotion(o, inspectingReverser ? state.reverserDeployment : 0, origin);
       else o.position.set(0, 0, 0);
+      const door = o.geometry.userData.apuDoor;
+      if (door) {
+        o.quaternion.setFromAxisAngle(door.axis, door.angle * (inspecting === "apu" ? inspectionTravel.apu : 0));
+        o.position.copy(door.pivot).applyQuaternion(o.quaternion).negate().add(door.pivot);
+      }
       o.position.x += (b?.x ?? 0) + (off?.x ?? o.geometry.userData.panelOffset ?? 0) * kp + (d?.x ?? 0) * flaps;
       o.position.y += (b?.y ?? 0) + (off?.y ?? 0) * kp + (d?.y ?? 0) * flaps;
       o.position.z += (b?.z ?? 0) + (o.userData.side ?? 0) * part.sideSpread * kp + (off?.z ?? 0) * kp;
@@ -616,14 +625,14 @@ function applyLivery(natural: boolean): void {
     });
   };
   if (l) {
-    paint("fuselage", "#ffffff", cachedTexture(`fus|${def.id}|${L}|${def.fuselage.heightM}|${l.id}|${def.shortName}`, () => fuselageTexture(def, l)));
+    paint("fuselage", "#ffffff", cachedTexture(`fus|${def.id}|${L}|${def.fuselage.heightM}|${def.cabinLayout?.id ?? ""}|${l.id}|${def.shortName}`, () => fuselageTexture(def, l)));
     const fin = model.finXY;
     paint("vtail", "#ffffff", cachedTexture(`fin|${def.shapeSet ?? "a320"}|${def.vtail.areaM2}|${def.vtail.spanM}|${l.id}`, () => finLiveryTexture(l, fin)));
     paint("nacelles", l.nacelle);
     paint("wingtips", l.fin[1]);
     for (const id of ["wing.box", "wing.highLift", "htail"]) paint(id, l.wing);
   } else {
-    paint("fuselage", null, cachedTexture(`fus|${def.id}|${L}|${def.fuselage.heightM}|none`, () => fuselageTexture(def)));
+    paint("fuselage", null, cachedTexture(`fus|${def.id}|${L}|${def.fuselage.heightM}|${def.cabinLayout?.id ?? ""}|none`, () => fuselageTexture(def)));
     paint("vtail", null, cachedTexture(`fin|${def.shapeSet ?? "a320"}|${def.vtail.areaM2}|${def.vtail.spanM}|plain`, () => finLiveryTexture(PLAIN_FIN, model!.finXY)));
     for (const id of ["nacelles", "wingtips", "wing.box", "wing.highLift", "htail"]) paint(id, null);
   }
@@ -706,6 +715,15 @@ function inspectingGearBay(): boolean {
     && (state.selected !== "gear.main" || $<HTMLInputElement>("expose-gear-bay").checked);
 }
 
+function inspectionGhost(id: string): boolean {
+  if (state.focus) return !state.focus.has(id);
+  if (state.drawerTab === CABIN_TAB && cabinPart(state.selected)) {
+    return state.selected === "operatorItems" ? id !== "operatorItems" : !cabinPart(id);
+  }
+  if (state.selected === "apu" && state.drawerTab === TRAVEL_TAB && $<HTMLInputElement>("expose-apu").checked) return id !== "apu";
+  return inspectingGearBay() && id !== state.selected;
+}
+
 function applySelection(): void {
   if (!model) return;
   const accent = new THREE.Color(css("--accent"));
@@ -713,11 +731,13 @@ function applySelection(): void {
   const bad = new THREE.Color(css("--bad"));
   const focus = state.focus;
   const inspectingBay = inspectingGearBay();
+  env.group.visible = !cardPreview && !(state.drawerTab === CABIN_TAB && cabinPart(state.selected))
+    && !(state.drawerTab === TRAVEL_TAB && state.selected === "apu" && $<HTMLInputElement>("expose-apu").checked);
   const assembledFan = !focus && state.selected !== "engines" && state.explode < 0.12;
   for (const part of model.parts.values()) {
     const on = part.id === state.selected || !!focus?.has(part.id);
     const t = tint.get(part.id);
-    const glass = (!!focus && !focus.has(part.id)) || (inspectingBay && part.id !== state.selected);
+    const glass = inspectionGhost(part.id);
     part.group.traverse((o) => {
       if (o instanceof THREE.Mesh && !o.userData.isEdge) {
         if (o.geometry.userData.gearWell) o.visible = !(inspectingBay && part.id === state.selected);
@@ -732,7 +752,7 @@ function applySelection(): void {
         const base = m.userData.base as { opacity: number; transparent: boolean; depthWrite: boolean } | undefined;
         if (base) {
           m.transparent = glass || base.transparent;
-          m.opacity = glass ? Math.min(base.opacity, 0.09) : base.opacity;
+          m.opacity = glass ? Math.min(base.opacity, state.drawerTab === CABIN_TAB || state.selected === "apu" ? .025 : .09) : base.opacity;
           m.depthWrite = glass ? false : base.depthWrite;
         }
         if (LIGHTS[tone]) {
@@ -769,6 +789,36 @@ function applySelection(): void {
   applyExplode();
 }
 
+function cabinZoneBounds() {
+  if (!model) return;
+  const zone = $<HTMLSelectElement>("cabin-zone").value;
+  if (zone === "all") return;
+  const modules = model.cabin.modules;
+  if (!modules.length) return;
+  const front = Math.min(...modules.map(m => m.x0)), aft = Math.max(...modules.map(m => m.x1));
+  const mid = (front + aft) / 2;
+  const isGalley = state.selected === "operatorItems";
+  if (isGalley) {
+    const galleys = modules.filter(m => m.role === "galley").sort((a, b) => a.x0 - b.x0);
+    const g = zone === "front" ? galleys[0] : zone === "aft" ? galleys.at(-1)
+      : galleys.find(m => m.x0 > front + 3 && m.x1 < aft - 3);
+    if (g) return { x0: g.x0 - .7, x1: g.x1 + .7, side: Math.sign(g.z0 + g.z1) };
+  }
+  const x0 = zone === "front" ? front - .15 : zone === "aft" ? aft - 5.2 : mid - 2.7;
+  return { x0, x1: x0 + 5.4, side: 0 };
+}
+
+function aimInside() {
+  if (!model) return;
+  const side = state.selected === "operatorItems" ? cabinZoneBounds()?.side : 0;
+  const direction = state.selected === "apu" ? model.apu.direction
+    : side ? new THREE.Vector3(.65, .65, -side).normalize() : new THREE.Vector3(-.10, 1, .48).normalize();
+  const distance = camera.position.distanceTo(controls.target);
+  camera.position.copy(controls.target).addScaledVector(direction, distance || 12);
+  camera.lookAt(controls.target);
+  controls.update();
+}
+
 function select(id: string | null, hitSide = 0): void {
   const side = id && individualSideParts.has(id) ? hitSide : 0;
   const same = state.selected === id && (!side || side === selectedSide);
@@ -788,6 +838,10 @@ function select(id: string | null, hitSide = 0): void {
     const groups = linkedGroups(state.selected);
     state.drawerOpen = true;
     state.drawerTab = groups[0] ?? ABOUT_TAB;
+    if (cabinPart(state.selected) || state.selected === "apu") {
+      $<HTMLSelectElement>("cabin-zone").value = state.selected === "operatorItems" ? "front" : "all";
+      aimInside();
+    }
     // Approach the main strut from behind the nacelle. Keep this initial
     // inspection angle separate from framing so the user can orbit freely.
     if (state.selected === "gear.main" || state.selected === "gear.nose") {
@@ -877,6 +931,17 @@ function frameCamera(): void {
     inspectionTravel.gear = extension;
     pose();
   }
+  if (state.drawerTab === CABIN_TAB && selected && cabinPart(selected.id)) {
+    const bounds = cabinZoneBounds();
+    if (bounds) {
+      const b = new THREE.Box3().setFromPoints(points);
+      const dx = selected.group.getWorldPosition(new THREE.Vector3()).x;
+      b.min.x = dx + bounds.x0;
+      b.max.x = dx + bounds.x1;
+      points = [];
+      for (const x of [b.min.x, b.max.x]) for (const y of [b.min.y, b.max.y]) for (const z of [b.min.z, b.max.z]) points.push(new THREE.Vector3(x,y,z));
+    }
+  }
   if (frameLowerBeacon) {
     points.push(...meshFramePoints(frameLowerBeacon));
     frameLowerBeacon = undefined;
@@ -939,6 +1004,7 @@ function linkedControls(id: string | null): Control[] {
 function linkedGroups(id: string | null): string[] {
   const groups: string[] = [...new Set(linkedControls(id).map((c) => c.group))];
   if (mechanismFor(id)) groups.unshift(TRAVEL_TAB);
+  if (cabinPart(id)) groups.unshift(CABIN_TAB);
   if (id === "nacelles" && model?.parts.get(id)?.group.children.some(o =>
     o instanceof THREE.Mesh && o.geometry.userData.reverserOrigin)) groups.unshift(REVERSER_TAB);
   if (id === "nacelles" && result && pylonFor(nacelleStyleFor(result.ev.definition.engine))) groups.splice(groups.includes(REVERSER_TAB) ? 1 : 0,0,MOUNTS_TAB);
@@ -993,7 +1059,7 @@ function applyScenario(id: string | null): void {
   const s = SCENARIOS.find((x) => x.id === id);
   if (s) {
     state.aircraftId = s.aircraft;
-    state.layoutId = presetFor(s.aircraft)?.defaultLayoutId ?? state.layoutId;
+    state.layoutId = presetFor(s.aircraft)?.defaultLayoutId ?? AIRCRAFT[s.aircraft].cabinLayout?.id ?? "";
     state.flightCostError = null;
     state.mode = s.mode;
     state.values = { ...defaults(AIRCRAFT[s.aircraft]), ...s.values };
@@ -1109,6 +1175,11 @@ $("expose-gear-bay").addEventListener("change", () => {
   applySelection();
   renderLevers();
 });
+$("cabin-zone").addEventListener("change", () => {
+  aimInside();
+  requestCameraFrame();
+});
+$("expose-apu").addEventListener("change", applySelection);
 $("travel-range").addEventListener("input", event => {
   const mechanism = mechanismFor(state.selected);
   if (!mechanism) return;
@@ -1153,7 +1224,7 @@ function renderLevers(): void {
   for (const b of $("drawer-tabs").querySelectorAll<HTMLButtonElement>("button"))
     b.onclick = () => {
       state.drawerTab = b.dataset.dtab!;
-      if (mechanismFor(state.selected) === "gear") applySelection();
+      applySelection();
       renderLevers();
       requestCameraFrame();
     };
@@ -1164,9 +1235,27 @@ function renderLevers(): void {
   $("detail").hidden = !about;
   const mechanism = state.drawerTab === TRAVEL_TAB ? mechanismFor(sel) : null;
   $("travel-panel").hidden = !mechanism;
+  const cabin = state.drawerTab === CABIN_TAB && cabinPart(sel);
+  $("cabin-panel").hidden = !cabin;
+  $("apu-cutaway-view").hidden = mechanism !== "apu";
   const inspectingMounts = state.drawerTab === MOUNTS_TAB;
   $("pylon-panel").hidden = !inspectingMounts;
-  $("levers").hidden = about || reverser || inspectingMounts || !!mechanism;
+  $("levers").hidden = about || reverser || inspectingMounts || !!mechanism || cabin;
+  if (cabin && model) {
+    drawer.dataset.content = "cabin";
+    const plan = model.cabin;
+    const galleys = plan.modules.filter(m => m.role === "galley");
+    const zones = $<HTMLSelectElement>("cabin-zone");
+    const center = zones.querySelector<HTMLOptionElement>('option[value="mid"]')!;
+    center.hidden = sel === "operatorItems" && !galleys.some(m =>
+      m.x0 > Math.min(...galleys.map(g => g.x0)) + 3 && m.x1 < Math.max(...galleys.map(g => g.x1)) - 3);
+    if (center.hidden && zones.value === "mid") zones.value = "all";
+    const count = (role: string) => plan.modules.filter(m => m.role === role).length;
+    const business = plan.rows.reduce((n, r) => n + (r.class === "business" ? r.seats : 0), 0);
+    $("cabin-counts").textContent = `Мест: ${plan.seatCount}${business ? ` (бизнес — ${business})` : ""} · рядов: ${plan.rows.length} · кухонных блоков: ${count("galley")} · туалетов: ${count("lavatory")}.`;
+    $("cabin-layout-note").textContent = ["Служебные зоны показаны эскизно.", plan.capacityWarning].filter(Boolean).join(" ");
+    return;
+  }
   if (mechanism) {
     drawer.dataset.content = "travel";
     $("gear-bay-view").hidden = state.selected !== "gear.main";
@@ -1174,6 +1263,11 @@ function renderLevers(): void {
     const pct = Math.round(100 * inspectionTravel[mechanism]);
     $<HTMLInputElement>("travel-range").value = String(pct);
     $("travel-position").textContent = pct + "%";
+    if (mechanism === "apu" && model) {
+      $("travel-label").textContent = model.apu.name + " · створки воздухозаборника";
+      $("travel-hint").textContent = model.apu.note + " 0% — закрыто, 100% — открыто.";
+      return;
+    }
     $("travel-hint").textContent = inspectingGearBay()
       ? "0% — убрано, 100% — выпущено. Стенки выбранной ниши скрыты для осмотра."
       : "Ход в 3D: 0% — убрано, 100% — выпущено.";
@@ -1669,7 +1763,7 @@ function renderDetail(): void {
       ${factor !== undefined ? `<dt>Оценка по формуле</dt><dd>${fmtKg(n.rawKg)}</dd><dt>Поправка по аналогу</dt><dd>×${nf(factor, 2)}</dd>` : ""}
     </dl>
     <p class="source">${spec.source}</p>
-    ${n.id === "furnishings" ? "<p class=\"source\">Кресла, кухни и туалеты показаны условно для разбора массы. Это не точный план салона: проходы у промежуточных дверей и расстановка по классам пока не воспроизводятся.</p>" : ""}
+    ${n.id === "furnishings" ? "<p class=\"source\">Классы и число кресел соответствуют выбранной компоновке. Положение кухонь, туалетов и багажных полок приближённое.</p>" : ""}
     ${
       linkedGroups(n.id).length
         ? `<div class="linked-levers"><span>Рычаги:</span>${linkedGroups(n.id)
@@ -1773,7 +1867,7 @@ renderer.domElement.addEventListener("pointerup", (e) => {
   const r = renderer.domElement.getBoundingClientRect();
   pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
-  const hit = raycaster.intersectObjects(model.root.children, true).find((h) => h.object.visible && h.object.userData.partId);
+  const hit = raycaster.intersectObjects(model.root.children, true).find((h) => h.object.visible && h.object.userData.partId && !inspectionGhost(h.object.userData.partId));
   select(hit ? (hit.object.userData.partId as string) : null, hit?.object.userData.side ?? 0);
 });
 
@@ -1785,7 +1879,7 @@ renderer.domElement.addEventListener("pointermove", (e) => {
     const r = renderer.domElement.getBoundingClientRect();
     pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     raycaster.setFromCamera(pointer, camera);
-    const hit = raycaster.intersectObjects(model!.root.children, true).find((h) => h.object.visible && h.object.userData.partId);
+    const hit = raycaster.intersectObjects(model!.root.children, true).find((h) => h.object.visible && h.object.userData.partId && !inspectionGhost(h.object.userData.partId));
     const id = hit ? (hit.object.userData.partId as string) : null;
     if (id !== state.hovered) {
       state.hovered = id;
@@ -1810,7 +1904,7 @@ $("explode").addEventListener("input", (e) => {
 const pickAircraft = (id: string) => {
   if (state.aircraftId === id || !AIRCRAFT[id]) return;
   state.aircraftId = id;
-  state.layoutId = presetFor(id)?.defaultLayoutId ?? state.layoutId;
+  state.layoutId = presetFor(id)?.defaultLayoutId ?? AIRCRAFT[id].cabinLayout?.id ?? "";
   state.flightCostError = null;
   state.scenarioId = null;
   state.values = defaults(AIRCRAFT[state.aircraftId]);
@@ -2030,13 +2124,20 @@ renderScenarios();
 run();
 route();
 const reviewPart = launchParams.get("part");
-if (isLocalReview && (reviewPart === "engines" || reviewPart === "nacelles" || reviewPart === "pylons" || mechanismFor(reviewPart))) {
+if (isLocalReview && (reviewPart === "engines" || reviewPart === "nacelles" || reviewPart === "pylons" || cabinPart(reviewPart) || mechanismFor(reviewPart))) {
   const extension = launchParams.get("extension");
   const mechanism = mechanismFor(reviewPart);
   if (mechanism && extension !== null && /^(?:100|[1-9]?\d)$/.test(extension)) {
     inspectionTravel[mechanism] = Number(extension) / 100;
   }
   select(reviewPart === "pylons" ? "nacelles" : reviewPart);
+  const zone = launchParams.get("zone");
+  if (cabinPart(reviewPart) && (zone === "front" || zone === "aft" || zone === "all" || zone === "mid")) {
+    $<HTMLSelectElement>("cabin-zone").value = zone;
+    renderLevers();
+    aimInside();
+    requestCameraFrame();
+  }
   if (reviewPart === "gear.main" && launchParams.get("view") === "underside") {
     const body = scene.getObjectByName("fuselage");
     frameLowerBeacon = body?.children.find((o): o is THREE.Mesh =>

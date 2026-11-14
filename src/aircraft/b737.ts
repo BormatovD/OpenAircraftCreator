@@ -75,6 +75,11 @@ export const B737_300: AircraftDefinition = {
       turbineBlading: { hp: [{ rotor: 72 }], lp: [174, 162, 157, 160].map(rotor => ({ rotor })) },
     },
   },
+  // Boeing D6-58325-6 §2.4.7, 128-seat mixed-class example.
+  cabinLayout: { id: "b733-128", label: "128 мест, два класса", zones: [
+    { class: "business", rows: 2, seatsPerRow: 4, pitchM: .9144 },
+    { class: "economy", rows: 20, seatsPerRow: 6, pitchM: .8128 },
+  ] },
   systems: {
     ...A320CEO.systems,
     seats: 128, // смешанная компоновка, для которой дан OEW (2.1.6)

@@ -113,10 +113,16 @@
         <div class="drawer-body">
           <div id="levers" class="lever-grid" role="group" aria-label="Рычаги — вертикальная прокрутка" tabindex="0"></div>
           <div id="detail" class="detail" hidden></div>
+          <section id="cabin-panel" class="lever" hidden>
+            <label for="cabin-zone">Область осмотра</label>
+            <select id="cabin-zone" class="select"><option value="all">Весь салон</option><option value="front">Передняя часть</option><option value="mid">Средняя часть</option><option value="aft">Задняя часть</option></select>
+            <p id="cabin-counts"></p><small id="cabin-layout-note" class="lever-hint"></small>
+          </section>
           <div id="travel-panel" class="lever range" hidden>
             <div class="lever-top"><label id="travel-label" class="lever-label" for="travel-range">Выпуск</label><output id="travel-position" for="travel-range">100%</output></div>
             <input id="travel-range" type="range" min="0" max="100" step="1" value="100" aria-describedby="travel-hint" />
             <span id="travel-hint" class="lever-hint">Ход в 3D: 0% — убрано, 100% — выпущено.</span>
+            <label id="apu-cutaway-view" hidden><input id="expose-apu" type="checkbox" checked /> Показать ВСУ сквозь обшивку</label>
             <label id="gear-bay-view" hidden><input id="expose-gear-bay" type="checkbox" /> Показать механизм сквозь обшивку</label>
           </div>
           <section id="pylon-panel" hidden>

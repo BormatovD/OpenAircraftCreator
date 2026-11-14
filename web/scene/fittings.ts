@@ -27,11 +27,12 @@ function patch(r: number): THREE.BufferGeometry {
 export interface Fitting {
   geometry: THREE.BufferGeometry;
   /** Тон материала: антенна, огонь (с цветом) или датчик. */
-  tone: "antenna" | "nav-red" | "nav-green" | "strobe" | "beacon" | "landing" | "exhaust";
+  tone: "antenna" | "nav-red" | "nav-green" | "strobe" | "beacon" | "landing";
 }
 
 /** The assembled fixed exterior, so a belly fitting cannot be buried in a fairing. */
 interface FittingInstallation {
+  tailCutX?: number;
   aircraftId: string;
   lowerBeaconSkins: THREE.BufferGeometry[];
 }
@@ -181,15 +182,11 @@ export function fuselageFittings(f: FuselageShape, installation?: FittingInstall
   if (installation) out.push(...lowerBeacon(f, installation));
   else out.push({ geometry: place(beacon(), bottom(17.4), true), tone: "beacon" });
   const tail = new THREE.SphereGeometry(0.07, 12, 8);
-  const ts = fuselageSection(f, L - 0.05);
-  tail.translate(L - 0.02, ts.cy + ts.hh * 0.6, 0);
+  // Keep the aft lens on fixed skin ahead of the APU exhaust lip.
+  const lensX = (installation?.tailCutX ?? L) - .09;
+  const ts = fuselageSection(f, lensX);
+  tail.translate(lensX, ts.cy + ts.hh - .025, 0);
   out.push({ geometry: tail, tone: "strobe" });
-  // Срез хвостового конуса — сопло выхлопа ВСУ (тёмный диск вместо открытого торца).
-  const cap = new THREE.CircleGeometry(1, 28);
-  cap.rotateY(Math.PI / 2);
-  cap.scale(1, ts.hh, ts.hw);
-  cap.translate(L - 0.02, ts.cy, 0);
-  out.push({ geometry: cap, tone: "exhaust" });
   return out;
 }
 

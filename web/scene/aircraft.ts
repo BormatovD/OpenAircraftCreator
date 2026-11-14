@@ -23,11 +23,14 @@ import { mainDoors, noseDoors } from "./gearBay.ts";
 import { boeing737StowAngle } from "./boeing737Gear.ts";
 import { mainLandingGear, noseLandingGear } from "./landingGear.ts";
 import { cockpitGlazing } from "./cockpit.ts";
-import { cabinOpenings } from "./features.ts";
+import { fleetCabin } from "./fleetCabin.ts";
+import { tu214Cabin } from "./tu214Cabin.ts";
+import type { PassengerCabinLayout } from "./passengerCabin.ts";
+import { fleetApu, fleetApuVariantFor, cutFleetApuOpenings } from "./fleetApu.ts";
+import { tu214Apu, cutTu214ApuOpenings } from "./tu214Apu.ts";
 import { fuselageFittings, wingtipLights } from "./fittings.ts";
 import { avionicsRack, instrumentPanel, electricalBay, hydraulicBay, airConditioningPacks, fuelDetails, engineAccessories } from "./systemDetails.ts";
 import { type AircraftDefinition, aeroSpanM } from "../../src/definition.ts";
-import { cabinRowsFor } from "../../src/integration/flightcost.ts";
 import {
   type FuselageShape,
   type NacelleSegment,
@@ -73,6 +76,8 @@ export interface AircraftModel {
   wingLeX: number;
   /** Развёртка киля (u, v) → точка вида сбоку AC (x, y) — для логотипа окраски. */
   finXY: (u: number, v: number) => [number, number];
+  cabin: PassengerCabinLayout;
+  apu: { name: string; note: string; direction: THREE.Vector3 };
   parts: Map<string, Part>;
   groundY: number;
   lengthM: number;
@@ -380,7 +385,13 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   fairing.translate(modelX(L, SH.fairing.x), SH.fairing.y, 0);
   const glazing = cockpitGlazing(f);
   for (const g of glazing) if (!g.userData.tone) g.userData.tone = "glass";
-  const hull = fuselageGeometry(f);
+  const isTu = SH.id === "tu214";
+  const referenceFit = fleetApuVariantFor(def);
+  // Custom definitions inherit a visual example from their airframe template.
+  const template = SH.id === "b757" ? B757_RB211 : SH.id === "b737" ? B737_8 : A320CEO;
+  const installation = isTu ? null : fleetApu(def, f, referenceFit ?? fleetApuVariantFor(template));
+  const apu = installation ?? tu214Apu(f);
+  let hull = fuselageGeometry(f);
   const fixedBody: THREE.BufferGeometry[] = [hull, fairing];
 
   // ——— Крыло ———
@@ -1028,6 +1039,11 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
     ) }];
   });
   cutBayOpenings(hull, [...bayOpenings(nose), ...sideCuts, ...innerPockets], true);
+  if (installation) {
+    const skin = cutFleetApuOpenings(hull, f, installation.openings);
+    if (skin !== hull) hull.dispose();
+    fixedBody[0] = hull = skin;
+  } else cutTu214ApuOpenings(hull, f);
   cutBayOpenings(fairing, [...sideCuts, ...innerPockets], false);
   for (const mesh of parts.get("wing.box")!.group.children as THREE.Mesh[]) {
     if (!mesh.geometry.getAttribute("uv")) continue;
@@ -1038,7 +1054,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   }
   // The lamp seats on the final fixed exterior, including the lip at the
   // front of the wheel bay. The moving doors are never mounting surfaces.
-  const fittings = fuselageFittings(f, { aircraftId: def.id, lowerBeaconSkins: fixedBody }).map(({ geometry, tone }) => {
+  const fittings = fuselageFittings(f, { aircraftId: def.id, lowerBeaconSkins: fixedBody, tailCutX: "exhaustX" in apu ? apu.exhaustX : L }).map(({ geometry, tone }) => {
     geometry.userData.tone = tone;
     return geometry;
   });
@@ -1145,105 +1161,23 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   add("electrical.harness", harness, v3(0, 10.5, 0), v3(2, 1.2, -2));
   add("hydraulics", hydraulicBay(mainX - 2.2), v3(0, 6.5, 0), v3(0.5, 1, 1.8));
   add("airConditioning", airConditioningPacks(wingRoot.x + 0.8), v3(0, 6.5, 0), v3(-0.5, 1, -2));
-  // ВСУ (AC 2-12-0, отсек между шпангоутами 80 и 84 хвостового конуса): корпус с генератором, воздухозаборный
-  // канал вверх к створке на правом борту, глушитель выхлопа — к срезу на кончике хвоста.
-  const apuX = L - 3.4;
-  const apuSec = fuselageSection(f, apuX);
-  const apuBody = new THREE.CylinderGeometry(0.3, 0.33, 1.0, 20);
-  apuBody.rotateZ(Math.PI / 2);
-  apuBody.translate(apuX, apuSec.cy - 0.05, 0);
-  const apuGen = boxAt(apuX - 0.85, apuX - 0.5, apuSec.cy - 0.3, apuSec.cy + 0.15, -0.22, 0.22);
-  const tipSec = fuselageSection(f, L - 0.05);
-  const muffler = new THREE.CylinderGeometry(Math.min(0.22, tipSec.hw * 0.8), 0.27, L - 0.05 - (apuX + 0.5), 16, 1, true);
-  muffler.rotateZ(Math.PI / 2);
-  muffler.translate((L - 0.05 + apuX + 0.5) / 2, (apuSec.cy + tipSec.cy) / 2 - 0.03, 0);
-  const intakeTop = fuselageSection(f, apuX - 0.6);
-  const intake = tubeGeometry([v3(apuX - 0.3, apuSec.cy + 0.2, 0.1), v3(apuX - 0.55, intakeTop.cy + intakeTop.hh * 0.55, 0.35), v3(apuX - 0.75, intakeTop.cy + intakeTop.hh * 0.8, intakeTop.hw * 0.45)], 0.12);
-  add("apu", [apuBody, apuGen, muffler, intake], v3(4, 4.5, 0), v3(1.5, 1, 1.2));
-
-  // ——— Салон ———
-  // По AC 2-5-0 и 2-4-1: пол на 0,52 м ниже оси фюзеляжа, ряд из трёх кресел 1,50 м, проход 0,64 м
-  // («широкий проход»), высота подушки 0,43 м; передняя кухня и туалет — перед дверью 1, задние туалеты — перед
-  // задними дверями, задняя кухня — за ними. Кресло: подушка, наклонённая спинка, подлокотники, ножки и
-  // открытое пространство под креслом для сумок с ограничительной планкой.
-  const floorY = SH.cabin.floorY;
-  const cabinRows = cabinRowsFor(def);
-  const openings = cabinOpenings(def).sort((a, b) => a.x0 - b.x0);
-  const ownCabin = def.id === "a321ceo" || def.id === "a321neo";
-  const fwdDoorEnd = ownCabin ? openings[0].x1 + 0.25 : SH.cabin.fwdDoorEnd;
-  const aftDoorStart = ownCabin ? openings.at(-1)!.x0 : modelX(L, SH.cabin.aftDoorX);
-  const firstRow = fwdDoorEnd + 0.45;
-  // Unlike the old 3+3/ceil implementation, draw the exact seat count — including
-  // 194/225/239-seat layouts and wider 2+2 business class rows.
-  const seatBank = (x: number, side: 1 | -1, count: number, seatsPerBank: number): THREE.BufferGeometry => {
-    const zIn = 0.32;
-    const zOut = Math.min(1.82, ...[x, x + 0.6].map((xx) => fuselageHalfWidthAt(f, xx, floorY + 0.62) - 0.06));
-    const w = (zOut - zIn) / seatsPerBank;
-    const parts: THREE.BufferGeometry[] = [];
-    const zs = (a: number, b: number): [number, number] => (side === 1 ? [a, b] : [-b, -a]);
-    for (let k = 0; k < count; k++) {
-      const z0 = zIn + k * w + 0.015;
-      const z1 = zIn + (k + 1) * w - 0.015;
-      const [a, b] = zs(z0, z1);
-      parts.push(boxAt(x + 0.04, x + 0.48, floorY + 0.34, floorY + 0.45, a, b));
-      const back = new THREE.BoxGeometry(0.09, 0.74, b - a);
-      back.translate(0.045, 0.37, 0);
-      back.rotateZ((-12 * Math.PI) / 180);
-      back.translate(x + 0.44, floorY + 0.42, (a + b) / 2);
-      parts.push(back);
-    }
-    for (let k = 0; k <= count; k++) {
-      const z = zIn + k * w;
-      const [a, b] = zs(z - 0.025, z + 0.025);
-      parts.push(boxAt(x + 0.1, x + 0.5, floorY + 0.56, floorY + 0.61, a, b));
-    }
-    for (const z of [zIn + 0.12, zIn + count * w - 0.12]) {
-      const [a, b] = zs(z - 0.02, z + 0.02);
-      parts.push(boxAt(x + 0.08, x + 0.12, floorY, floorY + 0.34, a, b));
-      parts.push(boxAt(x + 0.38, x + 0.42, floorY, floorY + 0.34, a, b));
-      parts.push(boxAt(x + 0.08, x + 0.42, floorY + 0.02, floorY + 0.05, a, b));
-    }
-    const [a, b] = zs(zIn + 0.05, zIn + count * w - 0.05);
-    parts.push(boxAt(x + 0.05, x + 0.07, floorY + 0.1, floorY + 0.13, a, b));
-    return mergeGeometries(parts.map((g) => g.toNonIndexed()))!;
+  add("apu", [...apu.internal, ...apu.external], v3(4, 4.5, 0), v3(1.5, 1, 1.2));
+  const cabin = isTu ? tu214Cabin(def) : fleetCabin(def);
+  add("furnishings", cabin.furnishings, v3(0, 13.5, 0), v3(-4, 2.2, -2.5));
+  add("operatorItems", cabin.operatorItems, v3(0, 13.5, 0), v3(9, 3.4, 2.5));
+  const apuInfo = {
+    name: typeof apu.variant === "string" ? apu.variant : apu.variant.name,
+    note: installation
+      ? (referenceFit ? installation.variant.referenceConfiguration : "Эскиз по образцу " + installation.variant.referenceConfiguration) + ". Геометрия и угол открытия створки эскизные."
+      : "Установка ТА-12-60 подтверждена. Две боковые створки, их положение и ход — эскизное допущение.",
+    direction: apu.camera.direction,
   };
-  const seatsGroup: THREE.BufferGeometry[] = [];
-  let nextRowX = firstRow;
-  for (const row of cabinRows) {
-    const seatsPerBank = Math.ceil(row.seatsPerRow / 2);
-    const nLeft = Math.min(seatsPerBank, Math.ceil(row.seats / 2));
-    const nRight = row.seats - nLeft;
-    if (nLeft > 0) seatsGroup.push(seatBank(nextRowX, 1, nLeft, seatsPerBank));
-    if (nRight > 0) seatsGroup.push(seatBank(nextRowX, -1, nRight, seatsPerBank));
-    nextRowX += row.pitchM;
-  }
-  const lastRow = nextRowX;
-  // Туалеты: перед дверью 1 справа и перед задними дверями с обеих сторон.
-  const lavs = [
-    hullBox(f, 3.5, 4.45, floorY, floorY + 2.0, 0.2, 1.6),
-    hullBox(f, Math.max(lastRow + 0.05, aftDoorStart - 1.0), aftDoorStart - 0.05, floorY, floorY + 2.0, 0.55, 1.7),
-    hullBox(f, Math.max(lastRow + 0.05, aftDoorStart - 1.0), aftDoorStart - 0.05, floorY, floorY + 2.0, -1.7, -0.55),
-  ];
-  // Пол салона — панель на высоте пола по AC, шириной по обшивке.
-  const floorSegs: THREE.BufferGeometry[] = [];
-  for (let x = 3.3; x < aftDoorStart + 2.0; x += 0.5) floorSegs.push(hullBox(f, x, x + 0.5, floorY - 0.04, floorY, -2, 2).toNonIndexed());
-  const floor = mergeGeometries(floorSegs)!;
-  add("furnishings", [...seatsGroup, ...lavs, floor], v3(0, 13.5, 0), v3(-4, 2.2, -2.5));
-  // Кухни (оборудование эксплуатанта: тележки, кейтеринг): передняя — слева перед дверью 1, задняя — за задними дверями.
-  const aftGalleyX0 = aftDoorStart + 1.1;
-  add(
-    "operatorItems",
-    [hullBox(f, 3.4, 4.45, floorY, floorY + 1.05, -1.6, -0.2), hullBox(f, aftGalleyX0, aftGalleyX0 + 0.8, floorY, floorY + 1.05, -1.5, 1.5)],
-    v3(0, 13.5, 0),
-    v3(9, 3.4, 2.5),
-  );
-
   const finXY = (u: number, v: number): [number, number] => {
     const y = yOf(u);
     const le = leAc(y);
     return [le + v * (teAc(y) - le), y];
   };
-  return { root, parts, groundY, lengthM: L, wingLeX: wingRoot.x, finXY };
+  return { root, parts, cabin: cabin.layout, apu: apuInfo, groundY, lengthM: L, wingLeX: wingRoot.x, finXY };
 }
 
 /** Центр части в её локальных координатах (до разлёта). */

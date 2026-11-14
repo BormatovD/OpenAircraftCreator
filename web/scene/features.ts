@@ -5,7 +5,7 @@ import { type AircraftDefinition } from "../../src/definition.ts";
 import { S, type Feature } from "./shapeSet.ts";
 import { fuselagePlugs, modelX } from "./shapes.ts";
 
-/** Текущие A321ceo/neo — обычная схема; ACF/XLR требуют отдельных определений самолёта. */
+/** Dense A321neo uses the Cabin Flex door arrangement. */
 const ownA321 = (def: AircraftDefinition) => def.id === "a321ceo" || def.id === "a321neo";
 
 /** Перенос координат с собственного чертежа варианта при дополнительном удлинении рычагом. */
@@ -17,15 +17,29 @@ function ownX(def: AircraftDefinition, x: number): number {
   return x + offset(S().plugFwd) + offset(S().plugAft + forwardM);
 }
 
+function a321Doors(def: AircraftDefinition) {
+  return def.id === "a321neo" && def.cabinLayout?.id === "a321-244" ? A321.variants.acfXlr : A321.variants.standard;
+}
+
 const featuresOnSide = (side: 1 | -1) => S().featuresBySide?.[side === -1 ? "left" : "right"] ?? S().features;
 
 export function cabinOpenings(def: AircraftDefinition, side: 1 | -1 = -1): Feature[] {
-  if (ownA321(def)) return A321.variants.standard.cabinOpenings.map((q) => {
+  if (ownA321(def)) return a321Doors(def).cabinOpenings.map((q) => {
     const b = q.exteriorBBox;
     const x0 = ownX(def, b.x0);
     return { kind: q.kind, x0, x1: x0 + b.x1 - b.x0, y0: b.y0, y1: b.y1 };
   });
-  return featuresOnSide(side).filter((q) => q.kind === "door" || q.kind === "exit").map((q) => {
+  let openings = featuresOnSide(side).filter((q) => q.kind === "door" || q.kind === "exit");
+  if (def.id === "b737-300") {
+    const overwing = openings.filter(q => q.kind === "exit");
+    openings = openings.filter(q => q.kind !== "exit" || q === overwing[0]);
+  }
+  if (def.id === "b737-8" && def.cabinLayout?.id === "b38m-210") {
+    // D6-38A004 §2.7.1, 737-8-200 mid exit station, both sides.
+    const center = 25.20 * S().baseLengthM / 39.47;
+    openings = [...openings, { kind: "exit", x0: center - .43, x1: center + .43, y0: -.44, y1: 1.29 }];
+  }
+  return openings.map((q) => {
     const x0 = modelX(def.fuselage.lengthM, q.x0);
     return { ...q, x0, x1: x0 + q.x1 - q.x0 };
   });
@@ -33,7 +47,7 @@ export function cabinOpenings(def: AircraftDefinition, side: 1 | -1 = -1): Featu
 
 /** Только наружный контур грузовых люков, без подмены его размерами свободного проёма. */
 export function cargoOpenings(def: AircraftDefinition): Feature[] {
-  if (ownA321(def)) return A321.variants.standard.cargoOpenings.map((q) => {
+  if (ownA321(def)) return a321Doors(def).cargoOpenings.map((q) => {
     const b = q.exteriorBBox;
     const x0 = ownX(def, b.x0);
     return { kind: "cargo", x0, x1: x0 + b.x1 - b.x0, y0: b.y0, y1: b.y1 };
