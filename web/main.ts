@@ -1596,7 +1596,10 @@ function renderTakeoffLanding(): void {
   const oeiGradient = (normal: number, emergency?: number) => emergency === undefined
     ? `${nf(normal * 100, 1)}%`
     : `${nf(normal * 100, 1)}% штат. / ${nf(emergency * 100, 1)}% ЧР`;
-  const row = (label: string, v: string, delta: string, t?: string) => `<tr><th>${label}${t ? tip(t) : ""}</th><td>${v}</td><td>${delta}</td></tr>`;
+  const row = (label: string, v: string, note: string, t?: string) => `<tr>
+    <th scope="row"><span class="tol-label"><span>${label}</span>${t ? tip(t) : ""}</span></th>
+    <td><strong>${v}</strong><small>${note}</small></td>
+  </tr>`;
   const kt = (cur: number, b: number) => (Math.abs(cur - b) < 0.5 ? `<span class="delta zero">как у базы</span>` : `<span class="delta ${cur < b ? "good" : "bad"}">${cur > b ? "+" : "−"}${nf(Math.abs(cur - b), 0)} уз</span>`);
   $("tol").innerHTML = `
     <table class="tol">

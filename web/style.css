@@ -770,7 +770,7 @@ body.busy .busy-note {
   padding: 0;
   margin: 8px 0 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
   gap: 2px 12px;
   font-size: 12px;
 }
@@ -859,9 +859,10 @@ body.busy .busy-note {
 }
 .constraints li {
   display: grid;
-  grid-template-columns: 20px 1fr;
+  grid-template-columns: 20px minmax(0, 1fr);
   gap: 8px;
   font-size: 13px;
+  overflow-wrap: anywhere;
 }
 .c-icon {
   width: 18px;
@@ -893,6 +894,9 @@ body.busy .busy-note {
   padding-top: 10px;
   border-top: 1px solid var(--panel-edge);
 }
+.constraint-reference-group h3 {
+  grid-column: 1 / -1;
+}
 .constraint-reference-group h3,
 .aggregate-constraints h3 {
   margin: 0;
@@ -916,12 +920,13 @@ body.busy .busy-note {
 }
 .c-head {
   display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
+  gap: 2px 8px;
 }
 .c-value {
   font-weight: 600;
-  white-space: nowrap;
 }
 .c-msg {
   color: var(--ink-soft);
@@ -1493,24 +1498,43 @@ body.method-mode .scenario-bar {
 /* Взлёт и посадка */
 table.tol {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 12px;
 }
+table.tol th, table.tol td {
+  vertical-align: top;
+  padding: 6px 0;
+  overflow-wrap: anywhere;
+}
+table.tol tr + tr > * {
+  border-top: 1px solid var(--panel-edge);
+}
 table.tol th {
+  width: 56%;
+  padding-right: 8px;
   text-align: left;
   font-weight: 400;
   color: var(--ink-soft);
-  padding: 3px 0;
+}
+.tol-label {
+  display: inline-flex;
+  align-items: baseline;
+}
+.tol-label .tip {
+  flex: none;
 }
 table.tol td {
   text-align: right;
-  padding: 3px 0 3px 8px;
-  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-table.tol td:nth-child(2) {
-  color: var(--ink);
+table.tol strong {
   font-weight: 600;
+}
+table.tol small {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 11px;
 }
 
 /* ——— Раскладка 0.24: показатели сверху, рычаги снизу, вкладки вместо длинных прокруток ——— */
