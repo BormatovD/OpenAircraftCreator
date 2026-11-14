@@ -11,7 +11,8 @@ test("Public config is versioned and valid", () => {
   assert.equal(DATA.schema, FC_SCHEMA);
   assert.equal(DATA.version, 1);
   assert.deepEqual(validatePresetCatalog(), []);
-  assert.equal(PRESETS.length, Object.keys(AIRCRAFT_CHOICES).length);
+  // The Classic installation can be inspected without a FlightCost cabin preset.
+  assert.deepEqual(Object.keys(AIRCRAFT_CHOICES).filter(id => !presetFor(id)), ["b737-300"]);
 });
 
 test("Every engine maps exactly to the real Aircraft Designer definition", () => {

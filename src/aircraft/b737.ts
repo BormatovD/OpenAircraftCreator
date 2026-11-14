@@ -11,14 +11,18 @@ import lrcTable from "../../data/fcom/b737-300-lrc.json" with { type: "json" };
 const LB = 0.45359237;
 const LBF = 4.44822;
 
+// Installed Classic nacelle in the 737-300 drawing and the flattened cowl profile.
+export const CLASSIC_COWL = { clearanceM: .50, lowerRadiusM: .781 } as const;
+
 export const B737_300: AircraftDefinition = {
   id: "b737-300",
   label: "Boeing 737-300, CFM56-3",
   shortName: "737-300",
+  shapeSet: "b737",
   wing: {
     areaM2: 91.04, // 980 ft², Boeing (опорная площадь)
     spanM: 28.88, // D6-58325-6, 2.2.3
-    tip: "fence", // законцовок нет; «заборчик» в модели = без прироста размаха
+    tip: "none", // В базовой установке 737-300 законцовок нет.
     sharkletSpanM: 28.88,
     taper: 0.24, // допущение, как у A320
     sweepQuarterDeg: 25, // Boeing
@@ -45,6 +49,7 @@ export const B737_300: AircraftDefinition = {
   },
   engine: {
     name: "CFM56-3B2",
+    nacelleProfile: "cfm3b2",
     count: 2,
     // CFM International, «CFM56 Engine Family», стр. 2, колонка CFM56-3B2:
     // https://walter.bislins.ch/aviatik/media/cfm-technical-data.pdf (копия фирменной таблицы).
@@ -64,7 +69,11 @@ export const B737_300: AircraftDefinition = {
     takeoffThrustKn: (22000 * LBF) / 1000, // CFM56-3B2, 22 000 lbf (2.1.6)
     thrustScale: 1,
     thrustReverser: true,
-    architecture: { fanBlades: 38, boosterStages: 3, hpcStages: 9, hptStages: 1 },
+    architecture: {
+      fanBlades: 38, boosterStages: 3, hpcStages: 9, hptStages: 1, lptStages: 4, exhaust: "separateNozzles",
+      compressorBlading: { lp: [68, 68, 68], hp: [38, 53, 60, 68, 75, 82, 82, 80, 76] },
+      turbineBlading: { hp: [{ rotor: 72 }], lp: [174, 162, 157, 160].map(rotor => ({ rotor })) },
+    },
   },
   systems: {
     ...A320CEO.systems,

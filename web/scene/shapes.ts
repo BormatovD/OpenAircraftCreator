@@ -5,8 +5,13 @@ import * as THREE from "three";
 import { B737_800_NACELLE } from "../../src/aircraft/b737ng.ts";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { buildCockpitFairing, insideCockpitFairing } from "./cockpitFairing.ts";
+import { combustorPieces } from "./combustor.ts";
+import type { EngineArchitecture, EngineDef } from "../../src/definition.ts";
 import { S } from "./shapeSet.ts";
 import { cockpitFacets, cockpitSurfaceWidth, type CockpitFacet } from "./cockpitSurfaces.ts";
+import { fleetPackages, isFleetStyle, type FleetStyle } from "./fleetPackages.ts";
+import { reverser757Layout, reverser757Segments } from "./reverser757.ts";
+export { applyReverserMotion, reverser757Layout, type ReverserMotion } from "./reverser757.ts";
 
 /** Толщина симметричного профиля NACA 00xx в точке x ∈ [0, 1] (доля хорды), полутолщина в долях хорды. */
 export function nacaHalfThickness(x: number, t: number): number {
@@ -446,37 +451,32 @@ export function engineCoreGeometry(lengthM: number, fanDiameterM: number): THREE
   return g;
 }
 
-// ——— Разрез двухвального ТРДД ———
-// Суть, которую должна показывать модель: вентилятор делит поток на наружный контур (B частей) и
-// внутренний (1 часть); ядро тем меньше относительно вентилятора, чем выше B; вентилятор и подпорный
-// компрессор вращает турбина низкого давления (вал НД), компрессор высокого давления — турбина высокого
-// давления (вал ВД), и валы вращаются с разной скоростью.
-
-export type Tone = "lp" | "hp" | "hot" | "casing";
+// ——— Продольный разрез ТРДД ———
+export type Spool = "lp" | "ip" | "hp";
+export type Tone = Spool | "hot" | "casing" | "fanBlade" | "fanSpinner" | "stator" | "detailSteel" | "detailDark" | "detailFuel";
 export interface EnginePiece {
   geometry: THREE.BufferGeometry;
   tone: Tone;
   /** Какой вал вращает деталь; у неподвижных — null. */
-  spin: "lp" | "hp" | null;
+  spin: Spool | null;
   /** Смещение при разборе двигателя, м (вдоль оси x и вверх). */
   offset: THREE.Vector3;
   label?: string;
 }
 
-export interface EngineSpec {
+export type EngineSpec = EngineArchitecture & {
   fanDiameterM: number;
   bypassRatio: number;
   lengthM: number;
-  fanBlades: number;
-  boosterStages: number;
-  hpcStages: number;
-  hptStages: number;
+  fanStyle?: "rb211" | "pw2037" | FleetStyle;
   /** Редуктор вентилятора: быстроходная ТНД из трёх ступеней. */
   gearbox?: boolean;
-}
+};
 
 /** Ступени ТНД: больше вентилятор → медленнее вал НД → больше ступеней турбины (CFM56 4, LEAP 7). */
-export function lptStagesFor(bpr: number): number {
+export function lptStagesFor(bpr: number, gearbox = false, installed?: number): number {
+  if (installed !== undefined) return installed;
+  if (gearbox) return 3;
   return Math.max(3, Math.min(9, Math.round(4 + 0.57 * (bpr - 5.7))));
 }
 
@@ -498,22 +498,257 @@ function stageDisc(x: number, r: number, w: number): THREE.BufferGeometry {
   return g;
 }
 
-function stagesAlong(n: number, x0: number, x1: number, r0: number, r1: number): THREE.BufferGeometry {
+// Axisymmetric web, with a bore for its own shaft and room for the inner spools.
+function rotorDisc(x: number, radius: number, width: number, bore: number, segments = 36): THREE.BufferGeometry {
+  const profile = [[bore, x], [radius, x], [radius, x + width], [bore, x + width], [bore, x]];
+  return axisX(new THREE.LatheGeometry(profile.map(([r, station]) => new THREE.Vector2(r, station)), segments));
+}
+
+function stagesAlong(n: number, x0: number, x1: number, r0: number, r1: number, bore = 0): THREE.BufferGeometry {
   const gap = (x1 - x0) / n;
   const parts: THREE.BufferGeometry[] = [];
   for (let i = 0; i < n; i++) {
     const t = n === 1 ? 0 : i / (n - 1);
-    parts.push(stageDisc(x0 + i * gap, r0 + (r1 - r0) * t, gap * 0.55));
+    const x = x0 + i * gap, r = r0 + (r1 - r0) * t;
+    parts.push(bore ? rotorDisc(x, r, gap * 0.55, bore) : stageDisc(x, r, gap * 0.55));
   }
   return mergeGeometries(parts)!;
 }
 
-export function engineCutaway(e: EngineSpec): EnginePiece[] {
+const compressorSection = [[-0.46, 0], [-0.10, 0.12], [0.48, 0.16], [0.12, -0.02], [-0.20, -0.04]];
+// Normalised axial chord and section thickness. Turbine camber is applied below.
+const turbineSection = [[-0.48, 0], [-0.36, 0.10], [-0.08, 0.13], [0.26, 0.07], [0.48, 0.01],
+  [0.26, -0.03], [-0.08, -0.07], [-0.36, -0.06]];
+
+function bladeRow(x: number, hub: number, tip: number, pitch: number, stator: boolean,
+  count = stator ? 27 : 24, turbine = false): THREE.BufferGeometry {
+  const pos: number[] = [], idx: number[] = [];
+  const section = turbine ? turbineSection : compressorSection;
+  for (let i = 0; i < count; i++) {
+    const start = pos.length / 3;
+    for (let level = 0; level <= 2; level++) {
+      const u = level / 2;
+      const r = hub + (tip - hub) * u;
+      const sweep = (stator ? -1 : 1) * (0.65 + u * 0.5);
+      for (const [chord, camber] of section) {
+        const spacing = 2 * Math.PI * r / count;
+        const tangent = turbine
+          ? spacing * (sweep * (chord + 0.45 * (1 - 4 * chord * chord)) + camber)
+          : (sweep * chord + camber) * pitch;
+        const theta = (i + (stator ? 0.5 : 0)) * Math.PI * 2 / count + tangent / r;
+        pos.push(x + chord * pitch * (0.93 - 0.15 * u), r * Math.cos(theta), r * Math.sin(theta));
+      }
+    }
+    const n = section.length;
+    for (let level = 0; level < 2; level++) for (let j = 0; j < n; j++) {
+      const a = start + level * n + j, b = start + level * n + (j + 1) % n;
+      idx.push(a, b, b + n, a, b + n, a + n);
+    }
+    for (let j = 1; j < n - 1; j++) idx.push(start + 2 * n, start + 2 * n + j, start + 2 * n + j + 1);
+  }
+  const row = new THREE.BufferGeometry();
+  row.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  row.setIndex(idx);
+  row.computeVertexNormals();
+  return row;
+}
+
+function compressorRows(stages: number, spool: Spool, x0: number, x1: number, r0: number, r1: number,
+  bore: number, offset: THREE.Vector3, bladeCounts?: readonly number[]): EnginePiece[] {
+  const pitch = (x1 - x0) / stages;
+  const rotors: THREE.BufferGeometry[] = [], stators: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < stages; i++) {
+    const t = i / Math.max(1, stages - 1);
+    const tip = THREE.MathUtils.lerp(r0, r1, t);
+    const hub = tip * THREE.MathUtils.lerp(0.58, 0.79, t);
+    const x = x0 + i * pitch;
+    const drum = rotorDisc(x + pitch * 0.10, hub, pitch * 0.32, bore);
+    drum.deleteAttribute("uv");
+    rotors.push(drum, bladeRow(x + 0.25 * pitch, hub, tip, pitch * 0.46, false, bladeCounts?.[i]));
+    const rim = [new THREE.Vector2(tip * 1.012, x), new THREE.Vector2(tip * 1.012, x + pitch)];
+    const shroud = axisX(new THREE.LatheGeometry(rim, 32, Math.PI * 0.5, Math.PI * 1.5));
+    shroud.deleteAttribute("uv");
+    stators.push(shroud, bladeRow(x + 0.75 * pitch, hub * 1.02, tip * 1.012, pitch * 0.46, true));
+  }
+  const rotor = mergeGeometries(rotors)!;
+  rotor.name = spool + "-compressor";
+  const guide = mergeGeometries(stators)!;
+  guide.name = spool + "-stator";
+  return [
+    { geometry: rotor, spin: spool, tone: spool, offset },
+    { geometry: guide, spin: null, tone: "stator", offset },
+  ];
+}
+
+function turbineRows(e: EngineSpec, spool: Spool, stages: number, x0: number, x1: number,
+  r0: number, r1: number, bore: number, offset: THREE.Vector3): EnginePiece[] {
+  const pitch = (x1 - x0) / stages;
+  const rotors: THREE.BufferGeometry[] = [], guides: THREE.BufferGeometry[] = [];
+  const shrouded = e.spools === 3 || spool === "lp";
+  for (let i = 0; i < stages; i++) {
+    const counts = e.turbineBlading?.[spool]?.[i];
+    const x = x0 + i * pitch;
+    const radius = (fraction: number) => THREE.MathUtils.lerp(r0, r1, (i + fraction) / stages);
+    const vaneTip = radius(0.23), bladeTip = radius(0.72);
+    const hub = r0 * (spool === "lp" ? 0.64 : 0.70);
+    // Unknown counts are representative only. Use opposed camber to distinguish
+    // the upstream nozzle from the working row that follows on the spool.
+    guides.push(bladeRow(x + 0.23 * pitch, hub * 1.01, vaneTip, 0.45 * pitch, true, counts?.vanes ?? 36, true));
+    const outerBand = rotorDisc(x + 0.12 * pitch, vaneTip * 1.018, 0.21 * pitch, vaneTip * 0.996, 96);
+    outerBand.deleteAttribute("uv");
+    guides.push(outerBand);
+    rotors.push(bladeRow(x + 0.72 * pitch, hub, bladeTip, 0.49 * pitch, false, counts?.rotor ?? 48, true));
+    // A narrow web links the shaft boss to the thicker blade platform.
+    const webProfile = [[bore, 0.56], [hub * 0.40, 0.56], [hub * 0.52, 0.68],
+      [hub * 0.77, 0.68], [hub * 0.87, 0.55], [hub, 0.55], [hub, 0.91],
+      [hub * 0.87, 0.91], [hub * 0.77, 0.77], [hub * 0.52, 0.77],
+      [hub * 0.40, 0.88], [bore, 0.88], [bore, 0.56]];
+    const web = axisX(new THREE.LatheGeometry(webProfile.map(([r, station]) =>
+      new THREE.Vector2(r, x + station * pitch)), 72));
+    web.deleteAttribute("uv");
+    rotors.push(web);
+    if (shrouded) {
+      const rim = rotorDisc(x + 0.64 * pitch, bladeTip * 1.008, 0.18 * pitch, bladeTip * 0.993, 96);
+      rim.deleteAttribute("uv");
+      rotors.push(rim);
+    }
+  }
+  const rotor = mergeGeometries(rotors)!, guide = mergeGeometries(guides)!;
+  rotor.name = spool + "-turbine-rotor";
+  guide.name = spool + "-turbine-guide";
+  return [{ geometry: guide, spin: null, tone: "stator", offset }, { geometry: rotor, spin: spool, tone: spool, offset }];
+}
+
+/** Visual loft of the installed fan blade. Chord, twist and section thickness are illustrative. */
+function fanBladeGeometry(e: EngineSpec, hub: number): THREE.BufferGeometry {
+  const radius = e.fanDiameterM / 2;
+  const swept = e.fanStyle === "leap1a" || e.fanStyle === "leap1b";
+  const installedFleet = e.fanStyle !== undefined && isFleetStyle(e.fanStyle);
+  const wide = swept || e.fanStyle === "rb211";
+  const position: number[] = [], indices: number[] = [];
+  const spans = 8, section = 12;
+  for (let i = 0; i <= spans; i++) {
+    const t = i / spans;
+    const y = hub + ((installedFleet ? 0.992 : 0.97) * radius - hub) * t;
+    const chord = radius * (wide ? 0.17 + 0.14 * t : 0.10 + 0.095 * t);
+    const twist = THREE.MathUtils.degToRad(24 + 36 * t);
+    for (let j = 0; j < section; j++) {
+      const angle = 2 * Math.PI * j / section;
+      const u = (1 - Math.cos(angle)) / 2;
+      const normal = chord * (0.075 * Math.sin(Math.PI * u) + 0.045 * Math.sin(angle));
+      const along = chord * (u - 0.5);
+      // Sweep and chord extend circumferentially along the fan cylinder.
+      // A tangential straight-line offset would enlarge the swept tip radius.
+      const arc = radius * (swept ? .23 : .07) * t * t + along * Math.sin(twist) + normal * Math.cos(twist);
+      position.push(
+        0.14 * e.lengthM + along * Math.cos(twist) - normal * Math.sin(twist),
+        installedFleet ? y * Math.cos(arc/y) : y,
+        installedFleet ? y * Math.sin(arc/y) : arc,
+      );
+    }
+  }
+  for (let i = 0; i < spans; i++) {
+    for (let j = 0; j < section; j++) {
+      const a = i * section + j, b = i * section + (j + 1) % section;
+      indices.push(a, b, a + section, b, b + section, a + section);
+    }
+  }
+  const tip = spans * section;
+  for (let j = 1; j < section - 1; j++) indices.push(0, j + 1, j, tip, tip + j, tip + j + 1);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(position, 3));
+  g.setIndex(indices);
+  g.computeVertexNormals();
+  return g;
+}
+
+// The nozzle stations use the intake lip as datum. Turbine dimensions use the
+// spinner as datum and track the core radius when the bypass lever moves.
+interface ExhaustMount { spinnerX: number; lengthK: number; radiusK: number }
+
+function exhaust757(style: "rb211" | "pw2037", L: number, rc: number, mount: ExhaustMount): EnginePiece[] {
+  const rb = style === "rb211";
+  const x = (station: number) => station * mount.lengthK - mount.spinnerX;
+  const r = (radius: number) => radius * mount.radiusK;
+  const turbineExit = 0.86 * L;
+  const outer = 1.06 * rc, hub = 0.48 * rc;
+  const offset = new THREE.Vector3(1.5, 0, 0);
+  const pieces: EnginePiece[] = [];
+  type Profile = [number, number][];
+  let strutBase: Profile, strutTip: Profile;
+  function wall(name: string, stations: [number, number][], tone: Tone) {
+    const geometry = axisX(new THREE.LatheGeometry(stations.map(([station, radius]) =>
+      new THREE.Vector2(radius, station)), 64));
+    geometry.name = name;
+    pieces.push({ geometry, tone, spin: null, offset });
+  }
+  if (rb) {
+    // RR installation section, Fig. 5.27: the annular splitter ends first,
+    // then the centrebody, then the single common lip.
+    strutBase = [[turbineExit, outer], [x(3.75), r(.55)], [x(4.04), r(.54)],
+      [x(4.36), r(.51)], [x(4.44), r(.50)]];
+    strutTip = NACELLE_PROFILES.rb211.segs.bypassLiner.map(([station, radius]) => [x(station), r(radius)] as [number, number]).reverse();
+    wall("rb-annular-mixer", [...strutBase, [x(4.44), r(.489)], [x(4.04), r(.528)],
+      [x(3.75), r(.538)], [turbineExit, outer * .98]], "detailSteel");
+    wall("rb-exhaust-cone", [[turbineExit, hub], [x(3.57), r(.256)], [x(3.85), r(.228)],
+      [x(4.49), r(.095)], [x(4.78), r(.029)], [x(4.83), 0]], "detailDark");
+  } else {
+    // The forward part of the primary duct and centrebody meet the nozzle
+    // liner and plug of the installed PW nacelle without a second tip.
+    strutTip = [[turbineExit, outer], [x(3.91), r(.65)], [x(4.30), r(.705)],
+      [x(4.58), r(.718)], [x(4.92), r(.692)]];
+    strutBase = [[turbineExit, hub], [x(3.91), r(.30)], [x(4.33), r(.355)],
+      [x(4.85), r(.384)], [x(5.20), r(.378)], [x(5.48), r(.34)]];
+    wall("pw-primary-duct", strutTip, "detailSteel");
+    wall("pw-exhaust-centrebody", strutBase, "detailDark");
+    wall("pw-bypass-inner-wall", [[.55 * L, 1.28 * rc], [x(2.78), r(.96)],
+      [x(3.04), r(.988)], [x(3.30), r(.98)]], "detailSteel");
+  }
+  // On the RB the collector stays span the bypass annulus. The PW exhaust
+  // case has fifteen radial struts *inside* the primary duct (ATA 72).
+  const struts: THREE.BufferGeometry[] = [];
+  const count = rb ? 4 : 15;
+  const sample = (profile: Profile) => {
+    const stations = profile.map(p => p[0]), radii = profile.map(p => p[1]);
+    return (at: number) => interp(stations, radii, at);
+  };
+  const rootRadius = sample(strutBase), tipRadius = sample(strutTip);
+  for (let i = 0; i < count; i++) {
+    const xMiddle = rb ? x(4.04) : x(3.91);
+    const chord = (rb ? .40 : .15) * mount.lengthK;
+    const thick = r(rb ? (i === 0 ? .085 : .027) : .014);
+    const foil = new THREE.Shape();
+    foil.moveTo(-chord / 2, 0);
+    foil.quadraticCurveTo(-chord / 2, thick, 0, thick * .66);
+    foil.lineTo(chord / 2, 0);
+    foil.quadraticCurveTo(0, -thick, -chord * .40, -thick * .6);
+    foil.quadraticCurveTo(-chord / 2, -thick * .45, -chord / 2, 0);
+    const strut = new THREE.ExtrudeGeometry(foil, { depth: 1, bevelEnabled: false, curveSegments: 6 });
+    const pos = strut.getAttribute("position");
+    for (let j = 0; j < pos.count; j++) {
+      const at = xMiddle + pos.getX(j);
+      const onRoot = pos.getZ(j) < .5;
+      const inset = .001 * mount.radiusK;
+      const radius = onRoot ? rootRadius(at) + inset : tipRadius(at) - inset;
+      pos.setZ(j, Math.sqrt(radius ** 2 - pos.getY(j) ** 2));
+    }
+    strut.computeVertexNormals();
+    strut.rotateX(-Math.PI / 2).translate(xMiddle, 0, 0).rotateX(2 * Math.PI * i / count);
+    struts.push(strut);
+  }
+  const geometry = mergeGeometries(struts)!;
+  geometry.name = rb ? "rb-collector-stays" : "pw-exhaust-case-struts";
+  pieces.push({ geometry, tone: "detailSteel", spin: null, offset });
+  return pieces;
+}
+
+export function engineCutaway(e: EngineSpec, mount?: ExhaustMount): EnginePiece[] {
   const R = e.fanDiameterM / 2;
   const L = e.lengthM;
   const rc = coreRadiusFor(R, e.bypassRatio);
   const hub = 0.28 * R;
-  const lpt = e.gearbox ? 3 : lptStagesFor(e.bypassRatio);
+  const fleet = e.fanStyle && isFleetStyle(e.fanStyle) ? fleetPackages[e.fanStyle] : undefined;
+  const lpt = lptStagesFor(e.bypassRatio, e.gearbox, e.lptStages);
   const v = (x: number, y = 0) => new THREE.Vector3(x, y, 0);
   const out: EnginePiece[] = [];
 
@@ -522,39 +757,85 @@ export function engineCutaway(e: EngineSpec): EnginePiece[] {
     [0, 0.25, 0.5, 0.75, 1].map((t) => new THREE.Vector2(hub * Math.sqrt(t), 0.1 * L * t)),
     32,
   );
-  out.push({ geometry: axisX(spinner), tone: "lp", spin: "lp", offset: v(-1.6) });
+  out.push({ geometry: axisX(spinner), tone: e.fanStyle ? "fanSpinner" : "lp", spin: "lp", offset: v(-1.6) });
 
   // Лопатки вентилятора: широкая хорда, закрутка ~35°.
   const blades: THREE.BufferGeometry[] = [];
   const chord = 0.09 * L;
+  let blade: THREE.BufferGeometry;
+  if (e.fanStyle) {
+    blade = fanBladeGeometry(e, hub);
+    if (e.fanStyle === "pw2037" || e.fanStyle === "cfm3b2" || e.fanStyle === "cfm5b") {
+      const y = (hub + 0.97 * R) / 2;
+      const shroud = new THREE.BoxGeometry(0.048 * R, 0.019 * R, 2 * y * Math.tan(Math.PI / e.fanBlades));
+      shroud.deleteAttribute("uv");
+      shroud.translate(0.14 * L, y, 0);
+      blade = mergeGeometries([blade, shroud])!;
+    }
+  } else {
+    blade = new THREE.BoxGeometry(chord, 0.97 * R - hub, Math.max(0.012, 0.6 / e.fanBlades));
+    blade.translate(0, hub + (0.97 * R - hub) / 2, 0);
+    blade.rotateY((-35 * Math.PI) / 180);
+    blade.translate(0.1 * L + chord / 2, 0, 0);
+  }
   for (let i = 0; i < e.fanBlades; i++) {
-    const b = new THREE.BoxGeometry(chord, 0.97 * R - hub, Math.max(0.012, 0.6 / e.fanBlades));
-    b.translate(0, hub + (0.97 * R - hub) / 2, 0);
-    b.rotateY((-35 * Math.PI) / 180);
+    const b = blade.toNonIndexed();
     b.rotateX((i / e.fanBlades) * Math.PI * 2);
-    b.translate(0.1 * L + chord / 2, 0, 0);
-    blades.push(b.toNonIndexed());
+    blades.push(b);
   }
   const hubDisc = stageDisc(0.09 * L, hub, 0.07 * L).toNonIndexed();
-  out.push({ geometry: mergeGeometries([...blades, hubDisc])!, tone: "lp", spin: "lp", offset: v(-1.2) });
+  if (e.fanStyle) hubDisc.deleteAttribute("uv");
+  out.push({ geometry: mergeGeometries([...blades, hubDisc])!, tone: e.fanStyle ? "fanBlade" : "lp", spin: "lp", offset: v(-1.2) });
 
-  // Подпорный компрессор (на валу НД), КВД, камера сгорания, ТВД, ТНД.
-  out.push({ geometry: stagesAlong(e.boosterStages, 0.2 * L, 0.29 * L, rc * 0.95, rc * 0.88), tone: "lp", spin: "lp", offset: v(-0.6) });
-  out.push({ geometry: stagesAlong(e.hpcStages, 0.32 * L, 0.52 * L, rc * 0.78, rc * 0.5), tone: "hp", spin: "hp", offset: v(-0.15) });
-  const comb = new THREE.TorusGeometry(rc * 0.56, rc * 0.13, 16, 48);
-  comb.rotateY(Math.PI / 2);
-  comb.translate(0.56 * L, 0, 0);
-  out.push({ geometry: comb, tone: "hot", spin: null, offset: v(0.25) });
-  out.push({ geometry: stagesAlong(e.hptStages, 0.61 * L, 0.61 * L + 0.03 * L * e.hptStages, rc * 0.62, rc * 0.64), tone: "hp", spin: "hp", offset: v(0.6) });
-  out.push({ geometry: stagesAlong(lpt, 0.69 * L, 0.88 * L, rc * 0.72, rc * 0.98), tone: "lp", spin: "lp", offset: v(1.05) });
+  const detailed = !!e.fanStyle || e.spools === 3;
+  const shaftRadius = { lp: rc * 0.07, ip: rc * 0.11, hp: rc * 0.15 };
+  if (detailed) {
+    const middle = e.spools === 3;
+    const split = (middle ? 0.36 : 0.30) * L;
+    out.push(...compressorRows(middle ? e.ipcStages : e.boosterStages, middle ? "ip" : "lp",
+      0.20 * L, split, rc, rc * 0.85, middle ? shaftRadius.ip : shaftRadius.lp, v(-0.6), e.compressorBlading?.[middle ? "ip" : "lp"]));
+    // Leave room for the feed arms ahead of the annular dome.
+    const compressorEnd = (e.combustor || fleet ? 0.517 : 0.53) * L;
+    out.push(...compressorRows(e.hpcStages, "hp", split + 0.02 * L, compressorEnd, rc * 0.83, rc * 0.65,
+      shaftRadius.hp, v(-0.15), e.compressorBlading?.hp));
+  } else {
+    out.push({ geometry: stagesAlong(e.boosterStages, 0.2 * L, 0.29 * L, rc * 0.95, rc * 0.88), tone: "lp", spin: "lp", offset: v(-0.6) });
+    out.push({ geometry: stagesAlong(e.hpcStages, 0.32 * L, 0.52 * L, rc * 0.78, rc * 0.5), tone: "hp", spin: "hp", offset: v(-0.15) });
+  }
+  if (fleet) out.push(...fleet.combustor(L, rc));
+  else if (e.combustor) out.push(...combustorPieces(e.combustor, L, rc));
+  else {
+    const comb = new THREE.TorusGeometry(rc * 0.56, rc * 0.13, 16, 48);
+    comb.rotateY(Math.PI / 2);
+    comb.translate(0.56 * L, 0, 0);
+    out.push({ geometry: comb, tone: "hot", spin: null, offset: v(0.25) });
+  }
+  if (e.turbineBlading || fleet) {
+    out.push(...turbineRows(e, "hp", e.hptStages, 0.60 * L, (e.spools === 3 ? 0.647 : 0.675) * L,
+      rc * 0.62, rc * 0.69, shaftRadius.hp, v(0.6)));
+    if (e.spools === 3) out.push(...turbineRows(e, "ip", e.iptStages, 0.650 * L, 0.687 * L,
+      rc * 0.69, rc * 0.75, shaftRadius.ip, v(0.82)));
+    out.push(...turbineRows(e, "lp", lpt, (e.spools === 3 ? 0.695 : 0.682) * L, 0.86 * L,
+      rc * 0.75, rc * 1.03, shaftRadius.lp, v(1.05)));
+  } else {
+    out.push({ geometry: stagesAlong(e.hptStages, 0.61 * L, 0.61 * L + 0.03 * L * e.hptStages, rc * 0.62, rc * 0.64, detailed ? shaftRadius.hp : 0), tone: "hp", spin: "hp", offset: v(0.6) });
+    if (e.spools === 3) out.push({ geometry: stagesAlong(e.iptStages, 0.655 * L, 0.687 * L, rc * 0.68, rc * 0.70, shaftRadius.ip), tone: "ip", spin: "ip", offset: v(0.82) });
+    out.push({ geometry: stagesAlong(lpt, (e.spools === 3 ? 0.71 : 0.69) * L, 0.88 * L, rc * 0.72, rc * 0.98, detailed ? shaftRadius.lp : 0), tone: "lp", spin: "lp", offset: v(1.05) });
+  }
+  if (e.spools === 3) {
+    const ipShaft = new THREE.CylinderGeometry(shaftRadius.ip, shaftRadius.ip, 0.48 * L, 16, 1, true);
+    axisX(ipShaft).translate(0.44 * L, 0, 0);
+    out.push({ geometry: ipShaft, tone: "ip", spin: "ip", offset: v(0.10) });
+  }
 
   // Валы: НД проходит внутри полого вала ВД от вентилятора до ТНД.
-  const lpShaft = new THREE.CylinderGeometry(rc * 0.07, rc * 0.07, 0.8 * L, 12);
+  const lpShaft = new THREE.CylinderGeometry(shaftRadius.lp, shaftRadius.lp, 0.8 * L, 12);
   axisX(lpShaft).translate(0.5 * L, 0, 0);
   out.push({ geometry: lpShaft, tone: "lp", spin: "lp", offset: v(0) });
-  const hpLen = 0.32 * L + 0.03 * L * e.hptStages;
-  const hpShaft = new THREE.CylinderGeometry(rc * 0.15, rc * 0.15, hpLen, 16, 1, true);
-  axisX(hpShaft).translate(0.31 * L + hpLen / 2, 0, 0);
+  const hpStart = (e.spools === 3 ? 0.38 : 0.31) * L;
+  const hpLen = (0.63 + 0.03 * e.hptStages) * L - hpStart;
+  const hpShaft = new THREE.CylinderGeometry(shaftRadius.hp, shaftRadius.hp, hpLen, 16, 1, true);
+  axisX(hpShaft).translate(hpStart + hpLen / 2, 0, 0);
   out.push({ geometry: hpShaft, tone: "hp", spin: "hp", offset: v(0.2) });
 
   // Кожух ядра с вырезом четверти — видно внутренности; сопло внутреннего контура и центральное тело.
@@ -563,10 +844,22 @@ export function engineCutaway(e: EngineSpec): EnginePiece[] {
     [1.2, 0.3],
     [1.28, 0.55],
     [1.18, 0.82],
-    [0.95, 0.95],
+    e.fanStyle ? [1.06, 0.86] : [0.95, 0.95],
   ].map(([r, x]) => new THREE.Vector2(r * rc, x * L));
   const casing = new THREE.LatheGeometry(cowl, 40, Math.PI * 0.5, Math.PI * 1.5);
   out.push({ geometry: axisX(casing), tone: "casing", spin: null, offset: v(0.1, 1.4) });
+  if (fleet) {
+    const fans = { cfm3b2: 1.52, cfm5b: 1.73, leap1a: 1.98, leap1b: 1.76, ps90a: 1.9 };
+    const radialScale = e.fanDiameterM / fans[e.fanStyle as FleetStyle];
+    const datum = mount ?? { spinnerX: fleet.fanFaceX * radialScale - .14 * L, lengthK: radialScale, radiusK: radialScale };
+    return [...out, ...fleet.exhaust(L, rc, datum)];
+  }
+  if (e.fanStyle === "rb211" || e.fanStyle === "pw2037") {
+    const rb = e.fanStyle === "rb211";
+    const scale = e.fanDiameterM / (rb ? 1.88 : 1.99);
+    const datum = mount ?? { lengthK: scale, radiusK: scale, spinnerX: rb ? (5.50 - 5.0359) * scale : .90 * scale - .10 * L };
+    return [...out, ...exhaust757(e.fanStyle, L, rc, datum)];
+  }
   const plug = new THREE.LatheGeometry(
     [
       [0.5, 0.86],
@@ -580,20 +873,16 @@ export function engineCutaway(e: EngineSpec): EnginePiece[] {
   return out;
 }
 
-// ——— Гондолы по AC 2-12-0 ———
-// CFM56-5B (A320ceo): длинный канал со смешением потоков — воздухозаборник 0,93 м, капоты вентилятора 1,3 м,
-// реверс 1,2 м, затем общее сопло 1,2 м и центральное тело; высота 2,3 м, ширина 2,1 м.
-// LEAP-1A (A320neo): раздельные потоки — воздухозаборник, капоты 1,46 м, реверс 1,53 м (срез сопла наружного
-// контура), открытый кожух ядра, сопло внутреннего контура и конус — 1,44 м; высота 2,60 м.
-// Профили — радиус по длине в метрах для базовой гондолы; модель масштабирует их по рычагам.
+// Installed profiles use the aircraft and engine variant. The two generic
+// contours below remain fallbacks for older custom aircraft definitions.
 
-export type NacelleStyle = "cfm56-7b" | "longDuct" | "separateFlow" | "ps90a" | "rb211" | "pw2037";
+export type NacelleStyle = NonNullable<EngineDef["nacelleProfile"]>;
 export interface NacelleSegment {
-  id: "inlet" | "lip" | "fanCowl" | "reverser" | "nozzle" | "coreCowl" | "plug";
+  id: "inlet" | "lip" | "fanCowl" | "reverser" | "nozzle" | "coreCowl" | "plug" | "bypassLiner";
   geometry: THREE.BufferGeometry;
 }
 
-const NACELLE_PROFILES: Record<NacelleStyle, { referenceLength: number; radius: number; fanFaceX: number; segs: Record<string, [number, number][]> }> = {
+const NACELLE_PROFILES: Record<Exclude<NacelleStyle, FleetStyle>, { referenceLength: number; radius: number; fanFaceX: number; segs: Record<string, [number, number][]> }> = {
   // 737-800 template, axial sections of the lip, cowls and exhaust in metres.
   // The separate core and unscalloped fan nozzle are visible behind the reverser.
   "cfm56-7b": {
@@ -632,7 +921,10 @@ const NACELLE_PROFILES: Record<NacelleStyle, { referenceLength: number; radius: 
       inlet: [[0.23, 1.095], [0.50, 1.145], [0.80, 1.19], [1.05, 1.21]],
       fanCowl: [[1.05, 1.21], [1.40, 1.225], [1.72, 1.23], [2.08, 1.226], [2.55, 1.205]],
       reverser: [[2.55, 1.205], [3.05, 1.17], [3.65, 1.105], [4.15, 1.045], [4.50, 1.00], [4.50, 0.94]],
-      nozzle: [[4.50, 0.94], [4.83, 0.90], [5.17, 0.85], [5.50, 0.80], [5.50, 0.765], [5.20, 0.81]],
+      nozzle: [[4.50, 0.94], [4.83, 0.90], [5.17, 0.85], [5.50, 0.80], [5.50, 0.765],
+        [5.20, 0.81], [4.83, 0.86], [4.50, 0.905]],
+      bypassLiner: [[4.50, 0.905], [4.04, 0.989], [3.65, 1.046], [3.05, 1.10],
+        [2.35, 1.095], [1.55, 1.035], [0.78, 0.95]],
     },
   },
   // 757/PW2037: the large fan duct ends well ahead of the exposed core cowl.
@@ -647,24 +939,12 @@ const NACELLE_PROFILES: Record<NacelleStyle, { referenceLength: number; radius: 
       inlet: [[0.20, 1.18], [0.38, 1.225], [0.66, 1.275], [0.98, 1.31]],
       fanCowl: [[0.98, 1.31], [1.33, 1.335], [1.63, 1.345], [1.97, 1.34], [2.18, 1.33]],
       reverser: [[2.18, 1.33], [2.58, 1.30], [3.02, 1.25], [3.45, 1.185], [3.78, 1.12],
-        [3.78, 1.09], [3.35, 1.15]],
+        [3.78, 1.09], [3.60, 1.115], [3.35, 1.15], [3.02, 1.19], [2.58, 1.23]],
+      bypassLiner: [[2.58, 1.23], [2.12, 1.21], [1.54, 1.13], [0.90, 1.015]],
       coreCowl: [[3.30, 0.98], [3.78, 0.92], [4.35, 0.83], [4.92, 0.73]],
-      nozzle: [[4.92, 0.73], [5.36, 0.65], [5.78, 0.575], [6.05, 0.54], [6.05, 0.51], [5.65, 0.57]],
+      nozzle: [[4.92, 0.73], [5.36, 0.65], [5.78, 0.575], [6.05, 0.54], [6.05, 0.51],
+        [5.84, 0.537], [5.65, 0.57], [5.30, 0.626], [4.92, 0.692]],
       plug: [[5.48, 0.34], [5.70, 0.27], [5.86, 0.14], [5.94, 0]],
-    },
-  },
-  // Tu-204-200 side view. Distances from the inlet to the four cowl seams
-  // are 1.30, 2.55, 4.10 and 5.20 m. The common exhaust has an open lip.
-  ps90a: {
-    referenceLength: 6.15,
-    radius: 1.18,
-    fanFaceX: 1.15,
-    segs: {
-      inlet: [[1.15, 0.96], [0.55, 0.91], [0.18, 0.85], [0.05, 0.84], [0, 0.87],
-        [0, 0.90], [0.05, 0.96], [0.20, 1.04], [0.50, 1.12], [0.90, 1.16], [1.30, 1.18]],
-      fanCowl: [[1.30, 1.18], [1.55, 1.18], [2.00, 1.15], [2.55, 1.08]],
-      reverser: [[2.55, 1.08], [3.20, 0.99], [4.10, 0.84], [4.62, 0.75], [5.20, 0.60]],
-      nozzle: [[5.20, 0.60], [5.68, 0.59], [6.15, 0.57], [6.15, 0.54], [5.83, 0.55]],
     },
   },
   separateFlow: {
@@ -681,17 +961,33 @@ const NACELLE_PROFILES: Record<NacelleStyle, { referenceLength: number; radius: 
   },
 };
 
-export function nacelleStyleFor(bypassRatio: number): NacelleStyle {
-  return bypassRatio >= 8 ? "separateFlow" : "longDuct";
+export function nacelleStyleFor(engine: EngineDef): NacelleStyle {
+  if (engine.nacelleProfile && engine.nacelleProfile !== "longDuct" && engine.nacelleProfile !== "separateFlow") return engine.nacelleProfile;
+  // Definitions saved before installation profiles were recorded.
+  if (engine.name.startsWith("RB211")) return "rb211";
+  if (engine.name === "PW2037") return "pw2037";
+  if (engine.name === "ПС-90А") return "ps90a";
+  if (engine.name.startsWith("LEAP-1A")) return "leap1a";
+  if (engine.name.startsWith("LEAP-1B")) return "leap1b";
+  if (engine.name.startsWith("CFM56-5B")) return "cfm5b";
+  if (engine.name.startsWith("CFM56-7B")) return "cfm56-7b";
+  if (engine.name.startsWith("CFM56-3")) return "cfm3b2";
+  if (engine.nacelleProfile) return engine.nacelleProfile;
+  return engine.bypassRatio >= 8 ? "separateFlow" : "longDuct";
 }
 
 /** Сегменты гондолы вдоль оси +x от среза воздухозаборника; lengthK и radiusK — масштаб относительно базовой. */
 export function nacelleSegments(style: NacelleStyle, lengthK: number, radiusK: number): NacelleSegment[] {
+  if (isFleetStyle(style)) return fleetPackages[style].nacelle(lengthK, radiusK);
   const P = NACELLE_PROFILES[style];
-  return Object.entries(P.segs).map(([id, pts]) => {
+  return Object.entries(P.segs).flatMap(([id, pts]): NacelleSegment[] => {
+    if (style === "rb211" || style === "pw2037") {
+      if (id === "bypassLiner") return [];
+      if (id === "reverser") return reverser757Segments(style, pts, P.segs.bypassLiner, lengthK, radiusK);
+    }
     const g = new THREE.LatheGeometry(
       pts.map(([x, r]) => new THREE.Vector2(r * radiusK, x * lengthK)),
-      48,
+      style === "rb211" || style === "pw2037" ? 64 : 48,
     );
     g.rotateZ(-Math.PI / 2);
     if (style === "cfm56-7b") {
@@ -708,19 +1004,72 @@ export function nacelleSegments(style: NacelleStyle, lengthK: number, radiusK: n
       }
       g.computeVertexNormals();
     }
-    return { id: id as NacelleSegment["id"], geometry: g };
+    g.name = "nacelle-" + id;
+    return [{ id: id as NacelleSegment["id"], geometry: g }];
   });
 }
 
 export function nacelleFanFace(style: NacelleStyle, lengthK: number): number {
-  return NACELLE_PROFILES[style].fanFaceX * lengthK;
+  return (isFleetStyle(style) ? fleetPackages[style] : NACELLE_PROFILES[style]).fanFaceX * lengthK;
 }
+
+/** Vertical clearance at the fixed inlet station. Sample each linear cowl segment
+ * separately so the fan-duct step and the wing leading edge are both included. */
+export function clearance757(style: "pw2037" | "rb211", inletX: number, axisY: number, axisZ: number,
+  lengthK: number, radiusK: number, wing: SurfaceShape, reverserTravel?: number): number {
+  const profile = NACELLE_PROFILES[style];
+  const radius = profile.radius * radiusK;
+  let lines = Object.values(profile.segs);
+  let sleeveHeight = 1;
+  if (reverserTravel !== undefined) {
+    const { front, sleeveEnd, travel, topBridge } = reverser757Layout(style);
+    const offset = travel * reverserTravel;
+    // The outer radius decreases aft. Its envelope over the entire stroke is
+    // a cylinder at the front radius followed by the shifted outer contour.
+    const outer: [number, number][] = [[front, profile.segs.reverser[0][1]]];
+    for (const [x, r] of profile.segs.reverser) {
+      outer.push([x + offset, r]);
+      if (x >= sleeveEnd) break;
+    }
+    lines = [outer];
+    sleeveHeight = Math.cos(topBridge);
+  }
+  const spanWidth = wing.semiSpanM * Math.cos(THREE.MathUtils.degToRad(wing.dihedralDeg));
+  let gap = Infinity;
+  for (let i = 0; i <= 48; i++) {
+    const u = (axisZ + radius * (i / 24 - 1)) / spanWidth;
+    if (u < 0 || u > 1) continue;
+    const { le, chord } = wing.planform!(u);
+    const leadingX = wing.root.x + le;
+    for (const line of lines) {
+      for (let j = 1; j < line.length; j++) {
+        const [a, ra] = line[j - 1], [b, rb] = line[j];
+        const lo = Math.max(leadingX, inletX + Math.min(a, b) * lengthK);
+        const hi = Math.min(leadingX + chord, inletX + Math.max(a, b) * lengthK);
+        if (hi < lo) continue;
+        const steps = Math.max(1, Math.ceil((hi - lo) / 0.04));
+        for (let k = 0; k <= steps; k++) {
+          const x = lo + (hi - lo) * k / steps;
+          const r = radiusK * (a === b ? Math.max(ra, rb) : ra + (rb - ra) * ((x - inletX) / lengthK - a) / (b - a));
+          const pt = surfacePoint(wing, u, (x - leadingX) / chord, false);
+          const dy2 = r * r - (pt.z - axisZ) ** 2;
+          if (dy2 >= 0) gap = Math.min(gap, pt.y - axisY - Math.min(Math.sqrt(dy2), sleeveHeight * r));
+        }
+      }
+    }
+  }
+  // For moving panels also allow 5 mm for the difference between the sampled
+  // analytic wing and the triangles used for the leading edge in the scene.
+  return gap - 0.08 - (reverserTravel === undefined ? 0 : 0.005);
+}
+
 export function nacelleScale(style: NacelleStyle, lengthM: number, widthM: number) {
-  return { lengthK: lengthM / NACELLE_PROFILES[style].referenceLength, radiusK: widthM / (2 * nacelleBaseRadius(style)) };
+  const profile = isFleetStyle(style) ? fleetPackages[style] : NACELLE_PROFILES[style];
+  return { lengthK: lengthM / profile.referenceLength, radiusK: widthM / (2 * profile.radius) };
 }
 
 export function nacelleBaseRadius(style: NacelleStyle): number {
-  return NACELLE_PROFILES[style].radius;
+  return (isFleetStyle(style) ? fleetPackages[style] : NACELLE_PROFILES[style]).radius;
 }
 
 /** Труба по точкам — для трасс электрожгутов. */

@@ -290,20 +290,22 @@ export function fuelDetails(
 }
 
 /** Кольца корпуса ядра и трубки подачи топлива (локальная СК двигателя, ось +x). */
-export function engineAccessories(lengthM:number, coreRadius:number): Piece[] {
+export function engineAccessories(lengthM:number, coreRadius:number, genericFuelSystem = true): Piece[] {
   const out:Piece[]=[];
   for(const t of [.31,.53,.64,.89]) out.push(ringX(t*lengthM,0,0,coreRadius*(t>.8?.90:.85),.02,"detailSteel"));
-  for(let k=0;k<6;k++) {
-    const a=2*Math.PI*k/6;
-    const y=coreRadius*.9*Math.sin(a),z=coreRadius*.9*Math.cos(a);
-    out.push(pipe([v(.44*lengthM,y,z),v(.50*lengthM,y*1.1,z*1.1),v(.56*lengthM,y*.98,z*.98)],.012,"detailFuel"));
-  }
-  // Кольцевой топливный коллектор с форсунками камеры сгорания.
-  out.push(ringX(.56*lengthM,0,0,coreRadius*.91,.025,"detailFuel"));
-  for(let k=0;k<10;k++) {
-    const a=2*Math.PI*k/10;
-    const y=coreRadius*.91*Math.sin(a), z=coreRadius*.91*Math.cos(a);
-    out.push(pipe([v(.56*lengthM,y,z),v(.58*lengthM,y*.82,z*.82)],.014,"detailSteel"));
+  if (genericFuelSystem) {
+    for(let k=0;k<6;k++) {
+      const a=2*Math.PI*k/6;
+      const y=coreRadius*.9*Math.sin(a),z=coreRadius*.9*Math.cos(a);
+      out.push(pipe([v(.44*lengthM,y,z),v(.50*lengthM,y*1.1,z*1.1),v(.56*lengthM,y*.98,z*.98)],.012,"detailFuel"));
+    }
+    // Кольцевой топливный коллектор с форсунками камеры сгорания.
+    out.push(ringX(.56*lengthM,0,0,coreRadius*.91,.025,"detailFuel"));
+    for(let k=0;k<10;k++) {
+      const a=2*Math.PI*k/10;
+      const y=coreRadius*.91*Math.sin(a), z=coreRadius*.91*Math.cos(a);
+      out.push(pipe([v(.56*lengthM,y,z),v(.58*lengthM,y*.82,z*.82)],.014,"detailSteel"));
+    }
   }
   // Кольца крепления кожуха и монтажные проушины; не изменяют тягу и массу.
   for(const t of [.34,.72]) {

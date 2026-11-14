@@ -16,7 +16,7 @@ test("выбор типов сохраняет доступный вариант
 });
 
 test("737 NG and MAX keep separate engines, cabins and scenarios", () => {
-  assert.deepEqual(variantsFor("b737"), ["b737-8", "b737-800"]);
+  assert.deepEqual(variantsFor("b737"), ["b737-8", "b737-300", "b737-800"]);
   assert.notEqual(scenarioFamily("b737-800"), scenarioFamily("b737-8"));
   const ng = AIRCRAFT["b737-800"];
   assert.equal(ng.engine.name, "CFM56-7B26");

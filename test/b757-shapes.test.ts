@@ -5,12 +5,122 @@ import B757 from "../data/ac/b757-shapes.json" with { type: "json" };
 import { B757_PW2037, B757_RB211 } from "../src/aircraft/b757.ts";
 import { contextFor } from "../src/aircraft/contextFor.ts";
 import { evaluate } from "../src/evaluate.ts";
-import { nacelleRaise } from "../src/levers.ts";
-import { buildAircraft } from "../web/scene/aircraft.ts";
-import { nacelleSegments } from "../web/scene/shapes.ts";
+import { bypassRatio, nacelleRaise } from "../src/levers.ts";
+import { buildAircraft, max757Raise } from "../web/scene/aircraft.ts";
+import { coreRadiusFor, engineCutaway, nacelleSegments } from "../web/scene/shapes.ts";
 
 const near = (actual: number, reference: number, tolerance: number) =>
   assert.ok(Math.abs(actual - reference) <= tolerance, `${actual} differs from ${reference} by more than ${tolerance}`);
+
+// Count separate blade rows by their actual axial gaps, independently of the preset.
+function axialIntervals(g: THREE.BufferGeometry, ignoreShroud = false): [number, number][] {
+  const pos = g.getAttribute("position");
+  const index = g.getIndex()!;
+  const intervals: [number, number][] = [];
+  for (let i = 0; i < index.count; i += 3) {
+    const verts = [index.getX(i), index.getX(i + 1), index.getX(i + 2)];
+    // Exclude cylindrical walls, including the shrouds that span the gaps.
+    const radii = verts.map(v => Math.hypot(pos.getY(v), pos.getZ(v)));
+    if (ignoreShroud && Math.max(...radii) - Math.min(...radii) < 1e-5) continue;
+    const xs = verts.map(v => pos.getX(v));
+    intervals.push([Math.min(...xs), Math.max(...xs)]);
+  }
+  intervals.sort((a, b) => a[0] - b[0]);
+  const rows: [number, number][] = [];
+  for (const [start, stop] of intervals) {
+    const last = rows.at(-1);
+    if (!last || start > last[1] + 1e-5) rows.push([start, stop]);
+    else last[1] = Math.max(last[1], stop);
+  }
+  return rows;
+}
+
+// Each foil has one root leading-edge vertex at the front of the row.
+function turbineRows(g: THREE.BufferGeometry) {
+  const pos = g.getAttribute("position");
+  return axialIntervals(g).map(([start, end]) => {
+    let blades = 0;
+    for (let i = 0; i < pos.count; i++) if (Math.abs(pos.getX(i) - start) < 1e-6) blades++;
+    return { start, end, blades };
+  });
+}
+
+test("757: каждый ротор, статор и вал соответствуют схеме своего двигателя", () => {
+  for (const base of [B757_RB211, B757_PW2037]) {
+    const rb = base === B757_RB211;
+    const frontSpool = rb ? "ip" : "lp";
+    for (const bypassRatio of [base.engine.bypassRatio, 8]) {
+      const pieces = engineCutaway({ ...base.engine.architecture, fanStyle: rb ? "rb211" : "pw2037",
+        fanDiameterM: base.engine.fanDiameterM, lengthM: 3.2, bypassRatio });
+      for (const [spool, rows] of [[frontSpool, rb ? 6 : 4], ["hp", rb ? 6 : 12]] as const) {
+        const rotor = pieces.find(p => p.geometry.name === spool + "-compressor")!;
+        assert.equal(rotor.spin, spool);
+        assert.equal(axialIntervals(rotor.geometry).length, rows);
+        const guides = pieces.find(p => p.geometry.name === spool + "-stator")!;
+        assert.equal(axialIntervals(guides.geometry, true).length, rows);
+        assert.equal(guides.spin, null);
+        assert.equal(guides.tone, "stator");
+      }
+      const shafts = pieces.filter(p => p.geometry.type === "CylinderGeometry");
+      assert.deepEqual(shafts.map(p => p.spin).sort(), rb ? ["hp", "ip", "lp"] : ["hp", "lp"]);
+      const expected = rb ? { hp: [102], ip: [112], lp: [78, 64, 64] }
+        : { hp: [48, 64], lp: [158, 138, 102, 90, 94] };
+      const turbinePieces = pieces.filter(p => p.geometry.name.includes("-turbine-"));
+      assert.equal(turbinePieces.length, 2 * Object.keys(expected).length);
+      let previousEnd = 0;
+      for (const [spool, counts] of Object.entries(expected)) {
+        const rotor = turbinePieces.find(p => p.geometry.name === spool + "-turbine-rotor")!;
+        const guide = turbinePieces.find(p => p.geometry.name === spool + "-turbine-guide")!;
+        assert.equal(rotor.spin, spool);
+        assert.equal(guide.spin, null);
+        const blades = turbineRows(rotor.geometry), vanes = turbineRows(guide.geometry);
+        assert.deepEqual(blades.map(row => row.blades), counts);
+        assert.equal(vanes.length, counts.length);
+        if (!rb && spool === "hp") assert.deepEqual(vanes.map(row => row.blades), [36, 40]);
+        for (let i = 0; i < counts.length; i++) {
+          assert.ok(vanes[i].blades > 1 && previousEnd < vanes[i].start && vanes[i].end < blades[i].start);
+          previousEnd = blades[i].end;
+        }
+      }
+      pieces.forEach(p => p.geometry.dispose());
+    }
+  }
+});
+
+test("757: обе камеры имеют открытый кольцевой канал и одну форсунку в каждом гнезде", () => {
+  for (const [def, count, radialFraction] of [[B757_RB211, 18, .60], [B757_PW2037, 24, .70]] as const) {
+    const e = def.engine;
+    const lengthM = e.fanDiameterM * (1.7 + .09 * Math.max(0, e.bypassRatio - 5.7) / 5.3);
+    const pieces = engineCutaway({ ...e.architecture, fanStyle: count === 18 ? "rb211" : "pw2037",
+      fanDiameterM: e.fanDiameterM, bypassRatio: e.bypassRatio, lengthM });
+    const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+    const mesh = (name: string) => {
+      const part = pieces.find(p => p.geometry.name === "combustor-" + name)!;
+      assert.equal(part.spin, null);
+      return new THREE.Mesh(part.geometry, material);
+    };
+    const liner = mesh("liner"), injectors = mesh("injectors"), cups = mesh("cups");
+    const ray = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3(1, 0, 0));
+    const hits = (object: THREE.Mesh, r: number, a: number) => {
+      ray.ray.origin.set(0, r * Math.cos(a), r * Math.sin(a));
+      return ray.intersectObject(object, false);
+    };
+    const core = coreRadiusFor(e.fanDiameterM / 2, e.bypassRatio);
+    const radius = core * radialFraction, pitch = Math.PI * 2 / count;
+    for (let i = 0; i < count; i++) {
+      const angle = i * pitch;
+      // Axial sightlines through a real nozzle position and halfway to its neighbour.
+      const bore = hits(liner, radius, angle), web = hits(liner, radius, angle + pitch / 2);
+      assert.ok(web.length && (!bore.length || bore[0].distance > web[0].distance + .01));
+      assert.ok(hits(injectors, core * .89, angle).length);
+      assert.equal(hits(injectors, core * .89, angle + pitch / 2).length, 0);
+      assert.ok(hits(cups, radius, angle + .32 * Math.sin(pitch / 2)).length);
+    }
+    assert.equal(hits(liner, 0, 0).length, 0);
+    pieces.forEach(p => p.geometry.dispose());
+    material.dispose();
+  }
+});
 
 test("757: подсветка клиренса учитывает установленный двигатель, ширину гондолы и подъём пилона", () => {
   for (const [def, expected] of [[B757_RB211, "0.86 м"], [B757_PW2037, "0.74 м"]] as const) {
@@ -22,6 +132,97 @@ test("757: подсветка клиренса учитывает установ
     assert.equal(clearance(wider).status, def === B757_RB211 ? "warning" : "violation");
     assert.equal(clearance(wider, 0.5).value, expected);
     assert.equal(clearance(wider, 0.5).status, "ok");
+  }
+});
+
+test("757: при допустимом подъёме гондола остаётся на своей продольной станции и проходит под крылом", () => {
+  for (const def of [B757_RB211, B757_PW2037]) {
+    const mount = def === B757_RB211 ? B757.nacelleByEngine.RB211 : B757.nacelleByEngine.PW2000;
+    const limitAt = (b: number) => max757Raise(evaluate(def, [bypassRatio(b)], contextFor(def)).definition);
+    assert.ok(limitAt(15) < 0, "BPR 15 does not fit even with zero raise");
+    const stockMaxCm = Math.floor(limitAt(def.engine.bypassRatio) * 100);
+    assert.equal(stockMaxCm, def === B757_RB211 ? 17 : 35);
+    for (const bpr of [4, def.engine.bypassRatio, 8]) {
+      const max = Math.min(0.4, Math.floor(limitAt(bpr) * 100) / 100);
+      assert.ok(max >= 0);
+      for (const raise of [0, max]) {
+        const changed = evaluate(def, [bypassRatio(bpr), nacelleRaise(raise)], contextFor(def)).definition;
+        const model = buildAircraft(changed);
+        model.root.updateMatrixWorld(true);
+        for (const side of [-1, 1]) {
+          const meshes = (id: string) => model.parts.get(id)!.group.children.filter(o => o.userData.side === side) as THREE.Mesh[];
+          const cowl = meshes("nacelles").filter(o => o.userData.offset);
+          const wing = [...meshes("wing.box"), ...meshes("wing.highLift")];
+          for (const mesh of [...wing, ...cowl]) (mesh.material as THREE.Material).side = THREE.DoubleSide;
+          const bounds = cowl.reduce((box, mesh) => box.expandByObject(mesh), new THREE.Box3());
+          near(bounds.min.x, mount.inlet_x, 1e-5);
+          near((bounds.min.y + bounds.max.y) / 2, mount.axis_y + raise, 1e-5);
+          const ray = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3(0, -1, 0));
+          let gap = Infinity;
+          for (let z = -1.2; z <= 1.2; z += 0.2) {
+            for (let x = bounds.min.x; x <= bounds.max.x; x += 0.12) {
+              ray.ray.origin.set(x, 10, side * (mount.axis_z + z));
+              const top = ray.intersectObjects(cowl, false)[0], underside = ray.intersectObjects(wing, false).at(-1);
+              if (top && underside) gap = Math.min(gap, underside.point.y - top.point.y);
+            }
+          }
+          assert.ok(Number.isFinite(gap) && gap >= 0.078, `${def.id}: B=${bpr}, raise=${raise}, side=${side}, gap=${gap}`);
+        }
+        model.root.traverse(o => { if (o instanceof THREE.Mesh) o.geometry.dispose(); });
+      }
+    }
+  }
+});
+
+test("757: нос пилона входит в стенку воздухозаборника и оставляет канал свободным", () => {
+  for (const [def, mount] of [[B757_RB211, B757.nacelleByEngine.RB211], [B757_PW2037, B757.nacelleByEngine.PW2000]] as const) {
+    const model = buildAircraft(def);
+    model.root.updateMatrixWorld(true);
+    for (const side of [-1, 1]) {
+      const parts = model.parts.get("nacelles")!.group.children.filter(o => o.userData.side === side) as THREE.Mesh[];
+      const pylon = parts.find(o => !o.userData.offset)!;
+      for (const mesh of parts) (mesh.material as THREE.Material).side = THREE.DoubleSide;
+      for (const x of [0.68, 0.72, 0.76]) {
+        const origin = new THREE.Vector3(mount.inlet_x + x, mount.axis_y, side * mount.axis_z);
+        for (const angle of [-0.07, 0, 0.07]) {
+          const ray = new THREE.Raycaster(origin, new THREE.Vector3(0, Math.cos(angle), Math.sin(angle)));
+          const hits = ray.intersectObjects(parts, false);
+          const shell = hits.filter(hit => hit.object !== pylon);
+          const foot = hits.find(hit => hit.object === pylon);
+          assert.ok(foot && shell.length >= 2, `${def.engine.name}, side ${side}, x ${x}`);
+          assert.ok(shell[0].distance < foot.distance && foot.distance < shell.at(-1)!.distance);
+        }
+      }
+    }
+    model.root.traverse(o => { if (o instanceof THREE.Mesh) o.geometry.dispose(); });
+  }
+});
+
+test("757 RB211: пилон оставляет общее сопло открытым до его передней кромки", () => {
+  for (const bpr of [4, B757_RB211.engine.bypassRatio, 8]) {
+    const changed = evaluate(B757_RB211, [bypassRatio(bpr)], contextFor(B757_RB211)).definition;
+    const lengthK = changed.engine.nacelleLengthM / B757_RB211.engine.nacelleLengthM;
+    for (const raise of [0, Math.floor(max757Raise(changed) * 100) / 100]) {
+      const model = buildAircraft({ ...changed, engine: { ...changed.engine, nacelleRaiseM: raise } });
+      model.root.updateMatrixWorld(true);
+      for (const side of [-1, 1]) {
+        const parts = model.parts.get("nacelles")!.group.children.filter(m => m.userData.side === side) as THREE.Mesh[];
+        const pylon = parts.find(m => !m.userData.offset)!;
+        const nozzle = parts.find(m => m.userData.offset?.x === 1.2)!;
+        for (const mesh of [pylon, nozzle]) (mesh.material as THREE.Material).side = THREE.DoubleSide;
+        const mount = B757.nacelleByEngine.RB211;
+        for (const station of [4.50, 4.52, 4.65, 4.85, 5.05, 5.25, 5.49]) for (const angle of [-0.12, 0, 0.12]) {
+          const origin = new THREE.Vector3(mount.inlet_x + station * lengthK, mount.axis_y + raise, side * mount.axis_z);
+          const ray = new THREE.Raycaster(origin, new THREE.Vector3(0, Math.cos(angle), Math.sin(angle)));
+          const lip = ray.intersectObject(nozzle).at(-1);
+          const support = ray.intersectObject(pylon)[0];
+          // The coincident end ring can be missed at exactly the first station.
+          if (station > 4.50) assert.ok(lip);
+          if (lip && support) assert.ok(support.distance > lip.distance, `side=${side} station=${station} B=${bpr} raise=${raise}`);
+        }
+      }
+      model.root.traverse(o => { if (o instanceof THREE.Mesh) o.geometry.dispose(); });
+    }
   }
 });
 
@@ -74,6 +275,69 @@ test("757: PW2037 имеет два раздельных среза на обе�
   }
   segments.forEach(s => s.geometry.dispose());
   model.root.traverse(o => { if (o instanceof THREE.Mesh) o.geometry.dispose(); });
+});
+
+test("757: смеситель, выпускные каналы и опоры состыкованы в установленном масштабе", () => {
+  for (const base of [B757_RB211, B757_PW2037]) {
+    const rb = base === B757_RB211;
+    const mount = rb ? B757.nacelleByEngine.RB211 : B757.nacelleByEngine.PW2000;
+    for (const bpr of [4, base.engine.bypassRatio, 15]) {
+      const def = evaluate(base, [bypassRatio(bpr)], contextFor(base)).definition;
+      const model = buildAircraft(def);
+      model.root.updateMatrixWorld(true);
+      const kx = def.engine.nacelleLengthM / base.engine.nacelleLengthM;
+      const kr = def.engine.nacelleWidthM / base.engine.nacelleWidthM;
+      const origin = new THREE.Vector3(mount.inlet_x, mount.axis_y, mount.axis_z);
+      const part = (id: string, name: string) => {
+        const mesh = model.parts.get(id)!.group.children.find(o =>
+          o instanceof THREE.Mesh && o.userData.side === 1 && o.geometry.name === name) as THREE.Mesh;
+        assert.ok(mesh, name);
+        (mesh.material as THREE.Material).side = THREE.DoubleSide;
+        return mesh;
+      };
+      const bounds = (mesh: THREE.Mesh) => new THREE.Box3().setFromObject(mesh).translate(origin.clone().negate());
+      const nozzle = part("nacelles", "nacelle-nozzle");
+      const duct = part("engines", rb ? "rb-annular-mixer" : "pw-primary-duct");
+      const cone = part("engines", rb ? "rb-exhaust-cone" : "pw-exhaust-centrebody");
+      const stays = part("engines", rb ? "rb-collector-stays" : "pw-exhaust-case-struts");
+      assert.equal(stays.userData.spin, null);
+      const ray = new THREE.Raycaster();
+      const count = rb ? 4 : 15;
+      const probe = (rb ? .74 : .45) * kr;
+      for (let i = 0; i < count; i++) {
+        for (const halfway of [false, true]) {
+          const angle = 2 * Math.PI * (i + (halfway ? .5 : 0)) / count;
+          ray.set(origin.clone().add(new THREE.Vector3(6.2 * kx, probe * Math.cos(angle), probe * Math.sin(angle))), new THREE.Vector3(-1, 0, 0));
+          assert.equal(ray.intersectObject(stays).length > 0, !halfway);
+        }
+      }
+      if (rb) {
+        assert.ok(bounds(duct).max.x < bounds(cone).max.x);
+        assert.ok(bounds(cone).max.x < bounds(nozzle).max.x);
+        // Between the splitter and the cone tip the two streams share the duct.
+        ray.set(origin.clone().add(new THREE.Vector3(4.62 * kx, .15 * kr, 0)), new THREE.Vector3(0, 1, 0));
+        assert.equal(ray.intersectObject(duct).length, 0);
+        assert.ok(ray.intersectObject(nozzle).length > 0);
+      } else {
+        const tip = part("nacelles", "nacelle-plug");
+        const sleeve = part("nacelles", "nacelle-coreCowl");
+        const inner = part("engines", "pw-bypass-inner-wall");
+        // Every circular joint shares its actual vertices on both parts.
+        for (const [a, b, station, radius] of [[cone, tip, 5.48, .34], [duct, nozzle, 4.92, .692],
+          [inner, sleeve, 3.30, .98]] as const) {
+          near(bounds(a).max.x, station * kx, 1e-5);
+          const point = origin.clone().add(new THREE.Vector3(station * kx, radius * kr, 0));
+          for (const m of [a, b]) {
+            const pos = m.geometry.getAttribute("position");
+            const vertex = new THREE.Vector3();
+            assert.ok(Array.from({ length: pos.count }, (_, j) =>
+              vertex.fromBufferAttribute(pos, j).applyMatrix4(m.matrixWorld).distanceTo(point)).some(dist => dist < 1e-5));
+          }
+        }
+      }
+      model.root.traverse(o => { if (o instanceof THREE.Mesh) o.geometry.dispose(); });
+    }
+  }
 });
 
 test("757: собственные векторные контуры имеют источник и отдельные длины корпуса/самолёта", () => {

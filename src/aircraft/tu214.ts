@@ -75,6 +75,7 @@ export const TU214_PS90A: AircraftDefinition = {
   },
   engine: {
     name: "ПС-90А", count: 2,
+    nacelleProfile: "ps90a",
     dryMassKg: 2950, // производитель: сухая, а не поставочная масса 4300 кг
     fanDiameterM: 1.9,
     bypassRatio: 4.4,
@@ -92,7 +93,10 @@ export const TU214_PS90A: AircraftDefinition = {
     thrustScale: 1,
     thrustReverser: true,
     // ПС-90А — двухвальный, с общим соплом для смешанного потока.
-    architecture: { fanBlades: 33, boosterStages: 2, hpcStages: 13, hptStages: 2, spools: 2 },
+    architecture: {
+      fanBlades: 33, boosterStages: 2, hpcStages: 13, hptStages: 2, lptStages: 4, exhaust: "annularMixer", spools: 2,
+      turbineBlading: { hp: [{ vanes: 37 }, { vanes: 47 }] },
+    },
   },
   systems: {
     ...A320CEO.systems,

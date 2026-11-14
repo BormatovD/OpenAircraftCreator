@@ -7,6 +7,11 @@ import { type AircraftDefinition } from "../definition.ts";
 import { highLiftPerf } from "../highlift.ts";
 import { takeoffThrustN } from "../thrust.ts";
 import { A320_CONTEXT } from "./a320Context.ts";
+import { A320NEO } from "./a320.ts";
+import { B737_300, CLASSIC_COWL } from "./b737.ts";
+import { B737_8 } from "./b737max.ts";
+import maxShape from "../../data/ac/b737-8-shapes.json" with { type: "json" };
+import tuShape from "../../data/ac/tu214-shapes.json" with { type: "json" };
 import { B737_800, B737_800_NACELLE } from "./b737ng.ts";
 import { b757NacelleFor } from "./b757.ts";
 import { comparisonAssumptionsFor } from "./missionProfiles.ts";
@@ -46,9 +51,19 @@ export function contextFor(def: AircraftDefinition): EvalContext {
         clearanceReference: "737-800W при максимальной рулёжной массе, Boeing §2.3.3",
       }),
       ...(nacelle757 && { nacelleClearanceM: nacelle757.clearance_m, nacelleWidthM: nacelle757.width_m }),
-      // For Tu-214, use the provisional installed PS-90A reference from its own
-      // three-view shape, not the A320 nacelle datum (0.58 m).
-      ...(def.shapeSet === "tu214" ? { nacelleClearanceM: 0.79, nacelleWidthM: 2.36 } : {}),
+      ...(def.shapeSet === "tu214" && { nacelleClearanceM: tuShape.nacelle.clearance_m, nacelleWidthM: 2.36 }),
+      ...(def.engine.name.startsWith("CFM56-3") && {
+        nacelleClearanceM: CLASSIC_COWL.clearanceM, nacelleWidthM: B737_300.engine.nacelleWidthM,
+        nacelleLowerRadiusPerWidth: CLASSIC_COWL.lowerRadiusM / B737_300.engine.nacelleWidthM,
+      }),
+      ...(def.engine.name.startsWith("LEAP-1B") && {
+        nacelleClearanceM: maxShape.nacelle.axis_y - maxShape.groundY - 1.22,
+        nacelleWidthM: B737_8.engine.nacelleWidthM, nacelleLowerRadiusPerWidth: 1.22 / B737_8.engine.nacelleWidthM,
+      }),
+      ...(def.engine.name.startsWith("LEAP-1A") && {
+        nacelleClearanceM: r.nacelleClearanceM + r.nacelleWidthM / 2 - 1.35,
+        nacelleWidthM: A320NEO.engine.nacelleWidthM, nacelleLowerRadiusPerWidth: 1.35 / A320NEO.engine.nacelleWidthM,
+      }),
     },
   };
   cache.set(key, c);

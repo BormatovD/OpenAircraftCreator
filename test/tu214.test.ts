@@ -100,7 +100,7 @@ test("Ту-214: расчётная масса, сертификационные 
   close(d.systems.fuelVolumeL * contextFor(d).fuelDensityKgL, 35710, 1);
   assert.equal(ev.missionResult.feasible, true);
   assert.ok(ev.missionFuelKg > 0 && ev.tripFuelKg > 0);
-  close(contextFor(d).constraintsRef.nacelleClearanceM, 0.79);
+  close(contextFor(d).constraintsRef.nacelleClearanceM, 0.37);
   assert.ok(ev.missionFuelKg + ev.payloadKg + ev.oewKg <= d.weights.mtowKg + 0.02);
   assert.ok(ev.seatsCarried <= d.systems.seats);
   assert.ok(ev.missionResult.rangeNm >= DEFAULT_MISSION.distanceNm - 1e-3);

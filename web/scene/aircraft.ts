@@ -4,9 +4,16 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { B757_PW2037, B757_RB211 } from "../../src/aircraft/b757.ts";
+import { B757_PW2037, B757_RB211, b757NacelleFor } from "../../src/aircraft/b757.ts";
 import { TU214_PS90A } from "../../src/aircraft/tu214.ts";
-import { useShapes } from "./shapeSet.ts";
+import { type ShapeSet, useShapes } from "./shapeSet.ts";
+import { B737_300 } from "../../src/aircraft/b737.ts";
+import { A320CEO, A320NEO } from "../../src/aircraft/a320.ts";
+import { B737_8 } from "../../src/aircraft/b737max.ts";
+import { pylonFor } from "./pylonPackages.ts";
+import { cowlDoors, installationGeometry, isSuspensionHardware } from "./pylonGeometry.ts";
+import { fleetMountTravel } from "./fleetClearance.ts";
+import { fleetPackages, isFleetStyle } from "./fleetPackages.ts";
 import { cockpitGlazing } from "./cockpit.ts";
 import { cabinOpenings } from "./features.ts";
 import { fuselageFittings, wingtipLights } from "./fittings.ts";
@@ -15,8 +22,11 @@ import { type AircraftDefinition, aeroSpanM } from "../../src/definition.ts";
 import { cabinRowsFor } from "../../src/integration/flightcost.ts";
 import {
   type FuselageShape,
+  type NacelleSegment,
   type SurfaceShape,
+  applyReverserMotion,
   engineCutaway,
+  clearance757,
   coreRadiusFor,
   fuselageGeometry,
   fuselageHalfWidthAt,
@@ -58,6 +68,32 @@ export interface AircraftModel {
   parts: Map<string, Part>;
   groundY: number;
   lengthM: number;
+}
+
+/** Ground distance of the assembled installation in an inspection pose. Use
+ * model coordinates so selection offsets and exploded views cannot change it. */
+export function installedGroundClearance(model: AircraftModel, travel: number): number {
+  let bottom = Infinity;
+  const vertex = new THREE.Vector3();
+  for (const mesh of model.parts.get("nacelles")!.group.children) {
+    if (!(mesh instanceof THREE.Mesh) || mesh.userData.side !== 1) continue;
+    const geometry = mesh.geometry;
+    if (isSuspensionHardware(geometry.userData.installationRole)) continue;
+    const origin = geometry.userData.reverserOrigin as THREE.Vector3 | undefined;
+    if (!origin || travel === 0) {
+      if (!geometry.boundingBox) geometry.computeBoundingBox();
+      bottom = Math.min(bottom, geometry.boundingBox!.min.y);
+      continue;
+    }
+    const moving = new THREE.Mesh(geometry, mesh.material);
+    applyReverserMotion(moving, travel, origin);
+    moving.updateMatrix();
+    const points = geometry.getAttribute("position");
+    for (let i = 0; i < points.count; i++) {
+      bottom = Math.min(bottom, vertex.fromBufferAttribute(points, i).applyMatrix4(moving.matrix).y);
+    }
+  }
+  return bottom - model.groundY;
 }
 
 export const FAMILY: Record<string, Family> = {
@@ -104,6 +140,157 @@ export interface BuildOptions {
   harnessShare?: number;
 }
 
+function wingGeometry(def: AircraftDefinition, SH: ShapeSet) {
+  // Форма в плане — по виду сверху Airbus AC 2-2-0 (векторный контур): передняя кромка прямая,
+  // задняя — прямая до излома над основными стойками, дальше к законцовке. Площадь по этой форме
+  // (с центропланом) ≈122 м² — совпадает с 122,4 м² Jenkinson, независимая проверка извлечения.
+  // Рычаги масштабируют форму: хорды — по средней хорде S/b, внешняя часть — по полуразмаху.
+  const w = def.wing;
+  const semi = w.spanM / 2;
+  const engZ = Math.min(SH.nacelle.axisZ, 0.6 * semi);
+  const sideZ = def.fuselage.widthM / 2;
+  const P = SH.wing;
+  const chordK = w.areaM2 / w.spanM / (P.refAreaM2 / P.refSpanM);
+  const exposed = semi - sideZ;
+  // Передняя кромка — прямая (у 737 — две: наплыв у корня и основная), задняя — две прямые с изломом.
+  const acLe = (z: number) => Math.min(P.le.slope * z + P.le.x0, P.leInner ? P.leInner.slope * z + P.leInner.x0 : Infinity);
+  const acTe = (z: number) => Math.max(P.teInner.slope * z + P.teInner.x0, P.teOuter.slope * z + P.teOuter.x0);
+  const acSide = P.sideZ;
+  const acTipZ = P.tipZ;
+  const tanLe = P.le.slope;
+  const cSide = (acTe(acSide) - acLe(acSide)) * chordK;
+  const cTip = (acTe(acTipZ) - acLe(acTipZ)) * chordK;
+  // Доля открытой части консоли η одинакова на чертеже и в модели: кромки чертежа переносятся по η, хорды — по chordK,
+  // смещение передней кромки — по отношению длин консолей.
+  const spanK = exposed / (acTipZ - acSide);
+  const wingPlanform = (u: number) => {
+    const z = u * semi;
+    if (z <= sideZ) return { le: 0, chord: cSide };
+    const za = acSide + ((z - sideZ) / exposed) * (acTipZ - acSide);
+    return { le: (acLe(za) - acLe(acSide)) * spanK, chord: (acTe(za) - acLe(za)) * chordK };
+  };
+  // Корень передней кромки сдвигается вместе с передней вставкой фюзеляжа.
+  // Высота корня — по виду спереди: средняя линия крыла у борта ниже оси фюзеляжа (A320 — AC, 737 — сетка).
+  const wingRoot = v3(modelX(def.fuselage.lengthM, acLe(acSide)), P.rootY, 0);
+  const wingShape = (side: 1 | -1, extra: Partial<SurfaceShape> = {}): SurfaceShape => ({
+    root: wingRoot,
+    rootChordM: cSide,
+    tipChordM: cTip,
+    semiSpanM: semi,
+    leadingEdgeSweepDeg: (Math.atan(tanLe) * 180) / Math.PI,
+    dihedralDeg: P.dihedralDeg,
+    // Видимая толщина у борта (A320 по виду спереди AC ≈0,65 м, ≈11% хорды); массовая модель берёт t/c корня из определения.
+    thicknessRoot: P.thicknessRoot,
+    thicknessTip: P.thicknessTip,
+    side,
+    planform: wingPlanform,
+    ...extra,
+  });
+  return { wingShape, semi, engZ, sideZ, wingPlanform, wingRoot, cTip };
+}
+
+function flapTrackFairing(wing: SurfaceShape, u: number, flap: number, flapSlide: THREE.Vector3) {
+  const side = wing.side!;
+  const c = wing.planform!(u).chord;
+  const len = c * 0.72;
+  const r = Math.min(0.26, 0.07 * c);
+  const prof: THREE.Vector2[] = [];
+  for (let i = 0; i <= 16; i++) {
+    const t = i / 16;
+    const rr = t < 0.3 ? r * Math.sqrt(Math.max(0, 1 - ((0.3 - t) / 0.3) ** 2)) : r * (1 - Math.pow((t - 0.3) / 0.7, 1.8)) + 0.012;
+    prof.push(new THREE.Vector2(Math.max(0.004, rr), t * len));
+  }
+  const g = new THREE.LatheGeometry(prof, 18);
+  g.rotateZ(-Math.PI / 2);
+  g.scale(1, 1.15, 0.6);
+  const p0 = surfacePoint(wing, u, 0.5, false);
+  // Верх «лодочки» утоплен в нижнюю поверхность крыла.
+  g.translate(p0.x, p0.y - r * 0.55, p0.z);
+  const piv = surfacePoint(wing, u, flap, false);
+  g.userData.offset = v3(2.6, -0.7, 0);
+  g.userData.hinge = { kind: "flap", pivot: piv, axis: new THREE.Vector3(0, 0, side), angle: (-side * 18 * Math.PI) / 180, slide: flapSlide.clone().multiplyScalar(0.35) };
+  g.userData.side = side;
+  return g;
+}
+
+const installationReferences = {
+  cfm5b: A320CEO, cfm3b2: B737_300, leap1a: A320NEO, leap1b: B737_8,
+  ps90a: TU214_PS90A, rb211: B757_RB211, pw2037: B757_PW2037,
+} satisfies Partial<Record<ReturnType<typeof nacelleStyleFor>, AircraftDefinition>>;
+
+function installedNacelle(def: AircraftDefinition, sh: ShapeSet, style: ReturnType<typeof nacelleStyleFor>) {
+  const e = def.engine;
+  const reference = style === "longDuct" || style === "separateFlow" || style === "cfm56-7b" ? undefined : installationReferences[style];
+  const visualLength = isFleetStyle(style) ? fleetPackages[style].referenceLength : sh.nacelle.refLengthM;
+  const shellLength = reference ? visualLength * e.nacelleLengthM / reference.engine.nacelleLengthM : e.nacelleLengthM;
+  const width = isFleetStyle(style) ? 2 * fleetPackages[style].radius * e.nacelleWidthM / installationReferences[style].engine.nacelleWidthM : e.nacelleWidthM;
+  const scale = nacelleScale(style, shellLength, width);
+  // The Classic's 11.00 m nose-to-inlet dimension belongs to the base 32.18 m
+  // fuselage. Apply only subsequent changes made with the fuselage-length lever.
+  const inlet = style === "cfm3b2"
+    ? 11 + modelX(def.fuselage.lengthM, sh.nacelle.inletX) - modelX(B737_300.fuselage.lengthM, sh.nacelle.inletX)
+    : modelX(def.fuselage.lengthM, sh.nacelle.inletX);
+  // Preserve the neo installation's forward offset relative to the ceo drawing.
+  // Increasing the diameter must not slide the engine along the aircraft.
+  const nacX = style === "leap1a" ? inlet - (A320NEO.engine.nacelleLengthM - sh.nacelle.refLengthM)*.6
+    : reference ? inlet : inlet - (shellLength - sh.nacelle.refLengthM)*.6;
+  const axis = sh.nacelle.axisY ?? sh.groundY + sh.nacelle.clearanceM + 2.37/2;
+  return { nacX, axisY: axis + e.nacelleRaiseM, shellLength, ...scale };
+}
+
+/** Installed geometric limits in metres and percent of reverser travel. */
+const fleetClearanceCache = new Map<string,number[]>();
+export function installationLimits(def: AircraftDefinition) {
+  const style = nacelleStyleFor(def.engine);
+  if (!isFleetStyle(style)) return { raise: max757Raise(def), reverse: max757ReversePercent(def) };
+  const key = JSON.stringify([style,def.shapeSet,def.fuselage.lengthM,def.fuselage.widthM,def.fuselage.shapeStretch,def.wing,def.engine.nacelleLengthM,def.engine.nacelleWidthM]);
+  let gaps = fleetClearanceCache.get(key);
+  if (!gaps) {
+    const sh = useShapes(def);
+    const mount = installedNacelle(def,sh,style);
+    const { wingShape, engZ, sideZ, semi, wingPlanform } = wingGeometry(def,sh);
+    const frac = def.wing.highLift.flapChordFraction;
+    const flapChord = frac * wingPlanform((sideZ/semi + .77)/2).chord;
+    const slide = v3(.55*flapChord,-.08*flapChord,0);
+    const tracks = [.3,.45,.6,.74].map(u=>flapTrackFairing(wingShape(1),u,1-frac,slide));
+    const parts = nacelleSegments(style,mount.lengthK,mount.radiusK);
+    gaps = fleetMountTravel(parts,wingShape(1),mount.nacX,mount.axisY-def.engine.nacelleRaiseM,engZ,tracks);
+    tracks.forEach(g=>g.dispose());
+    parts.forEach(p=>p.geometry.dispose());
+    if (fleetClearanceCache.size >= 48) fleetClearanceCache.delete(fleetClearanceCache.keys().next().value!);
+    fleetClearanceCache.set(key,gaps);
+  }
+  const firstBlocked = gaps.findIndex(gap=>gap < def.engine.nacelleRaiseM);
+  return { raise:gaps[0], reverse:firstBlocked < 0 ? 100 : Math.max(0,firstBlocked-1)*5 };
+}
+
+/** Vertical travel available above the reference axis at the drawing's inlet station, in metres. */
+export function max757Raise(def: AircraftDefinition, reverserTravel?: number): number {
+  if (def.shapeSet !== "b757") return Infinity;
+  const SH = useShapes(def);
+  const { wingShape, engZ } = wingGeometry(def, SH);
+  const style = nacelleStyleFor(def.engine);
+  if (style !== "pw2037" && style !== "rb211") return Infinity;
+  const stock = style === "pw2037" ? B757_PW2037 : B757_RB211;
+  const length = SH.nacelle.refLengthM * def.engine.nacelleLengthM / stock.engine.nacelleLengthM;
+  const { lengthK, radiusK } = nacelleScale(style, length, def.engine.nacelleWidthM);
+  return clearance757(style, modelX(def.fuselage.lengthM, SH.nacelle.inletX), SH.nacelle.axisY!, engZ,
+    lengthK, radiusK, wingShape(1), reverserTravel);
+}
+
+/** Maximum whole percentage of inspection travel for the accepted installation. */
+export function max757ReversePercent(def: AircraftDefinition): number {
+  const raise = def.engine.nacelleRaiseM;
+  if (max757Raise(def, 1) >= raise) return 100;
+  let low = 0, high = 100;
+  while (high - low > 1) {
+    const mid = Math.floor((low + high) / 2);
+    if (max757Raise(def, mid / 100) >= raise) low = mid;
+    else high = mid;
+  }
+  return low;
+}
+
 export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}): AircraftModel {
   // Контуры типа (чертежи A320/757 или сетка 737): все «по чертежу» ниже берутся отсюда.
   const SH = useShapes(def);
@@ -128,6 +315,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
     group.name = id;
     for (const g of geoms) {
       const m = new THREE.Mesh(g);
+      if (id === "nacelles" && isSuspensionHardware(g.userData.installationRole)) m.visible = false;
       m.userData.partId = id;
       m.userData.side = g.userData.side ?? 0;
       m.userData.offset = g.userData.offset ?? null;
@@ -171,51 +359,8 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   add("fuselage", [fuselageGeometry(f), fairing, ...glazing, ...fittings], v3(0, 0, 0), v3(7, 2.6, 3));
 
   // ——— Крыло ———
-  // Форма в плане — по виду сверху Airbus AC 2-2-0 (векторный контур): передняя кромка прямая,
-  // задняя — прямая до излома над основными стойками, дальше к законцовке. Площадь по этой форме
-  // (с центропланом) ≈122 м² — совпадает с 122,4 м² Jenkinson, независимая проверка извлечения.
-  // Рычаги масштабируют форму: хорды — по средней хорде S/b, внешняя часть — по полуразмаху.
   const w = def.wing;
-  const semi = w.spanM / 2;
-  const sideZ = def.fuselage.widthM / 2;
-  const P = SH.wing;
-  const chordK = w.areaM2 / w.spanM / (P.refAreaM2 / P.refSpanM);
-  const exposed = semi - sideZ;
-  // Передняя кромка — прямая (у 737 — две: наплыв у корня и основная), задняя — две прямые с изломом.
-  const acLe = (z: number) => Math.min(P.le.slope * z + P.le.x0, P.leInner ? P.leInner.slope * z + P.leInner.x0 : Infinity);
-  const acTe = (z: number) => Math.max(P.teInner.slope * z + P.teInner.x0, P.teOuter.slope * z + P.teOuter.x0);
-  const acSide = P.sideZ;
-  const acTipZ = P.tipZ;
-  const tanLe = P.le.slope;
-  const cSide = (acTe(acSide) - acLe(acSide)) * chordK;
-  const cTip = (acTe(acTipZ) - acLe(acTipZ)) * chordK;
-  const ct = cTip;
-  // Доля открытой части консоли η одинакова на чертеже и в модели: кромки чертежа переносятся по η, хорды — по chordK,
-  // смещение передней кромки — по отношению длин консолей.
-  const spanK = exposed / (acTipZ - acSide);
-  const wingPlanform = (u: number) => {
-    const z = u * semi;
-    if (z <= sideZ) return { le: 0, chord: cSide };
-    const za = acSide + ((z - sideZ) / exposed) * (acTipZ - acSide);
-    return { le: (acLe(za) - acLe(acSide)) * spanK, chord: (acTe(za) - acLe(za)) * chordK };
-  };
-  // Корень передней кромки сдвигается вместе с передней вставкой фюзеляжа.
-  // Высота корня — по виду спереди: средняя линия крыла у борта ниже оси фюзеляжа (A320 — AC, 737 — сетка).
-  const wingRoot = v3(modelX(L, acLe(acSide)), P.rootY, 0);
-  const wingShape = (side: 1 | -1, extra: Partial<SurfaceShape> = {}): SurfaceShape => ({
-    root: wingRoot,
-    rootChordM: cSide,
-    tipChordM: ct,
-    semiSpanM: semi,
-    leadingEdgeSweepDeg: (Math.atan(tanLe) * 180) / Math.PI,
-    dihedralDeg: P.dihedralDeg,
-    // Видимая толщина у борта (A320 по виду спереди AC ≈0,65 м, ≈11% хорды); массовая модель берёт t/c корня из определения.
-    thicknessRoot: P.thicknessRoot,
-    thicknessTip: P.thicknessTip,
-    side,
-    planform: wingPlanform,
-    ...extra,
-  });
+  const { wingShape, semi, engZ, sideZ, wingPlanform, wingRoot, cTip } = wingGeometry(def, SH);
   const wingDown = v3(0, -6.5, 0);
   const both = (fn: (side: 1 | -1) => THREE.BufferGeometry) => [sided(fn(1), 1), sided(fn(-1), -1)];
   // Кессон и панели: всё, кроме подвижных частей. Предкрылки идут от борта до законцовки,
@@ -229,9 +374,22 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   const AIL = 0.74;
   const uFlapEnd = 0.77;
   const uTipDevices = 0.97;
+  // The inboard and outboard high-lift panels terminate at the installation.
+  // The fixed centre strip is schematic; keep it attached while slats translate.
+  const wingWidth = semi * Math.cos(THREE.MathUtils.degToRad(SH.wing.dihedralDeg));
+  const mountStyle = nacelleStyleFor(def.engine);
+  const mount = installedNacelle(def, SH, mountStyle);
+  const slatBreak = SH.id === "b757" ? b757NacelleFor(def.engine).width_m / 2 + .15
+    : isFleetStyle(mountStyle) ? fleetPackages[mountStyle].radius + (mountStyle === "cfm5b" ? .35 : .15) : 0;
+  const fixedLE = slatBreak > 0 ? {
+    spanFrom: Math.max(uSide, (engZ - slatBreak) / wingWidth),
+    spanTo: Math.min(uTipDevices, (engZ + slatBreak) / wingWidth),
+  } : null;
+  const slatSpans = fixedLE ? [[uSide, fixedLE.spanFrom], [fixedLE.spanTo, uTipDevices]] : [[uSide, uTipDevices]];
   const wingSeg = (u0: number, u1: number) => Math.max(4, Math.round((u1 - u0) * 48));
   const boxPieces = (s: 1 | -1) => [
     surfaceGeometry(wingShape(s, { chordFrom: SLAT, chordTo: FLAP }), 48),
+    ...(hl.slats && fixedLE ? [surfaceGeometry(wingShape(s, { chordTo: SLAT, ...fixedLE }), wingSeg(fixedLE.spanFrom, fixedLE.spanTo), 8)] : []),
     ...(hl.slats
       ? [surfaceGeometry(wingShape(s, { chordTo: SLAT, spanTo: uSide }), 3, 8), surfaceGeometry(wingShape(s, { chordTo: SLAT, spanFrom: uTipDevices }), 2, 8)]
       : []),
@@ -291,34 +449,14 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
         ]
       : [hinged(surfaceGeometry(wingShape(s, { chordFrom: FLAP, spanFrom: uSide, spanTo: uFlapEnd }), wingSeg(uSide, uFlapEnd), 8), s, v3(2.6, -0.7, 0), "flap", uSide, uFlapEnd, FLAP, 40, flapSlide)];
   const highLift = (s: 1 | -1) => [
-    ...(hl.slats ? [hinged(surfaceGeometry(wingShape(s, { chordTo: SLAT, spanFrom: uSide, spanTo: uTipDevices }), wingSeg(uSide, uTipDevices), 8), s, v3(-2.2, -0.3, 0), "slat", uSide, uTipDevices, SLAT, 27, slatSlide)] : []),
+    ...(hl.slats ? slatSpans.map(([u0, u1]) => hinged(surfaceGeometry(wingShape(s, { chordTo: SLAT, spanFrom: u0, spanTo: u1 }),
+      wingSeg(u0, u1), 8), s, v3(-2.2, -0.3, 0), "slat", u0, u1, SLAT, 27, slatSlide)) : []),
     ...flaps(s),
     moved(surfaceGeometry(wingShape(s, { chordFrom: AIL, spanFrom: uFlapEnd + 0.005, spanTo: uTipDevices }), 6, 8), s, v3(2.0, 0.3, 0)),
   ];
   // Обтекатели кареток закрылков — «лодочки» под нижней поверхностью: начинаются под кессоном,
   // выходят за заднюю кромку примерно на четверть хорды; при выпуске хвостовая часть идёт вместе с закрылком.
-  const trackFairing = (side: 1 | -1, u: number) => {
-    const c = wingPlanform(u).chord;
-    const len = c * 0.72;
-    const r = Math.min(0.26, 0.07 * c);
-    const prof: THREE.Vector2[] = [];
-    for (let i = 0; i <= 16; i++) {
-      const t = i / 16;
-      const rr = t < 0.3 ? r * Math.sqrt(Math.max(0, 1 - ((0.3 - t) / 0.3) ** 2)) : r * (1 - Math.pow((t - 0.3) / 0.7, 1.8)) + 0.012;
-      prof.push(new THREE.Vector2(Math.max(0.004, rr), t * len));
-    }
-    const g = new THREE.LatheGeometry(prof, 18);
-    g.rotateZ(-Math.PI / 2);
-    g.scale(1, 1.15, 0.6);
-    const p0 = surfacePoint(wingShape(side), u, 0.5, false);
-    // Верх «лодочки» утоплен в нижнюю поверхность крыла.
-    g.translate(p0.x, p0.y - r * 0.55, p0.z);
-    const piv = surfacePoint(wingShape(side), u, FLAP, false);
-    g.userData.offset = v3(2.6, -0.7, 0);
-    g.userData.hinge = { kind: "flap", pivot: piv, axis: new THREE.Vector3(0, 0, side), angle: (-side * 18 * Math.PI) / 180, slide: flapSlide.clone().multiplyScalar(0.35) };
-    return sided(g, side);
-  };
-  const fairings = [1, -1].flatMap((sd) => [0.3, 0.45, 0.6, 0.74].map((u) => trackFairing(sd as 1 | -1, u)));
+  const fairings = [1, -1].flatMap((sd) => [0.3, 0.45, 0.6, 0.74].map((u) => flapTrackFairing(wingShape(sd as 1 | -1), u, FLAP, flapSlide)));
   add("wing.highLift", [...highLift(1), ...highLift(-1), ...fairings], wingDown, v3(7, -0.4, 13), false, 3);
 
   // Система управления (ATA 27): приводы механизации и рулей — показываем силовыми цилиндрами.
@@ -338,8 +476,8 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
     const tipLe = surfacePoint(wingShape(1), 1, 0, true);
     const sharklet = (side: 1 | -1): SurfaceShape => ({
       root: v3(tipLe.x, tipLe.y, side * tipLe.z),
-      rootChordM: ct,
-      tipChordM: ct * 0.4,
+      rootChordM: cTip,
+      tipChordM: cTip * 0.4,
       semiSpanM: 2.43,
       leadingEdgeSweepDeg: 38,
       dihedralDeg: 78,
@@ -356,7 +494,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
       const run = aeroSpanM(def) / 2 - Math.abs(root.z);
       const height = 2.74;
       return surfaceGeometry({
-        root, side, rootChordM: ct, tipChordM: 0.31, semiSpanM: height,
+        root, side, rootChordM: cTip, tipChordM: 0.31, semiSpanM: height,
         leadingEdgeSweepDeg: 37, dihedralDeg: 0, thicknessRoot: 0.09, thicknessTip: 0.07,
         spanPath: u => ({
           rise: height * u * u, run: run * u * (1.55 - 0.55 * u),
@@ -373,8 +511,8 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
       const tip = surfacePoint(wingShape(side), 1, 0, true);
       return {
         root: tip,
-        rootChordM: ct,
-        tipChordM: ct * 0.34,
+        rootChordM: cTip,
+        tipChordM: cTip * 0.34,
         semiSpanM: 1.8,
         leadingEdgeSweepDeg: 34,
         dihedralDeg: 88,
@@ -389,7 +527,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
     // Законцовка-«забор» A320ceo: наконечник стрелы, выступающий над и под крылом.
     const fence = (side: 1 | -1) => {
       const sh = new THREE.Shape();
-      const c = ct;
+      const c = cTip;
       sh.moveTo(-0.5, 0);
       sh.lineTo(0.45 * c, 0.82);
       sh.lineTo(0.95 * c, 0.82);
@@ -561,41 +699,23 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   const e = def.engine;
   // По AC 2-2-0: ось двигателя на 5,75 м от оси самолёта; срез воздухозаборника CFM56 — 11,76 м от носа,
   // у более длинной гондолы LEAP — 11,38 м (гондола растёт вперёд, сопло остаётся на месте).
-  const engZ = Math.min(SH.nacelle.axisZ, 0.6 * semi);
   const lePoint = surfacePoint(wingShape(1), engZ / semi, 0, false);
   const R = e.nacelleWidthM / 2;
-  const ps90a = SH.id === "tu214";
-  const rb211 = SH.id === "b757" && e.name.startsWith("RB211");
-  const pw2037 = SH.id === "b757" && e.name.startsWith("PW");
-  // Keep the measured shell dimensions independent of the calibrated drag/mass input.
-  const reference = pw2037 ? B757_PW2037 : rb211 ? B757_RB211 : ps90a ? TU214_PS90A : undefined;
-  const shellLength = reference ? SH.nacelle.refLengthM * (e.nacelleLengthM / reference.engine.nacelleLengthM) : e.nacelleLengthM;
-  const nacX = modelX(L, SH.nacelle.inletX) - (shellLength - SH.nacelle.refLengthM) * 0.6;
+  const style = nacelleStyleFor(e);
+  const ps90a = style === "ps90a";
+  const rb211 = style === "rb211";
+  const pw2037 = style === "pw2037";
+  const { nacX, axisY, shellLength, lengthK, radiusK } = mount;
   const wingLow = surfacePoint(wingShape(1), engZ / semi, 0.2, false).y;
-  // Земля — низ шин на виде сбоку AC (3,87 м под осью фюзеляжа). Ось двигателя — из клиренса 0,57 м
-  // базовой гондолы CEO: при большем вентиляторе ось на месте, низ гондолы опускается (как в слое ограничений).
   const groundY = SH.groundY;
-  // 737: ось — по сетке (гондола поджата к крылу), рычаг подъёма двигает её так же.
-  const axisY = (SH.nacelle.axisY ?? groundY + SH.nacelle.clearanceM + 2.37 / 2) + e.nacelleRaiseM;
-  // Гондола по AC 2-12-0: тип по двухконтурности (длинный канал CFM56 или раздельные потоки LEAP),
-  // длина и радиус — от базовой гондолы этого типа, масштабированной по определению.
-  const style = e.name === "CFM56-7B26" ? "cfm56-7b" : pw2037 ? "pw2037" : rb211 ? "rb211" : ps90a ? "ps90a" : nacelleStyleFor(e.bypassRatio);
-  const { lengthK, radiusK } = nacelleScale(style, shellLength, e.nacelleWidthM);
   const nacelleParts: THREE.BufferGeometry[] = [];
+  const pylonSpec = pylonFor(style);
   for (const side of [1, -1] as const) {
-    for (const seg of nacelleSegments(style, lengthK, radiusK)) {
-      seg.geometry.translate(nacX, axisY, side * engZ);
-      if (((ps90a || rb211) && seg.id === "nozzle") || seg.id === "lip") seg.geometry.userData.tone = "detailSteel";
-      if (style === "cfm56-7b" && seg.id === "nozzle") seg.geometry.userData.tone = "detailSteel";
-      if (pw2037 && seg.id === "coreCowl") seg.geometry.userData.tone = "detailSteel";
-      if (pw2037 && (seg.id === "nozzle" || seg.id === "plug")) seg.geometry.userData.tone = "detailDark";
-      // При разборе сегменты расходятся вдоль оси — видно, из чего состоит гондола.
-      const spread: Record<string, number> = { lip: -1.2, inlet: -1.2, fanCowl: -0.4, reverser: 0.4, nozzle: 1.2, coreCowl: 1.2, plug: 1.8 };
-      seg.geometry.userData.offset = v3(spread[seg.id] ?? 0, 0, 0);
-      nacelleParts.push(sided(seg.geometry, side));
-    }
+    const reverserOrigin = v3(nacX, axisY, side * engZ);
+    const segments = nacelleSegments(style, lengthK, radiusK);
+    const wingAt = (u: number) => surfacePoint(wingShape(side), engZ / semi, u, false).sub(reverserOrigin);
     // Пилон: от верха гондолы к нижней поверхности крыла, передняя кромка скошена.
-    let pg: THREE.BufferGeometry;
+    let pg: THREE.BufferGeometry | undefined;
     if (rb211 || pw2037) {
       // Rounded strut fairing in the common Boeing side view. Carry the aft
       // end inside the wing and the lower edge inside the reverser housing.
@@ -603,20 +723,29 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
       const x = (station: number) => nacX + station * lengthK;
       const low = axisY + R * 0.64;
       const front = axisY + R;
-      const aft = surfacePoint(wingShape(side), engZ / semi, 0.31, false);
-      strut.moveTo(x(0.65), low);
-      strut.lineTo(x(0.65), front - 0.12);
+      // Seat the beveled nose in the thickness of the intake wall. The deeper
+      // attachment starts aft of the fan, where the reverser meets the strut.
+      const inletFoot = axisY + R * 0.91;
+      const forwardMount = surfacePoint(wingShape(side), engZ / semi, 0.08, false);
+      const aft = surfacePoint(wingShape(side), engZ / semi, rb211 ? 0.18 : 0.31, false);
+      strut.moveTo(x(0.65), inletFoot);
       strut.bezierCurveTo(x(0.73), front + 0.10, x(1.00), front + 0.24, x(1.40), front + 0.25);
-      strut.bezierCurveTo(x(2.15), front + 0.27, lePoint.x - 0.48, lePoint.y - 0.18, lePoint.x + 0.18, lePoint.y + 0.02);
+      strut.bezierCurveTo(x(2.15), front + 0.27, lePoint.x - 0.48, forwardMount.y - 0.12, forwardMount.x, forwardMount.y + 0.04);
       strut.lineTo(aft.x, aft.y + 0.13);
       if (pw2037) {
         // The PW strut follows the narrower exposed core aft of the fan nozzle.
         strut.quadraticCurveTo(aft.x - 0.10, aft.y - 0.18, x(5.85), axisY + 0.38 * R);
         strut.lineTo(x(3.55), low);
       } else {
-        strut.quadraticCurveTo(aft.x - 0.16, aft.y - 0.13, x(4.45), axisY + 0.78 * R);
-        strut.lineTo(x(4.20), low);
+        // The common exhaust is open. Terminate the foot on the reverser and
+        // take the aft fairing up to the wing above the exhaust exterior.
+        const shoulderY = axisY + 1.08 * radiusK;
+        strut.quadraticCurveTo(aft.x - 0.12, Math.max(shoulderY, aft.y - 0.12), x(4.32), shoulderY);
+        strut.lineTo(x(4.05), axisY + 1.02 * radiusK);
+        strut.lineTo(x(3.65), axisY + 1.08 * radiusK);
+        strut.lineTo(x(2.55), axisY + 1.18 * radiusK);
       }
+      strut.lineTo(x(2.0), inletFoot);
       strut.closePath();
       pg = new THREE.ExtrudeGeometry(strut, { depth: 0.28 * radiusK, bevelThickness: 0.06 * radiusK,
         bevelSize: 0.055 * radiusK, bevelSegments: 4, curveSegments: 20 });
@@ -647,7 +776,7 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
         points.setY(i, points.getY(i) - 0.38 * R * v * (1 - u));
       }
       pg.computeVertexNormals();
-    } else {
+    } else if (!pylonSpec) {
       const pyl = new THREE.Shape();
       const x0 = nacX + 0.9 * lengthK;
       const x1 = lePoint.x + 2.4;
@@ -661,35 +790,84 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
       pg = new THREE.ExtrudeGeometry(pyl, { depth: 0.32, bevelEnabled: false });
       pg.translate(0, 0, side * engZ - 0.16);
     }
-    nacelleParts.push(sided(pg, side));
+    if (pylonSpec && pg) {
+      // Keep the drawing-registered 757 and Tu-214 side silhouettes. Round
+      // their fairings in plan while retaining the existing intake/nozzle clearance.
+      const vertices = pg.getAttribute("position");
+      pg.computeBoundingBox();
+      const bounds = pg.boundingBox!;
+      for (let i=0; i<vertices.count; i++) {
+        const x=vertices.getX(i), z=vertices.getZ(i) - side*engZ;
+        const t=THREE.MathUtils.inverseLerp(bounds.min.x,bounds.max.x,x);
+        const scale = rb211 || pw2037 ? (1-.66*THREE.MathUtils.smoothstep(t,.56,1)) : (.86+.14*Math.sin(t*Math.PI));
+        vertices.setZ(i, side*engZ + z*scale);
+      }
+      pg.boundingBox = null;
+      pg.computeVertexNormals();
+    }
+    const localPylon = pg && pylonSpec ? pg.translate(-nacX, -axisY, -side * engZ) : undefined;
+    const installation = pylonSpec && installationGeometry(pylonSpec, segments, lengthK, radiusK, wingAt, localPylon);
+    if (installation) pg = installation.fairing.translate(nacX, axisY, side * engZ);
+    const shells = segments.flatMap(seg => {
+      if (pylonSpec && (seg.id === "fanCowl" && pylonSpec.cowlPanels !== "undivided" ||
+          seg.id === "coreCowl" && pylonSpec.coreHingeStations)) {
+        const doors = cowlDoors(seg.geometry, pylonSpec.cowlPanels === "quarters");
+        seg.geometry.dispose();
+        return doors.map(geometry => ({ id: seg.id, geometry }));
+      }
+      return [seg];
+    });
+    for (const seg of shells) {
+      seg.geometry.userData.installationRole ??= "skin";
+      seg.geometry.translate(nacX, axisY, side * engZ);
+      const motion = seg.geometry.userData.reverserMotion;
+      if (motion && (motion.role === "sleeve" || motion.role === "blocker")) {
+        seg.geometry.userData.reverserOrigin = reverserOrigin;
+      }
+      if (((ps90a || rb211 || style === "cfm56-7b") && seg.id === "nozzle") || seg.id === "lip") seg.geometry.userData.tone = "detailSteel";
+      if (pw2037 && seg.id === "coreCowl") seg.geometry.userData.tone = "detailSteel";
+      if (pw2037 && (seg.id === "nozzle" || seg.id === "plug")) seg.geometry.userData.tone = "detailDark";
+      if (seg.id === "bypassLiner") seg.geometry.userData.tone = "detailDark";
+      // При разборе сегменты расходятся вдоль оси — видно, из чего состоит гондола.
+      const spread: Record<NacelleSegment["id"], number> = { lip: -1.2, inlet: -1.2, fanCowl: -0.4, reverser: 0.4, bypassLiner: 0.4, nozzle: 1.2, coreCowl: 1.2, plug: 1.8 };
+      seg.geometry.userData.offset = v3(spread[seg.id], 0, 0);
+      nacelleParts.push(sided(seg.geometry, side));
+    }
+    nacelleParts.push(sided(pg!, side));
+    for (const detail of installation?.hardware ?? []) {
+      if (detail.userData.installationRole.startsWith("door")) {
+        detail.userData.panelOffset = detail.userData.panelSection === "core" ? 1.2 : -.4;
+      }
+      detail.translate(nacX, axisY, side * engZ);
+      nacelleParts.push(sided(detail, side));
+    }
   }
   add("nacelles", nacelleParts, v3(0, -10.5, 0), v3(-1.5, -1.6, 3), false, 3);
   // Двигатель — разрез: детали построены вокруг своей оси, чтобы роторы могли вращаться.
   // Положение оси хранится в basePos, разлёт деталей вдоль оси — в offset.
   const engineGeoms: THREE.BufferGeometry[] = [];
   const engineBareLength = ps90a ? (4.964 / 1.1) * lengthK : e.fanDiameterM * (1.7 + (0.09 * Math.max(0, e.bypassRatio - 5.7)) / 5.3);
+  const fanOffset = isFleetStyle(style) ? .14 * engineBareLength : pw2037 ? .10 * engineBareLength : .1;
+  // EASA E.061 §III.4 measures the -535E4 from spinner nose to common nozzle.
+  const spinnerX = rb211 ? shellLength - 5.0359 * lengthK : nacelleFanFace(style, lengthK) - fanOffset;
   const pieces = engineCutaway({
     fanDiameterM: e.fanDiameterM,
+    fanStyle: rb211 || pw2037 || isFleetStyle(style) ? style : undefined,
     bypassRatio: e.bypassRatio,
     // Длина «голого» двигателя по AC: CFM56-5B 2,94 м (1,70 диаметра вентилятора), LEAP-1A 3,55 м (1,79).
     lengthM: engineBareLength,
     ...e.architecture,
     gearbox: e.cycle.gearbox,
-  });
+  }, { spinnerX, lengthK, radiusK });
   for (const side of [1, -1] as const) {
-    // The cutaway spinner starts at zero and its plug ends at 1.1 × lengthM.
-    // Place the fan at the duct face and keep the 4.964 m PS-90A envelope inside the nozzle.
-    const fanOffset = ps90a || pw2037 ? 0.10 * engineBareLength : 0.1;
-    // EASA E.061 §III.4 measures the -535E4 from spinner nose to common nozzle.
-    const spinnerX = rb211 ? shellLength - 5.0359 * lengthK : nacelleFanFace(style, lengthK) - fanOffset;
     const basePos = v3(nacX + spinnerX, axisY, side * engZ);
     for (const p of pieces) {
       const g = p.geometry.clone();
-      g.userData = { side, tone: p.tone, spin: p.spin, offset: p.offset, basePos };
+      g.userData = { ...p.geometry.userData, side, tone: p.tone, spin: p.spin, offset: p.offset, basePos };
       engineGeoms.push(g);
     }
     // Внешние кольца ядра, коллектор подачи и коробка приводов — неподвижные детали.
-    for (const accessory of engineAccessories(engineBareLength, coreRadiusFor(e.fanDiameterM / 2, e.bypassRatio))) {
+    for (const accessory of engineAccessories(engineBareLength, coreRadiusFor(e.fanDiameterM / 2, e.bypassRatio), !e.architecture.combustor && !isFleetStyle(style))) {
       accessory.userData = { side, tone: accessory.userData.tone, spin: null, offset: v3(0, 0, 0), basePos };
       engineGeoms.push(accessory);
     }
@@ -906,8 +1084,18 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
     // Ответвление к двигателю — вниз по пилону.
     const pyl = mid(engZ / semi);
     if (rb211 || pw2037) {
-      harness.push(bundle([pyl, v3(pyl.x - 0.12 * lengthK, axisY + R, side * engZ),
-        v3(nacX + 4.05 * lengthK, axisY + R * 0.70, side * engZ)], false));
+      const mountU = engZ / semi;
+      const entryV = rb211 ? 0.10 : 0.18;
+      const wingEntry = surfacePoint(wingShape(side), mountU, entryV, false);
+      wingEntry.z = side * engZ;
+      // Route the RB branch through the middle of the strut and into the
+      // fan cowl, ahead of the exposed shoulder of the common nozzle.
+      const engineEntry = v3(nacX + (rb211 ? 2.95 : 4.05) * lengthK, axisY + R * (rb211 ? 0.95 : 0.66), side * engZ);
+      const upperEntry = surfacePoint(wingShape(side), mountU, entryV, true).lerp(wingEntry, 0.5);
+      const middle = wingEntry.clone().lerp(engineEntry, 0.5);
+      if (rb211) middle.y += 0.08 * radiusK;
+      const route = rb211 ? [pyl, upperEntry, wingEntry, middle, engineEntry] : [pyl, wingEntry, middle, engineEntry];
+      harness.push(bundle(route, false));
     } else if (ps90a) {
       const insideWing = mid(engZ / semi);
       insideWing.x -= 0.60 * lengthK;

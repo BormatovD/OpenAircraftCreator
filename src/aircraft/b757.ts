@@ -76,6 +76,7 @@ const base: AircraftDefinition = {
  */
 const RB211: EngineDef = {
   name: "RB211-535E4",
+  nacelleProfile: "rb211",
   count: 2,
   dryMassKg: 3295,
   fanDiameterM: 1.88,
@@ -89,8 +90,13 @@ const RB211: EngineDef = {
   takeoffThrustKn: (40100 * LBF) / 1000,
   thrustScale: 1,
   thrustReverser: true,
-  // boosterStages здесь представляет компрессор СД; отдельный вал СД в общем разрезе ещё не построен.
-  architecture: { fanBlades: 22, boosterStages: 6, hpcStages: 6, hptStages: 1, spools: 3 },
+  // EASA E.061 §III.2. The single-stage LP fan has no booster.
+  architecture: {
+    fanBlades: 22, boosterStages: 0, ipcStages: 6, hpcStages: 6, hptStages: 1, iptStages: 1, lptStages: 3, spools: 3,
+    combustor: "rb211-phase2",
+    exhaust: "annularMixer",
+    turbineBlading: { hp: [{ rotor: 102 }], ip: [{ rotor: 112 }], lp: [{ rotor: 78 }, { rotor: 64 }, { rotor: 64 }] },
+  },
 };
 
 /**
@@ -100,6 +106,7 @@ const RB211: EngineDef = {
 const PW2037: EngineDef = {
   ...RB211,
   name: "PW2037",
+  nacelleProfile: "pw2037",
   dryMassKg: 3311,
   fanDiameterM: 1.99,
   bypassRatio: 6.0,
@@ -108,7 +115,16 @@ const PW2037: EngineDef = {
   nacelleLengthM: 5.6,
   nacelleWidthM: shapes.nacelleByEngine.PW2000.width_m,
   takeoffThrustKn: (38250 * LBF) / 1000,
-  architecture: { fanBlades: 36, boosterStages: 4, hpcStages: 12, hptStages: 2, spools: 2 },
+  // Pratt & Whitney, NASA CR-191066 §3.1 and Fig. 3-1.
+  architecture: {
+    fanBlades: 36, boosterStages: 4, hpcStages: 12, hptStages: 2, lptStages: 5, spools: 2,
+    combustor: "pw2037-rolled-ring",
+    exhaust: "separateNozzles",
+    turbineBlading: {
+      hp: [{ rotor: 48, vanes: 36 }, { rotor: 64, vanes: 40 }],
+      lp: [{ rotor: 158 }, { rotor: 138 }, { rotor: 102 }, { rotor: 90 }, { rotor: 94 }],
+    },
+  },
 };
 
 export const B757_RB211: AircraftDefinition = { ...base, id: "b757-200-rb", label: "Boeing 757-200, RB211-535E4", engine: RB211 };

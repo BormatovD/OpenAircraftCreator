@@ -13,11 +13,11 @@ export interface SceneFrameArea {
 }
 
 /** Учитываем геометрию самолёта и её позу, но не выноски, линии, землю или облака. */
-export function meshFramePoints(root: THREE.Object3D): THREE.Vector3[] {
+export function meshFramePoints(root: THREE.Object3D, side = 0): THREE.Vector3[] {
   root.updateWorldMatrix(true, true);
   const points: THREE.Vector3[] = [];
   root.traverseVisible((o) => {
-    if (!(o instanceof THREE.Mesh)) return;
+    if (!(o instanceof THREE.Mesh) || (side && o.userData.side !== side)) return;
     if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
     const box = o.geometry.boundingBox;
     if (!box || box.isEmpty()) return;

@@ -28,6 +28,7 @@ export const B737_800: AircraftDefinition = {
   engine: {
     ...A320CEO.engine, // provisional CFM56 cycle efficiencies
     name: "CFM56-7B26",
+    nacelleProfile: "cfm56-7b",
     dryMassKg: 2386, // EASA TCDS E.004, §III.5, original SAC
     takeoffThrustKn: 116.99,
     fanDiameterM: 1.55,

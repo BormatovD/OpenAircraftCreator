@@ -2,6 +2,8 @@ import "./style.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { CSS2DObject, CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
+import { isSuspensionHardware } from "./scene/pylonGeometry.ts";
+import { pylonFor } from "./scene/pylonPackages.ts";
 import { AIRCRAFT, AIRCRAFT_CHOICES, AIRCRAFT_LABEL, aircraftForType, typeOf, variantsFor } from "./aircraftCatalog.ts";
 import { contextFor } from "../src/aircraft/contextFor.ts";
 import { type ConstraintResult } from "../src/constraints.ts";
@@ -12,10 +14,12 @@ import { evaluateConfiguration } from "../src/integration/configuration.ts";
 import { engineCycle, tsfcFactor } from "../src/propulsion.ts";
 import { renderMethod } from "./method.ts";
 import { fetchPassport, passportRows, passportSnapshotDate, savedPassports, type Passport } from "./passport.ts";
+import { fleetPackages, isFleetStyle } from "./scene/fleetPackages.ts";
+import { COMBUSTORS } from "./scene/combustor.ts";
 import { engineDiagram } from "./engineDiagram.ts";
-import { coreRadiusFor, lptStagesFor } from "./scene/shapes.ts";
+import { applyReverserMotion, coreRadiusFor, lptStagesFor, nacelleStyleFor, type Spool } from "./scene/shapes.ts";
 import { scenarioFamily, CONTROLS, type Control, type Mode, SCENARIOS, type Values, controlsFor, defaults, isChanged, leversFor } from "./controls.ts";
-import { type AircraftModel, type Family, FAMILY, buildAircraft, partCenter } from "./scene/aircraft.ts";
+import { type AircraftModel, type Family, FAMILY, buildAircraft, installedGroundClearance, installationLimits, partCenter } from "./scene/aircraft.ts";
 import { Environment, PHASES, type Phase } from "./scene/environment.ts";
 import { LIVERIES, NO_LIVERY, PLAIN_FIN, finLiveryTexture, liveryById } from "./scene/livery.ts";
 import { fuselageTexture, htailTexture, wingTexture } from "./scene/textures.ts";
@@ -64,7 +68,9 @@ const requested = hasFlightCostParams ? resolveFlightCostAircraft(launchParams) 
 const launchError = requested && "error" in requested ? requested.error : null;
 // On an unsupported engine, keep the ICAO airframe visible but disable export
 // and display the error; the visible engine is NOT claimed to be a match.
-const initialId = requested && "preset" in requested ? requested.preset.aircraftId
+const localModel = launchParams.get("model");
+const isLocalReview = !hasFlightCostParams && localModel !== null && Object.hasOwn(AIRCRAFT, localModel);
+const initialId = isLocalReview ? localModel : requested && "preset" in requested ? requested.preset.aircraftId
   : (hasFlightCostParams ? PRESETS.find((p) => p.icao === (launchParams.get("ac") ?? "").toUpperCase())?.aircraftId : undefined) ?? "a320ceo";
 const initialLayoutId = requested && "layout" in requested ? requested.layout.id : presetFor(initialId)?.defaultLayoutId ?? "a320-180";
 const state = {
@@ -75,6 +81,7 @@ const state = {
   values: defaults(AIRCRAFT[initialId]),
   scenarioId: null as string | null,
   explode: 0,
+  reverserDeployment: 0,
   phase: "cruise" as Phase,
   /** Агрегаты, на которые сейчас указывает рычаг (наведение или перетаскивание), — остальные становятся «стеклом». */
   focus: null as Set<string> | null,
@@ -91,7 +98,12 @@ const state = {
 /** Разбор выбранного агрегата (0…1) — анимируется отдельно от общего ползунка. */
 let selK = 0;
 let selPart: string | null = null;
+let selectedSide = 0;
+const individualSideParts = new Set(["engines", "nacelles", "gear.main", "wing.box", "wing.highLift", "htail", "wingtips", "antiIce"]);
 const ABOUT_TAB = "about";
+const REVERSER_TAB = "Реверс";
+const MOUNTS_TAB = "Подвеска";
+let exposeMounts = false;
 
 /** Постоянные выноски — только у агрегатов тяжелее этой доли OEW; остальные — при наведении или изменении. */
 const ALWAYS_LABEL_SHARE = 0.02;
@@ -123,9 +135,49 @@ function compute() {
   return evaluateConfiguration(def, leversFor(def, state.values), state.mode, baseOf(state.aircraftId));
 }
 
+// Keep the accepted controls, calculations and meshes together when an attempted
+// configuration would require relocating the engine. Slider edits replace values.
+function configurationState() {
+  const { aircraftId, layoutId, values, scenarioId, mode, flightCostError } = state;
+  return { aircraftId, layoutId, values, scenarioId, mode, flightCostError };
+}
+let accepted: ReturnType<typeof configurationState>;
+let raiseLimit = Infinity;
+let reverserLimit = 100;
+let mountNotice = "";
+
+function applyConfiguration(): void {
+  const candidate = compute();
+  const def = candidate.ev.definition;
+  const limits = installationLimits(def);
+  const limit = Math.floor(limits.raise * 100) / 100;
+  mountNotice = "";
+  if (def.engine.nacelleRaiseM > limit && accepted) {
+    mountNotice = limit < 0
+      ? "Изменение отклонено. При таком размере гондолы зазора до крыла недостаточно даже при нулевом подъёме."
+      : `Изменение отклонено. Сначала опустите двигатель до ${Math.round(limit * 100)} см или ниже — иначе гондола окажется слишком близко к крылу.`;
+    Object.assign(state, accepted);
+    syncHeader();
+    renderScenarios();
+    return;
+  }
+  if (accepted && state.aircraftId !== accepted.aircraftId) state.reverserDeployment = 0;
+  result = candidate;
+  raiseLimit = limit;
+  reverserLimit = limits.reverse;
+  state.reverserDeployment = Math.min(state.reverserDeployment, reverserLimit / 100);
+  accepted = configurationState();
+}
+
 let pending = 0;
 let frame = 0;
-/** Режим «та же геометрия» считается за кадр; перепроектирование (~0,4 с) — после паузы в движении ползунка. */
+function finishPendingCalculation(): void {
+  if (!frame && !pending) return;
+  cancelAnimationFrame(frame);
+  clearTimeout(pending);
+  run();
+}
+/** Режим «та же геометрия» считается за кадр; перепроектирование — после паузы в движении ползунка. */
 function schedule(): void {
   cancelAnimationFrame(frame);
   clearTimeout(pending);
@@ -142,7 +194,7 @@ function run(): void {
   let t = performance.now();
   frame = 0;
   pending = 0;
-  result = compute();
+  applyConfiguration();
   timing.compute = performance.now() - t;
   t = performance.now();
   state.busy = false;
@@ -419,6 +471,8 @@ function addEdges(m: AircraftModel, mat: THREE.LineBasicMaterial): void {
     if (part.id === "furnishings" || part.id === "electrical.harness" || part.id === "fuselage") continue;
     for (const o of part.group.children) {
       if (!(o instanceof THREE.Mesh)) continue;
+      // At blade pitch a per-edge overlay obscures the rotor and guide rows.
+      if (part.id === "engines" && (/-(compressor|stator|turbine-rotor|turbine-guide)$/.test(o.geometry.name) || o.geometry.name.startsWith("combustor-"))) continue;
       const edges = new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry, 28), mat);
       edges.userData.isEdge = true;
       edges.userData.baseMat = mat;
@@ -450,22 +504,32 @@ const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 
 function pose(phase: { gear: number; flaps: number } = env.current): void {
   if (!model) return;
   const k = ease(state.explode);
-  const gearUp = (1 - phase.gear) * (1 - k);
+  const retraction = (1 - phase.gear) * (1 - k);
   const flaps = phase.flaps;
+  const inspectingReverser = state.selected === "nacelles" && state.drawerTab === REVERSER_TAB;
+  const inspectingMounts = state.selected === "nacelles" && state.drawerTab === MOUNTS_TAB;
   for (const part of model.parts.values()) {
     // Выбор слегка отделяет агрегат; полного разлёта добиваются общим ползунком.
-    const kp = part.id === selPart ? Math.max(k, ease(selK) * SELECTED_EXPLODE_FRACTION) : k;
+    // Expose the selected landing gear for inspection even in cruise.
+    const gearUp = retraction * (part.id === selPart ? 1 - ease(selK) : 1);
+    const kp = part.id === selPart && !inspectingReverser && !inspectingMounts ? Math.max(k, ease(selK) * SELECTED_EXPLODE_FRACTION) : k;
     part.group.position.copy(part.explode).multiplyScalar(kp);
     for (const o of part.group.children) {
       if (!(o instanceof THREE.Mesh)) continue;
       const off = o.userData.offset as THREE.Vector3 | null;
       const b = o.userData.basePos as THREE.Vector3 | null;
       const d = o.userData.deploy as THREE.Vector3 | null;
-      o.position.set(
-        (b?.x ?? 0) + (off?.x ?? 0) * kp + (d?.x ?? 0) * flaps,
-        (b?.y ?? 0) + (off?.y ?? 0) * kp + (d?.y ?? 0) * flaps,
-        (b?.z ?? 0) + (o.userData.side ?? 0) * part.sideSpread * kp + (off?.z ?? 0) * kp,
-      );
+      if (part.id === "nacelles") {
+        const cut = inspectingMounts && exposeMounts && o.userData.side === selectedSide;
+        const structural = isSuspensionHardware(o.geometry.userData.installationRole);
+        o.visible = cut ? structural : !structural || k > .12;
+      }
+      const origin = o.geometry.userData.reverserOrigin as THREE.Vector3 | undefined;
+      if (origin) applyReverserMotion(o, inspectingReverser ? state.reverserDeployment : 0, origin);
+      else o.position.set(0, 0, 0);
+      o.position.x += (b?.x ?? 0) + (off?.x ?? o.geometry.userData.panelOffset ?? 0) * kp + (d?.x ?? 0) * flaps;
+      o.position.y += (b?.y ?? 0) + (off?.y ?? 0) * kp + (d?.y ?? 0) * flaps;
+      o.position.z += (b?.z ?? 0) + (o.userData.side ?? 0) * part.sideSpread * kp + (off?.z ?? 0) * kp;
       // Механизация: выдвижение и поворот вокруг шарнира. Взлёт (≈0,45) — закрылки ≈10–15°, предкрылки ≈18°;
       // посадка — 40° и 27°. Каретка выдвигается быстрее, чем растёт угол (так устроен Фаулер).
       const h = o.userData.hinge as { kind: "flap" | "slat"; pivot: THREE.Vector3; axis: THREE.Vector3; angle: number; slide: THREE.Vector3 } | null;
@@ -593,12 +657,28 @@ function declutter(now: number): void {
   declutterAt = now;
   const placed: DOMRect[] = [];
   const list = [...callouts.values()].filter((c) => c.want).sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
+  const part = state.selected && model?.parts.get(state.selected);
+  let protectedRect: DOMRect | undefined;
+  if (part && list.length) {
+    const viewportRect = viewport.getBoundingClientRect();
+    const bounds = new THREE.Box2();
+    for (const p of meshFramePoints(part.group, selectedSide)) {
+      p.project(camera);
+      if (p.z < -1 || p.z > 1) continue;
+      bounds.expandByPoint(new THREE.Vector2(viewportRect.left + (1 + p.x) * viewportRect.width / 2,
+        viewportRect.top + (1 - p.y) * viewportRect.height / 2));
+    }
+    if (!bounds.isEmpty()) protectedRect = new DOMRect(bounds.min.x, bounds.min.y,
+      bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y);
+  }
   for (const c of list) {
     // Прячем через visibility: элемент остаётся в раскладке, и его прямоугольник можно мерить каждый проход.
     const r = c.el.getBoundingClientRect();
     const pad = 4;
     const hit = r.width > 0 && placed.some((p) => r.left < p.right + pad && r.right + pad > p.left && r.top < p.bottom + pad && r.bottom + pad > p.top);
-    const keep = !hit || (c.priority ?? 0) >= 1e9;
+    const coversPart = protectedRect && r.left < protectedRect.right + pad && r.right > protectedRect.left - pad
+      && r.top < protectedRect.bottom + pad && r.bottom > protectedRect.top - pad;
+    const keep = !coversPart && (!hit || (c.priority ?? 0) >= 1e9);
     c.el.classList.toggle("clutter", !keep);
     c.line.visible = keep;
     if (keep && r.width > 0) placed.push(r);
@@ -611,6 +691,7 @@ function applySelection(): void {
   const warn = new THREE.Color(css("--warn"));
   const bad = new THREE.Color(css("--bad"));
   const focus = state.focus;
+  const assembledFan = !focus && state.selected !== "engines" && state.explode < 0.12;
   for (const part of model.parts.values()) {
     const on = part.id === state.selected || !!focus?.has(part.id);
     const t = tint.get(part.id);
@@ -619,6 +700,13 @@ function applySelection(): void {
       if (o instanceof THREE.LineSegments && o.userData.isEdge) o.visible = !glass;
       if (o instanceof THREE.Mesh && !o.userData.isEdge) {
         const m = o.material as THREE.MeshStandardMaterial;
+        const tone = o.userData.tone;
+        const fanFace = tone === "fanBlade" || tone === "fanSpinner";
+        if (fanFace) {
+          m.color.set(css(assembledFan ? `--${tone}` : "--lp"));
+          m.metalness = 0.45;
+          m.roughness = 0.5;
+        }
         const base = m.userData.base as { opacity: number; transparent: boolean; depthWrite: boolean } | undefined;
         if (base) {
           m.transparent = glass || base.transparent;
@@ -629,7 +717,7 @@ function applySelection(): void {
           // Лёгкое свечение акцентом поверх собственного цвета детали; основное выделение — контур.
           m.emissive.copy(accent);
           m.emissiveIntensity = 0.07;
-        } else if (t === "warn" || t === "bad") {
+        } else if ((t === "warn" || t === "bad") && !(fanFace && assembledFan)) {
           m.emissive.copy(t === "bad" ? bad : warn);
           m.emissiveIntensity = 0.4;
         } else if (LIGHTS[o.userData.tone as string]) {
@@ -659,10 +747,18 @@ function applySelection(): void {
   applyExplode();
 }
 
-function select(id: string | null): void {
-  state.selected = state.selected === id ? null : id;
+function select(id: string | null, hitSide = 0): void {
+  const side = id && individualSideParts.has(id) ? hitSide : 0;
+  const same = state.selected === id && (!side || side === selectedSide);
+  state.selected = same ? null : id;
+  selectedSide = 0;
   if (state.selected) {
-    // Небольшой разбор агрегата и его рычаги; камера сохраняет в кадре весь самолёт.
+    const group = model?.parts.get(state.selected)?.group;
+    if (group && individualSideParts.has(state.selected)) {
+      // A tree or callout selects the near instance of a paired assembly.
+      const nearSide = group.worldToLocal(camera.position.clone()).z < 0 ? -1 : 1;
+      selectedSide = side || (group.children.some(m => m.userData.side === nearSide) ? nearSide : 0);
+    }
     if (selPart !== state.selected) selK = 0;
     selPart = state.selected;
     const family = $("tree").querySelector<HTMLDetailsElement>(`details[data-family="${familyOf(state.selected)}"]`);
@@ -720,18 +816,23 @@ function sceneFrameArea(): SceneFrameArea {
 function frameCamera(): void {
   if (!model || cameraInteracting) return;
   const area = sceneFrameArea();
-  const points = meshFramePoints(model.root);
-  // Вписываем текущую и конечную позу выбора/фазы: кадр не догоняет детали и шасси.
+  const selected = state.selected ? model.parts.get(state.selected) : undefined;
+  const subject = selected?.group ?? model.root;
+  let points = meshFramePoints(subject, selectedSide);
+  // Центр вращения выбранного узла должен совпадать с его конечной позой.
   const previous = selK;
   const next = state.selected ? 1 : 0;
   const phase = PHASES[state.phase];
   if (next !== previous || phase.gear !== env.current.gear || phase.flaps !== env.current.flaps) {
     selK = next;
     pose(phase);
-    points.push(...meshFramePoints(model.root));
+    const final = meshFramePoints(subject, selectedSide);
+    if (selected && final.length) points = final;
+    else points.push(...final);
     selK = previous;
     pose();
   }
+  if (!points.length) points = meshFramePoints(model.root);
   const frame = fitAircraftFrame(points, camera.position.clone().sub(controls.target), camera.up,
     camera.fov, camera.zoom, camera.near, area);
   if (!frame) return;
@@ -787,7 +888,11 @@ function linkedControls(id: string | null): Control[] {
 }
 /** Группы рычагов агрегата — вкладки нижней панели. */
 function linkedGroups(id: string | null): string[] {
-  return [...new Set(linkedControls(id).map((c) => c.group))];
+  const groups: string[] = [...new Set(linkedControls(id).map((c) => c.group))];
+  if (id === "nacelles" && model?.parts.get(id)?.group.children.some(o =>
+    o instanceof THREE.Mesh && o.geometry.userData.reverserOrigin)) groups.unshift(REVERSER_TAB);
+  if (id === "nacelles" && result && pylonFor(nacelleStyleFor(result.ev.definition.engine))) groups.splice(groups.includes(REVERSER_TAB) ? 1 : 0,0,MOUNTS_TAB);
+  return groups;
 }
 function markLinkedLevers(): void {
   const ids = new Set(linkedControls(state.selected).map((c) => c.id));
@@ -864,6 +969,9 @@ function syncHeader(): void {
   for (const o of document.querySelectorAll<HTMLButtonElement>("[data-mode]")) o.setAttribute("aria-checked", String(o.dataset.mode === state.mode));
   const select = $("cabin-layout") as HTMLSelectElement;
   const preset = presetFor(state.aircraftId);
+  select.hidden = !preset;
+  document.querySelector<HTMLLabelElement>('label[for="cabin-layout"]')!.hidden = !preset;
+  document.querySelector<HTMLElement>(".fc-exchange")!.hidden = !preset;
   select.replaceChildren();
   for (const layout of preset?.layouts ?? []) {
     const option = document.createElement("option");
@@ -890,12 +998,20 @@ function syncHeader(): void {
   }
 }
 
-function controlRow(c: Control, def: AircraftDefinition): string {
+function controlDisplay(c: Control, def: AircraftDefinition) {
   const v = state.values[c.id];
-  const disabled = c.id === "mach" && state.values.lrc === true;
-  const changed = !disabled && isChanged(c, def, v);
-  const hint = disabled ? "Отключите LRC, чтобы задать постоянный Мах. Фактические скорости показаны справа."
+  const limitedRaise = c.kind === "range" && c.id === "raise" && raiseLimit <= c.max;
+  const disabled = (c.id === "mach" && state.values.lrc === true) || (limitedRaise && raiseLimit <= 0);
+  const changed = isChanged(c, def, v) && !(c.id === "mach" && disabled);
+  const hint = limitedRaise
+    ? `Предел по зазору до крыла — ${Math.round(raiseLimit * 100)} см.${v === raiseLimit ? " Выше поднять нельзя." : ""}`
+    : disabled ? "Отключите LRC, чтобы задать постоянный Мах. Фактические скорости показаны справа."
     : `${c.hint}${changed && c.kind === "range" ? ` · база ${c.format(c.base(def) as number)}` : ""}`;
+  return { v, disabled, changed, hint, max: c.kind === "range" ? (limitedRaise ? raiseLimit : c.max) : 0 };
+}
+
+function controlRow(c: Control, def: AircraftDefinition): string {
+  const { v, disabled, changed, hint, max } = controlDisplay(c, def);
   const hintTitle = hint.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
   if (c.kind === "toggle")
     return `<label class="lever toggle${changed ? " changed" : ""}" data-row="${c.id}">
@@ -904,20 +1020,52 @@ function controlRow(c: Control, def: AircraftDefinition): string {
     </label>`;
   const baseV = c.base(def);
   return `<div class="lever range${changed ? " changed" : ""}" data-row="${c.id}">
-    <div class="lever-top"><label class="lever-label" for="ctrl-${c.id}">${c.label}</label><output id="out-${c.id}">${disabled ? "LRC" : c.format(v as number)}</output></div>
-    <input id="ctrl-${c.id}" type="range" data-ctrl="${c.id}" min="${c.min}" max="${c.max}" step="${c.step}" value="${v}"
-      ${disabled ? "disabled" : ""} style="--base:${((baseV - c.min) / (c.max - c.min)) * 100}%" />
-    <span class="lever-hint" title="${hintTitle}">${hint}</span>
+    <div class="lever-top"><label class="lever-label" for="ctrl-${c.id}">${c.label}</label><output id="out-${c.id}">${disabled && c.id === "mach" ? "LRC" : c.format(v as number)}</output></div>
+    <input id="ctrl-${c.id}" type="range" data-ctrl="${c.id}" min="${c.min}" max="${max}" step="${c.step}" value="${v}" aria-describedby="hint-${c.id}"
+      ${disabled ? "disabled" : ""} style="--base:${((baseV - c.min) / (max - c.min || 1)) * 100}%" />
+    <span class="lever-hint" id="hint-${c.id}" title="${hintTitle}">${hint}</span>
   </div>`;
 }
 
 let leversBuilt = "";
+function updateReverserControl(): void {
+  const input = $<HTMLInputElement>("reverser-deployment");
+  const style = nacelleStyleFor(result.ev.definition.engine);
+  const pct = Math.round(100 * state.reverserDeployment);
+  const position = pct === 0 ? "Убран · 0%" : pct === 100 ? "Выпущен · 100%" : `${pct}% хода`;
+  if (model) {
+    const gap = installedGroundClearance(model, state.reverserDeployment);
+    const ground = $("reverser-ground");
+    ground.textContent = `До земли в этом положении: ${nf(gap * 100, 1)} см.`
+      + (gap < .30 ? " Ниже условного предела модели 30 см." : "");
+  }
+  input.max = String(reverserLimit);
+  input.disabled = reverserLimit === 0;
+  input.value = String(pct);
+  input.setAttribute("aria-valuetext", position);
+  $("reverser-position").textContent = position;
+  $("reverser-hint").textContent = reverserLimit < 100
+    ? `При этой установке доступно ${reverserLimit}% хода по зазору до крыла. Для большего хода опустите двигатель или уменьшите диаметр гондолы.`
+    : isFleetStyle(style) ? fleetPackages[style].reverserLabel : "Обечайки открывают решётки, створки поворачиваются в канал вентилятора. Ход в модели приближённый.";
+}
+$("reverser-deployment").addEventListener("input", (event) => {
+  state.reverserDeployment = (event.currentTarget as HTMLInputElement).valueAsNumber / 100;
+  updateReverserControl();
+  pose();
+});
 /**
  * Нижняя панель. Выбран агрегат — его рычаги по группам и вкладка «Об агрегате»; ничего не выбрано —
  * все рычаги по группам (панель открывается кнопкой «Рычаги»).
  */
+$("expose-mounts").addEventListener("change", event => {
+  exposeMounts = (event.currentTarget as HTMLInputElement).checked;
+  applyExplode();
+});
 function renderLevers(): void {
   const def = AIRCRAFT[state.aircraftId];
+  const notice = $("mount-notice");
+  notice.hidden = !mountNotice;
+  notice.textContent = mountNotice;
   const visible = controlsFor(def);
   const activeControls = visible.filter((c) => c.id !== "mach" || state.values.lrc !== true);
   const allGroups = [...new Set(visible.map((c) => c.group))];
@@ -950,11 +1098,32 @@ function renderLevers(): void {
     b.onclick = () => {
       state.drawerTab = b.dataset.dtab!;
       renderLevers();
+      requestCameraFrame();
     };
   const about = state.drawerTab === ABOUT_TAB;
-  drawer.dataset.content = about ? "detail" : "levers";
+  const reverser = state.drawerTab === REVERSER_TAB;
+  drawer.dataset.content = about ? "detail" : reverser ? "reverser" : "levers";
+  $("reverser-panel").hidden = !reverser;
   $("detail").hidden = !about;
-  $("levers").hidden = about;
+  const inspectingMounts = state.drawerTab === MOUNTS_TAB;
+  $("pylon-panel").hidden = !inspectingMounts;
+  $("levers").hidden = about || reverser || inspectingMounts;
+  if (inspectingMounts && result) {
+    drawer.dataset.content = "mounts";
+    const spec = pylonFor(nacelleStyleFor(result.ev.definition.engine));
+    if (spec) {
+      $("pylon-front").textContent = spec.forwardMountLabel;
+      $("pylon-middle").textContent = spec.middleMountLabel ?? "";
+      $("pylon-middle-row").hidden = !spec.middleMountLabel;
+      $("pylon-rear").textContent = spec.rearMountLabel;
+      $("pylon-cowls").textContent = spec.cowlLabel;
+    }
+    return;
+  }
+  if (reverser) {
+    updateReverserControl();
+    return;
+  }
   if (about) {
     renderDetail();
     return;
@@ -963,18 +1132,25 @@ function renderLevers(): void {
   const contentKey = `${state.aircraftId}|${sel ?? ""}|${state.drawerTab}|${list.map((c) => c.id).join()}`;
   const box = $("levers");
   const scrollTop = leversBuilt === contentKey ? box.scrollTop : 0;
-  const html = list.map((c) => controlRow(c, def)).join("");
   // Пока ползунок тянут, разметку не пересобираем — иначе он потеряет захват.
   const active = document.activeElement as HTMLInputElement | null;
   if (active?.dataset.ctrl && active.type === "range" && leversBuilt === contentKey) {
     for (const c of list) {
-      const out = document.getElementById(`out-${c.id}`);
-      if (out && c.kind === "range") out.textContent = c.id === "mach" && state.values.lrc === true ? "LRC" : c.format(state.values[c.id] as number);
+      if (c.kind !== "range") continue;
+      const { v, max, disabled, changed, hint } = controlDisplay(c, def);
+      const input = $<HTMLInputElement>(`ctrl-${c.id}`);
+      input.max = String(max);
+      input.value = String(v);
+      input.disabled = disabled;
+      input.closest(".lever")!.classList.toggle("changed", changed);
+      const note = $(`hint-${c.id}`);
+      note.title = note.textContent = hint;
+      $(`out-${c.id}`).textContent = c.id === "mach" && disabled ? "LRC" : c.format(v as number);
     }
     return;
   }
   leversBuilt = contentKey;
-  box.innerHTML = html;
+  box.innerHTML = list.map((c) => controlRow(c, def)).join("");
   box.scrollTop = scrollTop;
   for (const input of box.querySelectorAll<HTMLInputElement>("input[data-ctrl]")) {
     const c = CONTROLS.find((x) => x.id === input.dataset.ctrl)!;
@@ -992,6 +1168,7 @@ function renderLevers(): void {
 $("drawer-toggle").addEventListener("click", () => {
   state.drawerOpen = !state.drawerOpen;
   renderLevers();
+  requestCameraFrame();
 });
 $("drawer-close").addEventListener("click", () => {
   if (state.selected) select(state.selected);
@@ -1366,7 +1543,11 @@ function renderTree(): void {
       <ol class="tree">${items}</ol>
     </details></li>`;
   }).join("");
-  for (const b of tree.querySelectorAll<HTMLButtonElement>("button")) b.addEventListener("click", () => select(b.dataset.id!));
+  for (const b of tree.querySelectorAll<HTMLButtonElement>("button")) b.addEventListener("click", () => {
+    select(b.dataset.id!);
+    if (state.selected && window.matchMedia("(max-width: 980px)").matches)
+      viewport.scrollIntoView({ block: "start", behavior: reduceMotion ? "instant" : "smooth" });
+  });
   applySelection();
   if (focusedFamily) tree.querySelector<HTMLElement>(`details[data-family="${focusedFamily}"] > summary`)?.focus({ preventScroll: true });
   else if (focusedPart) tree.querySelector<HTMLElement>(`button[data-id="${focusedPart}"]`)?.focus({ preventScroll: true });
@@ -1420,7 +1601,7 @@ function renderDetail(): void {
 
 const METHOD_ANCHOR: Record<string, string> = { engines: "m-engine", nacelles: "m-engine", "wing.highLift": "m-mass", fuel: "m-mission" };
 
-/** Суть двухконтурного двигателя: деление потока, два вала, КПД — по текущему варианту. */
+/** Суть двухконтурного двигателя: деление потока, валы, КПД — по текущему варианту. */
 function engineExplainer(): string {
   const e = result.ev.definition.engine;
   const be = result.base.definition.engine;
@@ -1430,37 +1611,56 @@ function engineExplainer(): string {
   const et = cy.etaThermal;
   const dT = (tsfcFactor(be, e) - 1) * 100;
   const rc = coreRadiusFor(1, B);
-  // С редуктором ТНД быстроходная — три ступени, как у PW1100G.
-  const lpt = e.cycle.gearbox ? 3 : lptStagesFor(B);
+  const arch = e.architecture;
+  const lpt = lptStagesFor(B, e.cycle.gearbox, arch.lptStages);
+  const style = nacelleStyleFor(e);
+  const fleet = isFleetStyle(style) ? fleetPackages[style] : undefined;
+  const combustor = arch.combustor ? COMBUSTORS[arch.combustor] : fleet && { label: fleet.combustorLabel, injectors: fleet.injectorCount };
+  const bladeRows = (["hp", "ip", "lp"] as const).map(spool => {
+    const stages = arch.turbineBlading?.[spool];
+    if (!stages) return "";
+    const name = { hp: "ТВД", ip: "ТСД", lp: "ТНД" }[spool];
+    const rotors = stages.map(s => s.rotor ?? "—").join(" / ");
+    const vanes = stages.every(s => s.vanes === undefined) ? "условно" : stages.map(s => s.vanes ?? "—").join(" / ");
+    return `<dt>${name}</dt><dd>${rotors}<br><small>сопловые · ${vanes}</small></dd>`;
+  }).join("");
   const v0 = 0.78 * 296.5;
   const bypassShare = B / (1 + B);
   return `
   <div class="engine-explainer">
-    <h4>${e.architecture.spools === 3 ? "Упрощённая модель двигателя" : "Как это работает"}</h4>
-    ${e.architecture.spools === 3 ? "<p>RB211 имеет три вала. Здесь показан общий двухвальный разрез модели: отдельный вал среднего давления и смешение потоков RB211 пока не воспроизведены. Приведённая ниже связь агрегатов относится к этой упрощённой схеме.</p>" : ""}
+    <h4>${e.name} · продольный разрез</h4>
     ${engineDiagram({
-      bypassRatio: B,
+      ...arch,
+      installation: isFleetStyle(style) ? style : undefined,
       coreRadius: rc,
-      boosterStages: e.architecture.boosterStages,
-      hpcStages: e.architecture.hpcStages,
-      hptStages: e.architecture.hptStages,
       lptStages: lpt,
-      separateFlow: B >= 8,
+      separateFlow: arch.exhaust ? arch.exhaust === "separateNozzles" : nacelleStyleFor(e) === "separateFlow",
     })}
     <div class="flow-split" aria-label="Деление потока">
       <span class="cold" style="flex:${bypassShare}">наружный контур ${nf(bypassShare * 100, 0)}%</span>
       <span class="hot" style="flex:${1 - bypassShare}">${nf((1 - bypassShare) * 100, 0)}%</span>
     </div>
     <p>Из каждых ${nf(1 + B, 1)} кг воздуха за вентилятором ${nf(B, 1)} кг идут в наружный контур и только 1 кг — в ядро, где горит топливо.
-    Работы ядра хватает, чтобы разогнать большой поток немного, а не маленький сильно: в крейсере (${nf(v0)} м/с) струя наружного контура ${nf(cy.bypassJetMs)} м/с,
-    ядра — ${nf(cy.coreJetMs)} м/с; вентилятор сжимает воздух в ${nf(cy.fanPressureRatio, 2)} раза.</p>
+    ${arch.exhaust === "annularMixer"
+      ? `У ${e.name} потоки соединяются перед общим соплом. Расчёт цикла оценивает скорости контуров по отдельности. Вентилятор сжимает воздух в ${nf(cy.fanPressureRatio, 2)} раза.`
+      : `Работы ядра хватает, чтобы разогнать большой поток немного, а не маленький сильно: в крейсере (${nf(v0)} м/с) струя наружного контура ${nf(cy.bypassJetMs)} м/с,
+    ядра — ${nf(cy.coreJetMs)} м/с; вентилятор сжимает воздух в ${nf(cy.fanPressureRatio, 2)} раза.`}</p>
     <ul class="spools">
-      <li><i class="lp"></i>Вал НД: вентилятор, подпорный компрессор (${e.architecture.boosterStages} ст.) ← турбина НД (${lpt} ст.)</li>
-      <li><i class="hp"></i>Вал ВД: компрессор ВД (${e.architecture.hpcStages} ст.) ← турбина ВД (${e.architecture.hptStages} ст.)</li>
+      <li><i class="lp"></i>Вал НД · вентилятор${arch.boosterStages ? `, компрессор НД (${arch.boosterStages} ст.)` : ""} ← турбина НД (${lpt} ст.)</li>
+      ${arch.spools === 3 ? `<li><i class="ip"></i>Вал СД · компрессор СД (${arch.ipcStages} ст.) ← турбина СД (${arch.iptStages} ст.)</li>` : ""}
+      <li><i class="hp"></i>Вал ВД · компрессор ВД (${e.architecture.hpcStages} ст.) ← турбина ВД (${e.architecture.hptStages} ст.)</li>
       <li><i class="hot"></i>Камера сгорания между ними</li>
     </ul>
+    ${bladeRows ? `<details><summary>Лопатки турбин по ступеням</summary>
+      <p>Число рабочих лопаток дано по ходу газа. Под каждым рядом указаны сопловые лопатки. Профили и осевые зазоры показаны схематично.</p>
+      <dl>${bladeRows}</dl></details>` : ""}
     <dl>
+      ${arch.exhaust ? `<dt>Выпускная система</dt><dd>${arch.exhaust === "annularMixer" ? "Смешение потоков и общее сопло" : "Переднее сопло вентилятора и заднее сопло ядра"}</dd>` : ""}
+      ${combustor ? `<dt>Камера сгорания</dt><dd>${combustor.label}</dd>
+      ${combustor.injectors ? `<dt>Топливные форсунки</dt><dd>${combustor.injectors} по окружности</dd>` : ""}` : ""}
       <dt>Двухконтурность</dt><dd>${nf(B, 1)}</dd>
+      ${arch.compressorBlading ? `<dt>Рабочие лопатки КНД</dt><dd>${arch.compressorBlading.lp?.join(" / ")}</dd>
+        <dt>Рабочие лопатки КВД</dt><dd>${arch.compressorBlading.hp?.join(" / ")}</dd>` : ""}
       <dt>Вентилятор</dt><dd>${nf(e.fanDiameterM, 2)} м, ${e.architecture.fanBlades} лопаток</dd>
       <dt>Ядро на входе</dt><dd>${nf(rc * 100, 0)}% радиуса вентилятора</dd>
       <dt>Пропульсивный КПД η<sub>p</sub></dt><dd>${nf(ep, 3)}</dd>
@@ -1485,8 +1685,8 @@ renderer.domElement.addEventListener("pointerup", (e) => {
   const r = renderer.domElement.getBoundingClientRect();
   pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
-  const hit = raycaster.intersectObjects(model.root.children, true).find((h) => h.object.userData.partId);
-  select(hit ? (hit.object.userData.partId as string) : null);
+  const hit = raycaster.intersectObjects(model.root.children, true).find((h) => h.object.visible && h.object.userData.partId);
+  select(hit ? (hit.object.userData.partId as string) : null, hit?.object.userData.side ?? 0);
 });
 
 let hoverFrame = 0;
@@ -1497,7 +1697,7 @@ renderer.domElement.addEventListener("pointermove", (e) => {
     const r = renderer.domElement.getBoundingClientRect();
     pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     raycaster.setFromCamera(pointer, camera);
-    const hit = raycaster.intersectObjects(model!.root.children, true).find((h) => h.object.userData.partId);
+    const hit = raycaster.intersectObjects(model!.root.children, true).find((h) => h.object.visible && h.object.userData.partId);
     const id = hit ? (hit.object.userData.partId as string) : null;
     if (id !== state.hovered) {
       state.hovered = id;
@@ -1511,8 +1711,10 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && state.selected) select(state.selected);
 });
 $("explode").addEventListener("input", (e) => {
+  const wasAssembled = state.explode < 0.12;
   state.explode = parseFloat((e.target as HTMLInputElement).value);
-  applyExplode();
+  if (wasAssembled !== (state.explode < 0.12)) applySelection();
+  else applyExplode();
   requestCameraFrame();
 });
 
@@ -1581,8 +1783,8 @@ function renderFlightCostRoute(): void {
 $("fc-load").addEventListener("input", renderFlightCostRoute);
 
 function currentFlightCostDesign() {
-  if (frame || pending) { cancelAnimationFrame(frame); clearTimeout(pending); run(); }
-  if (!result || state.flightCostError) return null;
+  finishPendingCalculation();
+  if (!result || state.flightCostError || !presetFor(state.aircraftId)) return null;
   const d = result.ev.definition;
   const fuelDensity = contextFor(d).fuelDensityKgL;
   return flightCostDesign(d, result.ev.oewKg, state.values, state.mode, state.aircraftId, state.layoutId, fuelDensity);
@@ -1688,8 +1890,9 @@ function route(): void {
   $("nav-model").toggleAttribute("aria-current", !method);
   $("nav-method").toggleAttribute("aria-current", method);
   if (method) {
+    finishPendingCalculation();
     if (!$("method").dataset.ready || $("method").dataset.for !== resultKey()) {
-      $("method").innerHTML = renderMethod(result.ev, `${AIRCRAFT_LABEL[state.aircraftId]}${CONTROLS.some((c) => isChanged(c, AIRCRAFT[state.aircraftId], state.values[c.id])) || state.mode === "redesign" ? " с рычагами" : ""}`);
+      $("method").innerHTML = renderMethod(result.ev, `${AIRCRAFT_LABEL[state.aircraftId]}${result.levers.length || state.mode === "redesign" ? " с рычагами" : ""}`);
       $("method").dataset.ready = "1";
       $("method").dataset.for = resultKey();
     }
@@ -1699,7 +1902,7 @@ function route(): void {
   } else resize();
 }
 function resultKey(): string {
-  return JSON.stringify([state.aircraftId, state.mode, state.values]);
+  return JSON.stringify([state.aircraftId, state.layoutId, state.mode, state.values]);
 }
 window.addEventListener("hashchange", route);
 
@@ -1759,12 +1962,26 @@ syncHeader();
 renderScenarios();
 run();
 route();
+const reviewPart = launchParams.get("part");
+if (isLocalReview && (reviewPart === "engines" || reviewPart === "nacelles" || reviewPart === "pylons")) {
+  select(reviewPart === "pylons" ? "nacelles" : reviewPart);
+  if (reviewPart === "pylons") {
+    state.drawerTab = MOUNTS_TAB;
+    renderLevers();
+    applySelection();
+    requestCameraFrame();
+  }
+  if (reviewPart === "engines") {
+    state.drawerTab = ABOUT_TAB;
+    renderLevers();
+  }
+}
 
 // Для отладки и скриншотов.
 (window as unknown as Record<string, unknown>).__oac = { camera, controls, state, applyScenario, schedule, timing, env, setFocusCtrl, select, scene };
 
 // Роторы: вал ВД вращается примерно втрое быстрее вала НД (условное соотношение для наглядности).
-const SPIN = { lp: 1.1, hp: 3.3 };
+const SPIN: Record<Spool, number> = { lp: 1.1, ip: 2.1, hp: 3.3 };
 let lightClock = 0;
 /**
  * Огни по фазе полёта: аэронавигационные и маяки горят всегда (маяки мигают ~1 Гц), белые проблесковые —

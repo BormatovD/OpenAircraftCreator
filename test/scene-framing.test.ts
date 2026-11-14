@@ -77,6 +77,27 @@ test("Кадрирование игнорирует длинные выноск�
   leader.geometry.dispose();
 });
 
+test("При выборе парного агрегата орбита центрируется на выбранной стороне в свободной области", () => {
+  const model = buildAircraft(B757_RB211);
+  const group = model.parts.get("engines")!.group;
+  for (const side of [-1, 1]) {
+    const points = meshFramePoints(group, side);
+    const area = areas[1];
+    const direction = new THREE.Vector3(-3, 1, side * 3);
+    const frame = fitAircraftFrame(points, direction, new THREE.Vector3(0, 1, 0), 32, 1, .5, area)!;
+    assert.ok(side * frame.target.z > 5);
+    const camera = new THREE.PerspectiveCamera(32, area.width / area.height, .5, 2500);
+    camera.position.copy(frame.position);
+    camera.lookAt(frame.target);
+    camera.setViewOffset(area.width, area.height, frame.offsetX, frame.offsetY, area.width, area.height);
+    camera.updateMatrixWorld(true);
+    const p = frame.target.clone().project(camera);
+    assert.ok(Math.abs((1 + p.x) * area.width / 2 - (area.width + area.left - area.right) / 2) < 1e-6);
+    assert.ok(Math.abs((1 - p.y) * area.height / 2 - (area.height + area.top - area.bottom) / 2) < 1e-6);
+  }
+  model.root.traverse(o => { if (o instanceof THREE.Mesh) o.geometry.dispose(); });
+});
+
 test("Скрытая или полностью закрытая панелями сцена не создаёт неверную проекцию", () => {
   const point = [new THREE.Vector3(1, 2, 3)];
   const direction = new THREE.Vector3(0, 0, 1);

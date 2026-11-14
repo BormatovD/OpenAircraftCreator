@@ -38,6 +38,7 @@ export const B737_8: AircraftDefinition = {
   engine: {
     ...A320NEO.engine,
     name: "LEAP-1B",
+    nacelleProfile: "leap1b",
     // LEAP-1B: вентилятор 1,76 м (69,4 in), B ≈9, Π ≈41, ≈2 780 кг, 28 000 lbf (CFM, вторичные источники). Технологии ядра — как у LEAP-1A.
     dryMassKg: 2780,
     fanDiameterM: 1.76,
@@ -49,7 +50,7 @@ export const B737_8: AircraftDefinition = {
     installation: "close-coupled",
     nacelleRaiseM: 0,
     takeoffThrustKn: (28000 * LBF) / 1000,
-    architecture: { fanBlades: 18, boosterStages: 3, hpcStages: 10, hptStages: 2 },
+    architecture: { fanBlades: 18, boosterStages: 3, hpcStages: 10, hptStages: 2, lptStages: 5, exhaust: "separateNozzles" },
   },
   systems: {
     ...A320CEO.systems,

@@ -6,6 +6,7 @@
 //  • b757 — Boeing D6-58327 Rev H, векторный общий вид 2.2.1 и размеры тележек 7.2 → tools/b757_extract.py.
 //  • tu214 — пользовательский Ту-204-200 трёхвид + УИ ГА 2024 → tools/tu214_shapes.py.
 
+import { CLASSIC_COWL } from "../../src/aircraft/b737.ts";
 import A320 from "../../data/ac/a320-shapes.json" with { type: "json" };
 import { B737_800, B737_800_NACELLE } from "../../src/aircraft/b737ng.ts";
 import B737 from "../../data/ac/b737-8-shapes.json" with { type: "json" };
@@ -420,7 +421,10 @@ export const S = (): ShapeSet => current;
 /** Выбрать набор контуров по определению; вызывается перед сборкой модели и текстур. */
 export function useShapes(def: AircraftDefinition): ShapeSet {
   const base = SETS[def.shapeSet ?? "a320"];
-  const nacelle = base.id === "b757"
+  // Boeing D6-58325-6, figs. 2.2.3 and 2.3.2, 737 Classic installation.
+  const classic = def.engine.nacelleProfile === "cfm3b2" || def.engine.name.startsWith("CFM56-3");
+  const nacelle = classic ? { ...base.nacelle, axisZ: 4.83, axisY: base.groundY + CLASSIC_COWL.clearanceM + CLASSIC_COWL.lowerRadiusM, clearanceM: CLASSIC_COWL.clearanceM }
+    : base.id === "b757"
     ? nacelle757(b757NacelleFor(def.engine))
     : def.id === B737_800.id ? {
       ...base.nacelle,

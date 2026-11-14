@@ -66,8 +66,27 @@ export interface GearDef {
   stallSpeedMs: number;
 }
 
+export type EngineArchitecture = {
+  fanBlades: number;
+  hpcStages: number;
+  hptStages: number;
+  /** Working blades by compressor stage in gas-flow order. */
+  compressorBlading?: Partial<Record<"hp" | "lp" | "ip", number[]>>;
+  /** Documented LP turbine count, when available for the installed engine. */
+  lptStages?: number;
+  combustor?: "rb211-phase2" | "pw2037-rolled-ring";
+  exhaust?: "annularMixer" | "separateNozzles";
+  /** Documented blade counts in gas-flow order. An omitted count is unknown. */
+  turbineBlading?: Partial<Record<"hp" | "ip" | "lp", { rotor?: number; vanes?: number }[]>>;
+} & (
+  | { spools?: 2; boosterStages: number; ipcStages?: never; iptStages?: never }
+  | { spools: 3; boosterStages: 0; ipcStages: number; iptStages: number }
+);
+
 export interface EngineDef {
   name: string;
+  /** Базовый контур установленной мотогондолы. Рычаги масштабируют выбранный контур. */
+  nacelleProfile?: "cfm56-7b" | "longDuct" | "separateFlow" | "cfm5b" | "cfm3b2" | "leap1a" | "leap1b" | "ps90a" | "rb211" | "pw2037";
   count: number;
   dryMassKg: number;
   fanDiameterM: number;
@@ -90,8 +109,8 @@ export interface EngineDef {
   /** Подъём гондолы относительно базовой установки (пилон, стойки), м. */
   nacelleRaiseM: number;
   thrustReverser: boolean;
-  /** Схема двигателя для визуализации: число лопаток вентилятора и ступеней. Ступени ТНД — от двухконтурности. */
-  architecture: { fanBlades: number; boosterStages: number; hpcStages: number; hptStages: number; spools?: 2 | 3 };
+  /** Схема двигателя для визуализации: валы, число лопаток вентилятора и ступеней. */
+  architecture: EngineArchitecture;
 }
 
 export interface EngineCycleDef {

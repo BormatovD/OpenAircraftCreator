@@ -20,6 +20,10 @@
   --ground: #1b2e3d;
   --composite: #3d4650;
   --lp: #d9a15b;
+  --ip: #78c3aa;
+  --stator: #9ba8ae;
+  --fanSpinner: #48505a;
+  --fanBlade: #89939b;
   --hp: #7fb0d6;
   --hot: #ff6a3d;
   --glass: #0e1720;
@@ -53,6 +57,8 @@
   --ground: #d7dfe4;
   --composite: #2f363d;
   --lp: #b56f22;
+  --ip: #287f68;
+  --stator: #77858b;
   --hp: #2f6f9f;
   --hot: #e2502a;
   --glass: #1d2a36;
@@ -1076,8 +1082,14 @@ body.method-mode .scenario-bar {
 .d-lp {
   fill: var(--lp);
 }
+.d-ip {
+  fill: var(--ip);
+}
 .d-hp {
   fill: var(--hp);
+}
+.d-drum-ip {
+  fill: color-mix(in srgb, var(--ip) 45%, transparent);
 }
 .d-drum-hp {
   fill: color-mix(in srgb, var(--hp) 35%, transparent);
@@ -1087,6 +1099,11 @@ body.method-mode .scenario-bar {
 }
 .d-stator {
   fill: color-mix(in srgb, var(--ink-soft) 70%, transparent);
+}
+.d-feed {
+  fill: none;
+  stroke: var(--detailSteel);
+  stroke-width: 1.8;
 }
 .d-liner {
   fill: color-mix(in srgb, var(--hot) 25%, transparent);
@@ -1109,8 +1126,15 @@ body.method-mode .scenario-bar {
   fill: none;
   stroke-dasharray: 6 4;
 }
+.d-mixed {
+  fill: none;
+  stroke: #ebc690;
+  stroke-width: 2.2;
+  stroke-dasharray: 6 4;
+}
 @media (prefers-reduced-motion: no-preference) {
   .d-cold,
+  .d-mixed,
   .d-hotflow {
     animation: d-flow 1.2s linear infinite;
   }
@@ -1209,6 +1233,9 @@ body.method-mode .scenario-bar {
 }
 .spools i.lp {
   background: var(--lp);
+}
+.spools i.ip {
+  background: var(--ip);
 }
 .spools i.hp {
   background: var(--hp);
@@ -1749,12 +1776,21 @@ button.kpi-tile {
   border-radius: 50%;
   background: var(--accent);
 }
+#mount-notice {
+  padding: 4px 10px;
+  color: var(--ink);
+  border-inline-start: 3px solid var(--accent);
+}
 .drawer-body {
   max-height: min(28svh, 240px);
   overflow-y: auto;
   padding: 8px 10px;
   min-height: 0;
 }
+#pylon-panel dl { display: grid; gap: .35rem .9rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); margin: .65rem 0 0; }
+#pylon-panel dt { color: var(--ink-soft); font-size: .85em; }
+#pylon-panel dd { margin: 0; }
+#expose-mounts { accent-color: var(--accent); }
 .drawer[data-content="levers"] .drawer-body {
   max-height: none;
   overflow: hidden;

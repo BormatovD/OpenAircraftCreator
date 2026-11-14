@@ -189,15 +189,15 @@ export const bypassRatio = (bpr: number): Lever => ({
     {
       kind: "definition",
       apply: (d) => {
-        const fan = fanDiameterForBpr(bpr);
-        const ratio = fan / d.engine.fanDiameterM;
+        const ratio = fanDiameterForBpr(bpr) / fanDiameterForBpr(d.engine.bypassRatio);
+        const massRatio = dryMassForBpr(bpr) / dryMassForBpr(d.engine.bypassRatio);
         return {
           ...d,
           engine: {
             ...d.engine,
             bypassRatio: bpr,
-            fanDiameterM: fan,
-            dryMassKg: dryMassForBpr(bpr),
+            fanDiameterM: d.engine.fanDiameterM * ratio,
+            dryMassKg: d.engine.dryMassKg * massRatio,
             nacelleLengthM: d.engine.nacelleLengthM * ratio,
             nacelleWidthM: d.engine.nacelleWidthM * ratio,
           },

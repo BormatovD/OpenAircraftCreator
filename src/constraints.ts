@@ -73,7 +73,7 @@ export function checkConstraints(
   const clearance = ref.nacelleClearanceM - radiusChange + def.engine.nacelleRaiseM;
   out.push({
     id: "nacelle-clearance",
-    label: "Клиренс под гондолой",
+    label: "Клиренс под обшивкой гондолы · реверс убран",
     // Допуск 0,005 м — точность значений AC.
     status: clearance >= ref.provenMinClearanceM - 0.005 ? "ok" : clearance >= 0.3 ? "warning" : "violation",
     value: `${clearance.toFixed(2)} м`,
@@ -83,7 +83,7 @@ export function checkConstraints(
         ? "Помещается без изменений пилона и шасси"
         : clearance >= 0.3
           ? "Нужно поднять пилон или удлинить стойки — так сделали на 737 MAX"
-          : "Двигатель не помещается под крылом без перекомпоновки",
+          : "Зазор до земли меньше 30 см. Уменьшите диаметр гондолы или увеличьте подъём в доступном диапазоне.",
   });
 
   // 3. Угол касания хвостом: точка касания уходит назад на половину вставки в фюзеляж.

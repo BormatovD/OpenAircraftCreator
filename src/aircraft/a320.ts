@@ -38,6 +38,7 @@ export const A320CEO: AircraftDefinition = {
   },
   engine: {
     name: "CFM56-5B",
+    nacelleProfile: "cfm5b",
     count: 2,
     dryMassKg: 2380, // Purdue AAE (5 250 lb)
     fanDiameterM: 1.73, // 68,3 in, Aircraft Commerce
@@ -55,7 +56,11 @@ export const A320CEO: AircraftDefinition = {
     thrustScale: 1,
     thrustReverser: true,
     // CFM56-5B: 36 титановых лопаток, подпорный компрессор 4 ст., КВД 9 ст., ТВД 1 ст. (ТНД 4 ст.)
-    architecture: { fanBlades: 36, boosterStages: 4, hpcStages: 9, hptStages: 1 },
+    architecture: {
+      fanBlades: 36, boosterStages: 4, hpcStages: 9, hptStages: 1, lptStages: 4, exhaust: "separateNozzles",
+      compressorBlading: { lp: [64, 70, 70, 68], hp: [38, 53, 60, 68, 75, 82, 82, 80, 76] },
+      turbineBlading: { hp: [{ rotor: 80 }], lp: [162, 150, 150, 134].map(rotor => ({ rotor })) },
+    },
   },
   systems: {
     crew: 2,
@@ -110,6 +115,7 @@ export function a320neoFrom(ceo: AircraftDefinition): AircraftDefinition {
     engine: {
       ...ceo.engine,
       name: "LEAP-1A",
+      nacelleProfile: "leap1a",
       dryMassKg: 2990, // справочник planefyi, вторичный источник
       fanDiameterM: 1.98, // 78 in, Aircraft Commerce
       bypassRatio: 11,
@@ -125,7 +131,7 @@ export function a320neoFrom(ceo: AircraftDefinition): AircraftDefinition {
       // Airbus поднял двигатель примерно на 6 см (пилон/установка). Значение выведено, а не взято из источника.
       nacelleRaiseM: 0.06,
       // LEAP-1A: 18 углепластиковых лопаток (3D-плетение), подпорный 3 ст., КВД 10 ст., ТВД 2 ст. (ТНД 7 ст.)
-      architecture: { fanBlades: 18, boosterStages: 3, hpcStages: 10, hptStages: 2 },
+      architecture: { fanBlades: 18, boosterStages: 3, hpcStages: 10, hptStages: 2, lptStages: 7, exhaust: "separateNozzles" },
     },
     systems: { ...ceo.systems, fuelVolumeL: 23740 },
     weights: { ...ceo.weights, mlwKg: 66300, mzfwKg: 62800 }, // AC 2-1-1, WV050
