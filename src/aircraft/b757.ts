@@ -70,7 +70,7 @@ const base: AircraftDefinition = {
 };
 
 /**
- * RB211-535E4: трёхвальный, 40 100 lbf, B ≈4,4, Π ≈28, вентилятор 1,88 м, 3 295 кг (справочные данные Rolls-Royce,
+ * RB211-535E4-37: трёхвальный, установленная тяга 39 610 lbf, B ≈4,4, Π ≈28, вентилятор 1,88 м, 3 295 кг (справочные данные Rolls-Royce,
  * вторичные источники). Первый в гражданской эксплуатации широкохордный полый титановый вентилятор без полок — КПД
  * вентилятора выше, чем у ровесников. Длинная гондола со смешением потоков — в модели (раздельные сопла) не учтено.
  */
@@ -87,7 +87,9 @@ const RB211: EngineDef = {
   nacelleWidthM: shapes.nacelleByEngine.RB211.width_m,
   installation: "pylon",
   nacelleRaiseM: 0,
-  takeoffThrustKn: (40100 * LBF) / 1000,
+  // Installed static rating, RB211-535E4-37: FAA A2NM / EASA E.061 §6.
+  // 40,100 lbf was the bare-engine equivalent, not the installed rating.
+  takeoffThrustKn: (39610 * LBF) / 1000,
   thrustScale: 1,
   thrustReverser: true,
   // EASA E.061 §III.2. The single-stage LP fan has no booster.
@@ -100,7 +102,7 @@ const RB211: EngineDef = {
 };
 
 /**
- * PW2037: двухвальный, 38 250 lbf, B ≈6,0, Π ≈27,6, вентилятор 1,99 м, 3 311 кг (справочные данные P&W, вторичные источники).
+ * PW2037: двухвальный, установленная тяга 37 530 lbf, B ≈6,0, Π ≈27,6, вентилятор 1,99 м, 3 311 кг (справочные данные P&W, вторичные источники).
  * Первые в гражданской эксплуатации монокристаллические лопатки турбины — температура выше и охлаждения меньше, чем у ровесников.
  */
 const PW2037: EngineDef = {
@@ -114,7 +116,8 @@ const PW2037: EngineDef = {
   cycle: { t4K: 1500, coolingFrac: 0.16, fanEff: 0.87, compEff: 0.875, hptEff: 0.875, lptEff: 0.885, gearbox: false },
   nacelleLengthM: 5.6,
   nacelleWidthM: shapes.nacelleByEngine.PW2000.width_m,
-  takeoffThrustKn: (38250 * LBF) / 1000,
+  // FAA A2NM §I, installed PW2037: 37,530 lbf, SL ISA, five minutes.
+  takeoffThrustKn: (37530 * LBF) / 1000,
   // Pratt & Whitney, NASA CR-191066 §3.1 and Fig. 3-1.
   architecture: {
     fanBlades: 36, boosterStages: 4, hpcStages: 12, hptStages: 2, lptStages: 5, spools: 2,

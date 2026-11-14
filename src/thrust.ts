@@ -88,23 +88,27 @@ export const TAKEOFF_POLAR = {
 };
 
 export interface OeiClimb {
+  massKg: number;
+  /** Clean-airframe CD0 at the evaluated speed/altitude, before the takeoff increments. */
+  cd0: number;
   gradient: number;
   v2Ms: number;
   ld: number;
   thrustN: number;
 }
 
-/** Градиент набора на втором сегменте с отказавшим двигателем при MTOW, МСА, уровень моря. */
-export function oeiSecondSegment(def: AircraftDefinition, aero: AeroConfig, clMaxTakeoff: number): OeiClimb {
+/** Оценка второго сегмента при заданной массе (по умолчанию MTOW), МСА, уровень моря. */
+export function oeiSecondSegment(def: AircraftDefinition, aero: AeroConfig, clMaxTakeoff: number, massKg = def.weights.mtowKg): OeiClimb {
   const p = TAKEOFF_POLAR;
-  const w = def.weights.mtowKg * G0;
+  if (!Number.isFinite(massKg) || massKg <= 0) throw new RangeError('OEI mass must be positive.');
+  const w = massKg * G0;
   const cl = clMaxTakeoff / (p.v2Factor * p.v2Factor);
   const atm = isa(0);
   const v2 = Math.sqrt((2 * w) / (atm.densityKgM3 * aero.wingAreaM2 * cl));
   const ar = (aero.spanM * aero.spanM) / aero.wingAreaM2;
   const cd = aero.cd0 + p.flapCd0 + p.oeiCd0 + (cl * cl) / (Math.PI * ar * aero.oswald);
   const thrust = availableThrustN(def, 0, v2 / atm.speedOfSoundMs, def.engine.count - 1);
-  return { gradient: thrust / w - cd / cl, v2Ms: v2, ld: cl / cd, thrustN: thrust };
+  return { massKg, cd0: aero.cd0, gradient: thrust / w - cd / cl, v2Ms: v2, ld: cl / cd, thrustN: thrust };
 }
 
 /**
@@ -124,6 +128,7 @@ export function emergencyOeiSecondSegment(
   def: AircraftDefinition,
   aero: AeroConfig,
   clMaxTakeoff: number,
+  massKg = def.weights.mtowKg,
 ): OeiClimb | undefined {
   if (def.shapeSet !== "tu214" || def.engine.name !== "ПС-90А" || def.engine.count !== 2) return undefined;
   const ratio = PS90A_EMERGENCY_OEI.emergencyKgf / PS90A_EMERGENCY_OEI.takeoffKgf;
@@ -131,5 +136,5 @@ export function emergencyOeiSecondSegment(
     ...def,
     engine: { ...def.engine, takeoffThrustKn: def.engine.takeoffThrustKn * ratio },
   };
-  return oeiSecondSegment(limitedRating, aero, clMaxTakeoff);
+  return oeiSecondSegment(limitedRating, aero, clMaxTakeoff, massKg);
 }

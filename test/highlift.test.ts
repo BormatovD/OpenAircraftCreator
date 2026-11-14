@@ -31,7 +31,7 @@ test("двухщелевые закрылки: выше CLmax, короче ВП
 
 test("без предкрылков — категория D по скорости захода", () => {
   const e = evaluate(A320CEO, [slats(false)], ctx);
-  assert.equal(e.constraints.find((c) => c.id === "approach-speed")!.status, "warning");
+  assert.equal(e.constraints.find((c) => c.id === "approach-speed")!.status, "info");
 });
 
 test("больше хорда закрылков — выше CLmax и масса механизации", () => {

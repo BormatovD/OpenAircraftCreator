@@ -27,12 +27,12 @@ test("OEI ПС-90А: ЧР отдельная, порог условно прох
   assert.equal(PS90A_EMERGENCY_OEI.maxMinutes, 3);
   for (const d of [TU214_PS90A, TU214_FACTORY]) {
     const ev = ref(d);
-    assert.ok(ev.oei.gradient > 0.018 && ev.oei.gradient < 0.021);
-    assert.ok(ev.oeiEmergency && ev.oeiEmergency.gradient > 0.029 && ev.oeiEmergency.gradient < 0.032);
-    const c = ev.constraints.find(c => c.id === "oei-climb")!;
+    assert.ok(ev.oeiAtMtow.gradient > 0.018 && ev.oeiAtMtow.gradient < 0.022);
+    assert.ok(ev.oeiEmergencyAtMtow && ev.oeiEmergencyAtMtow.gradient > 0.029 && ev.oeiEmergencyAtMtow.gradient < 0.033);
+    const c = ev.constraints.find(c => c.id === "oei-mtow")!;
     assert.equal(c.status, "warning");
     assert.match(c.value, /ЧР/);
-    assert.match(c.limit, /3 мин/);
+    assert.match(c.message, /MTOW/);
   }
 });
 
@@ -65,9 +65,8 @@ test("Паспорт базового типа показывает факты F
 });
 
 test("Сцена не красит весь кессон при нормальном ICAO code D", () => {
-  const main = readFileSync(new URL("../web/main.ts", import.meta.url), "utf8");
-  assert.match(main, /"span-code": \[\]/);
-  assert.ok(!/"span-code": \["wing\.box"/.test(main));
+  const ev = ref(TU214_PS90A);
+  assert.equal(ev.constraints.find(c => c.id === "span-code")!.kind, "classification");
 });
 
 test("Рендер формул не выводит сырой LaTeX красной ошибкой", () => {

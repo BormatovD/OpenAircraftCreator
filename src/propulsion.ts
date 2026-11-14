@@ -31,7 +31,7 @@ export function tsfcFactor(reference: EngineDef, engine: EngineDef): number {
 // CFM56-5B: B 5,7, вентилятор 1,73 м, 2 380 кг; LEAP-1A: B 11, 1,98 м, 2 990 кг; PW1100G: B 12,5, ≈2,05 м.
 // Диаметр по линии через CFM56 и LEAP; PW1100G ложится на неё с точностью ±0,02 м — независимая проверка.
 
-export const BPR_VALID_RANGE = [5, 13] as const;
+export const BPR_VALID_RANGE = [5.7, 11] as const;
 
 export function fanDiameterForBpr(bpr: number): number {
   return 1.73 + ((1.98 - 1.73) / (11 - 5.7)) * (bpr - 5.7);

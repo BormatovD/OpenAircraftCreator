@@ -7,7 +7,7 @@ import { evaluate } from "../src/evaluate.ts";
 import { type Lever, bypassRatio, fuselageStretch, wingSpan } from "../src/levers.ts";
 import { type AircraftDefinition } from "../src/definition.ts";
 
-const icon = { ok: "✓", warning: "!", violation: "✗" } as const;
+const icon = { ok: "✓", info: "i", warning: "!", violation: "✗" } as const;
 const cases: [string, AircraftDefinition, Lever[]][] = [
   ["A320ceo (база)", A320CEO, []],
   ["A320neo", A320NEO, []],

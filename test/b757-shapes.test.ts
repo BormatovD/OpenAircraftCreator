@@ -127,11 +127,11 @@ test("757: подсветка клиренса учитывает установ
     const clearance = (aircraft = def, raise = 0) => evaluate(aircraft, [nacelleRaise(raise)], contextFor(aircraft))
       .constraints.find(c => c.id === "nacelle-clearance")!;
     assert.equal(clearance().value, expected);
-    assert.equal(clearance().status, "ok");
+    assert.equal(clearance().status, "info");
     const wider = { ...def, engine: { ...def.engine, nacelleWidthM: def.engine.nacelleWidthM + 1.0 } };
-    assert.equal(clearance(wider).status, def === B757_RB211 ? "warning" : "violation");
+    assert.equal(clearance(wider).status, "warning");
     assert.equal(clearance(wider, 0.5).value, expected);
-    assert.equal(clearance(wider, 0.5).status, "ok");
+    assert.equal(clearance(wider, 0.5).status, "info");
   }
 });
 

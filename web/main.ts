@@ -8,6 +8,7 @@ import { AIRCRAFT, AIRCRAFT_LABEL } from "./aircraftCatalog.ts";
 import { bindAircraftPickers } from "./aircraftPickers.ts";
 import { contextFor } from "../src/aircraft/contextFor.ts";
 import { type ConstraintResult } from "../src/constraints.ts";
+import { constraintsForPart, constraintTints, isReferenceConstraint } from "./constraintPresentation.ts";
 import { type AircraftDefinition } from "../src/definition.ts";
 import { DEFAULT_MISSION, type Evaluation, evaluate } from "../src/evaluate.ts";
 import { type MassNode, NODES } from "../src/mass/massTree.ts";
@@ -39,19 +40,6 @@ const FAMILY_LABEL: Record<Family, string> = {
   cabin: "Салон и эксплуатант",
 };
 const FAMILY_ORDER: Family[] = ["structure", "propulsion", "systems", "cabin"];
-/** Какие агрегаты подкрашивать, если ограничение не выполнено. */
-const CONSTRAINT_PARTS: Record<string, string[]> = {
-  "nacelle-clearance": ["nacelles", "engines"],
-  // Код аэродрома D — характеристика размеров, а не дефект крыла: не перекрашиваем обшивку.
-  "span-code": [],
-  "tail-strike": ["gear.main"],
-  "bpr-range": ["engines"],
-  mzfw: ["furnishings"],
-  "thrust-ceiling": ["engines"],
-  "oei-climb": ["engines"],
-  "takeoff-field": ["engines", "wing.highLift"],
-  "approach-speed": ["wing.highLift"],
-};
 /** Цвета огней (AC 2-10-0): левый навигационный — красный, правый — зелёный, проблесковые — белые, маяки — красные. */
 const LIGHTS: Record<string, string> = {
   "nav-red": "#ff2a2a",
@@ -351,8 +339,7 @@ function buildScene(): void {
 
   tint.clear();
   for (const [ctrl, part] of Object.entries(COMPOSITE_PARTS)) if (state.values[ctrl]) tint.set(part, "composite");
-  for (const c of ev.constraints)
-    if (c.status !== "ok") for (const p of CONSTRAINT_PARTS[c.id] ?? []) tint.set(p, c.status === "violation" ? "bad" : "warn");
+  for (const [part, severity] of constraintTints(ev.constraints)) tint.set(part, severity);
 
   const edgeMat = edgeMaterial();
   for (const part of model.parts.values()) {
@@ -1094,7 +1081,7 @@ function updateReverserControl(): void {
     const gap = installedGroundClearance(model, state.reverserDeployment);
     const ground = $("reverser-ground");
     ground.textContent = `До земли в этом положении: ${nf(gap * 100, 1)} см.`
-      + (gap < .30 ? " Ниже условного предела модели 30 см." : "");
+      + (gap <= 0 ? " Расчётный контакт с землёй." : " Эксплуатационный допуск зависит от условий массы, CG и стоек.");
   }
   input.max = String(reverserLimit);
   input.disabled = reverserLimit === 0;
@@ -1318,8 +1305,11 @@ function renderMetrics(): void {
     Math.abs(ev.fuelPerSeatPer100KmKg / base.fuelPerSeatPer100KmKg - 1) < 5e-4;
   const tile = (label: string, value: string, delta: string, note: string) =>
     `<div class="kpi-tile" title="${note}"><div class="kpi-label">${label}</div><div class="kpi-value">${value}</div><div class="kpi-delta">${delta}</div></div>`;
-  const bad = ev.constraints.filter((c) => c.status === "violation").length;
-  const warn = ev.constraints.filter((c) => c.status === "warning").length;
+  const actionable = ev.constraints.filter((c) => !isReferenceConstraint(c));
+  const references = ev.constraints.filter(isReferenceConstraint).length;
+  const uncertain = ev.constraints.filter(c => isReferenceConstraint(c) && (c.status === "warning" || c.status === "violation")).length;
+  const bad = actionable.filter((c) => c.status === "violation").length;
+  const warn = actionable.filter((c) => c.status === "warning").length;
   const metrics = $("metrics");
   const scrollLeft = metrics.querySelector<HTMLElement>(".kpi-strip")?.scrollLeft ?? 0;
   metrics.innerHTML = `
@@ -1333,10 +1323,10 @@ function renderMetrics(): void {
     ${tile("Пустой снаряжённый", fmtKg(ev.oewKg), deltaPct(ev.oewKg, base.oewKg), "OEW")}
     ${tile("MTOW", fmtKg(ev.definition.weights.mtowKg), deltaPct(ev.definition.weights.mtowKg, base.definition.weights.mtowKg), rd ? "под ту же миссию" : "максимальная взлётная масса")}
     ${tile("Дальность, все места", `${nf(Math.round(ev.rangeWithMissionPayloadNm))} nm`, deltaPct(ev.rangeWithMissionPayloadNm, base.rangeWithMissionPayloadNm, false), `${nf(Math.round(ev.rangeWithMissionPayloadNm * 1.852))} км`)}
-    <button class="kpi-tile kpi-limits ${bad ? "bad" : warn ? "warn" : "ok"}" id="kpi-limits" title="Открыть список ограничений">
+    <button class="kpi-tile kpi-limits ${bad ? "bad" : warn || uncertain ? "warn" : "ok"}" id="kpi-limits" title="Открыть список ограничений">
       <div class="kpi-label">Ограничения</div>
-      <div class="kpi-value">${bad ? `✕ ${bad}` : warn ? `! ${warn}` : "✓"}</div>
-      <div class="kpi-delta">${bad ? "нарушено" : warn ? "на грани" : "в норме"}</div>
+      <div class="kpi-value">${bad ? `✕ ${bad}` : warn ? `! ${warn}` : uncertain ? `? ${uncertain}` : references ? `i ${references}` : "✓"}</div>
+      <div class="kpi-delta">${bad ? "нарушено" : warn ? "на грани" : uncertain ? "нужна сверка модели" : references ? "справочные данные" : "в норме"}${references && (bad || warn) ? ` · ${references} справ.` : ""}</div>
     </button>
     </div>
     ${cmp ? `<div class="kpi-compare">${AIRCRAFT_LABEL[scenario!.compareWith!]}: ${nf(cmp.fuelPerSeatPer100KmKg, 3)} кг/100 км, OEW ${fmtKg(cmp.oewKg)}</div>` : ""}`;
@@ -1509,6 +1499,9 @@ function renderTakeoffLanding(): void {
   const h = ev.highLift;
   const hb = base.highLift;
   const tofl = (e: Evaluation) => parseFloat(e.constraints.find((c) => c.id === "takeoff-field")!.value.replace(/\s/g, ""));
+  const oeiGradient = (normal: number, emergency?: number) => emergency === undefined
+    ? `${nf(normal * 100, 1)}%`
+    : `${nf(normal * 100, 1)}% штат. / ${nf(emergency * 100, 1)}% ЧР`;
   const row = (label: string, v: string, delta: string, t?: string) => `<tr><th>${label}${t ? tip(t) : ""}</th><td>${v}</td><td>${delta}</td></tr>`;
   const kt = (cur: number, b: number) => (Math.abs(cur - b) < 0.5 ? `<span class="delta zero">как у базы</span>` : `<span class="delta ${cur < b ? "good" : "bad"}">${cur > b ? "+" : "−"}${nf(Math.abs(cur - b), 0)} уз</span>`);
   $("tol").innerHTML = `
@@ -1516,14 +1509,16 @@ function renderTakeoffLanding(): void {
       ${row("C<sub>L max</sub> чистое крыло", nf(h.clMaxClean, 2), deltaPct(h.clMaxClean, hb.clMaxClean, false), "Максимальный коэффициент подъёмной силы без механизации. Чем он выше, тем медленнее может лететь самолёт без сваливания.")}
       ${row("C<sub>L max</sub> взлёт", nf(h.clMaxTakeoff, 2), deltaPct(h.clMaxTakeoff, hb.clMaxTakeoff, false), "Взлётная конфигурация (CONF 1+F): предкрылки 18°, закрылки 10°.")}
       ${row("C<sub>L max</sub> посадка", nf(h.clMaxLanding, 2), deltaPct(h.clMaxLanding, hb.clMaxLanding, false), "Посадочная конфигурация (CONF FULL): предкрылки 27°, закрылки 40°. Привязано к A320 по скорости захода 134 уз.")}
-      ${row("V2 при MTOW", `${nf(h.v2Kt, 0)} уз`, kt(h.v2Kt, hb.v2Kt), "Безопасная скорость взлёта: 1,13 скорости сваливания во взлётной конфигурации.")}
+      ${row("V₂MIN в рейсе", `${nf(ev.oei.v2Ms / 0.514444, 0)} уз`, kt(ev.oei.v2Ms / 0.514444, base.oei.v2Ms / 0.514444), "Расчётная нижняя оценка V₂ = 1,13·VSR при фактической массе рейса; это не выбранная или одобренная AFM V₂.")}
+      ${row("V₂ при MTOW", `${nf(h.v2Kt, 0)} уз`, kt(h.v2Kt, hb.v2Kt), "Расчётная нижняя оценка V₂ = 1,13·VSR при MTOW; это не выбранная или одобренная AFM V₂.")}
       ${row("Заход при MLW", `${nf(h.vAppKt, 0)} уз`, kt(h.vAppKt, hb.vAppKt), "1,23 скорости сваливания в посадочной конфигурации. По ней ИКАО делит самолёты на категории: C — до 140 уз.")}
       ${row("ВПП при MTOW", `${nf(tofl(ev))} м`, deltaPct(tofl(ev), tofl(base)))}
-      ${row("Набор с отказом двигателя", ev.oeiEmergency
-        ? `${nf(ev.oei.gradient * 100, 1)}% штат. / ${nf(ev.oeiEmergency.gradient * 100, 1)}% ЧР`
-        : `${nf(ev.oei.gradient * 100, 1)}%`,
-        ev.oeiEmergency ? "ПС-90А: одноразовая ЧР, не более 3 мин" : deltaPct(ev.oei.gradient, base.oei.gradient, false),
-        "Второй сегмент: V₂, шасси убрано, один двигатель. Для ПС-90А отдельно показана кратковременная чрезвычайная тяга; она не используется в расчёте расхода и дальности. Требование ≥2,4% проверяется по одобренным данным самолёта.")}
+      ${row("Набор OEI в рейсе", oeiGradient(ev.oei.gradient, ev.oeiEmergency?.gradient),
+        `масса ${fmtKg(ev.oei.massKg)} · ${deltaPct(ev.oei.gradient, base.oei.gradient, false)}`,
+        "Второй сегмент с одним двигателем, рассчитан при фактической взлётной массе и V₂MIN. Это оценка модели, не утверждённые AFM/РЛЭ данные.")}
+      ${row("Набор OEI при MTOW", oeiGradient(ev.oeiAtMtow.gradient, ev.oeiEmergencyAtMtow?.gradient),
+        `масса ${fmtKg(ev.oeiAtMtow.massKg)}`,
+        "Отдельная точка при MTOW. V₂MIN = 1,13·VSR; для ПС-90А показан также расчёт на кратковременной ЧР, не более 3 минут. Не является выводом о сертификации.")}
     </table>`;
 }
 
@@ -1565,16 +1560,19 @@ function renderThrust(): void {
     )} lbf на двигатель, ${nf(Math.round((ev.thrust.points.find((p) => p.fl === 350)!.availableN / (ev.definition.engine.takeoffThrustKn * 1000 * ev.definition.engine.thrustScale * ev.definition.engine.count)) * 100))}% взлётной.</p>`;
 }
 
-const STATUS_ICON = { ok: "✓", warning: "!", violation: "✕" } as const;
+const STATUS_ICON = { ok: "✓", info: "i", warning: "!", violation: "✕" } as const;
 function renderConstraints(): void {
   const cs: ConstraintResult[] = result.ev.constraints;
-  $("constraints").innerHTML = cs
-    .map(
-      (c) => `<li class="c-${c.status}"><span class="c-icon" aria-hidden="true">${STATUS_ICON[c.status]}</span>
-        <div><div class="c-head"><span>${c.label}</span><span class="c-value">${c.value}</span></div>
-        <div class="c-msg">${c.message}</div></div></li>`,
-    )
-    .join("");
+  const renderRows = (items: ConstraintResult[]) => items.map(c => `<li class="c-${c.status}">
+    <span class="c-icon" aria-hidden="true">${STATUS_ICON[c.status]}</span>
+    <div><div class="c-head"><span>${c.label}</span><span class="c-value">${c.value}</span></div>
+      <div class="c-msg">${c.message}</div>
+      <details class="constraint-evidence"><summary>Условия и источник</summary>
+        <div class="c-limit">${c.limit}</div>${c.source ? `<div class="c-source">${c.source}</div>` : ""}</details></div></li>`).join("");
+  const active = cs.filter(c => !isReferenceConstraint(c));
+  const references = cs.filter(isReferenceConstraint);
+  $("constraints").innerHTML = `${active.length ? renderRows(active) : ""}${references.length ?
+    `<li class="constraint-reference-group"><h3>Применимость расчёта и справочные данные</h3></li>${renderRows(references)}` : ""}`;
 }
 
 function familyOf(id: string): Family {
@@ -1660,6 +1658,7 @@ function renderDetail(): void {
   });
   const baseKg = result.base.masses.byId.get(n.id)?.kg ?? n.kg;
   const spec = NODES.find((s) => s.id === n.id)!;
+  const causes = constraintsForPart(result.ev.constraints, n.id);
   box.hidden = false;
   box.innerHTML = `
     <div class="detail-main">
@@ -1680,6 +1679,11 @@ function renderDetail(): void {
     }
     <a class="method-link" href="#${METHOD_ANCHOR[n.id] ?? "m-mass"}">Как рассчитано →</a>
     </div>
+    ${causes.length ? `<section class="aggregate-constraints"><h3>Проверки агрегата</h3><ul class="constraints">${causes.map(c => `<li class="c-${c.status}">
+      <span class="c-icon" aria-hidden="true">${STATUS_ICON[c.status]}</span><div>
+        <div class="c-head"><span>${c.label}</span><span class="c-value">${c.value}</span></div>
+        ${c.limit ? `<div class="c-limit">Порог: ${c.limit}</div>` : ""}<div class="c-msg">${c.message}</div>
+        ${c.source ? `<div class="c-source">Источник: ${c.source}</div>` : ""}</div></li>`).join("")}</ul></section>` : ""}
     ${n.id === "engines" ? engineExplainer() : ""}`;
 }
 

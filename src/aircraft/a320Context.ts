@@ -30,6 +30,7 @@ export const A320_CONTEXT: EvalContext = {
   tsfcCruise: tsfcFromImperial(0.586),
   engineRef: A320CEO.engine,
   constraintsRef: {
+    baseBypassRatio: A320CEO.engine.bypassRatio,
     nacelleClearanceM: 0.57, // AC 2-3-0, CFM56-5B при MRW
     nacelleWidthM: A320CEO.engine.nacelleWidthM,
     tailStrikeDeg: 11.7, // Airbus Safety First, обжатая стойка
@@ -40,7 +41,9 @@ export const A320_CONTEXT: EvalContext = {
     wingAreaM2: A320CEO.wing.areaM2,
     takeoffThrustN: takeoffThrustN(A320CEO),
     clMaxTakeoff: highLiftPerf(A320CEO, highLiftAnchor(A320CEO)).clMaxTakeoff,
-    provenMinClearanceM: 0.46, // AC 2-3-0, A320neo при MRW
+    provenMinClearanceM: 0.568, // Own A320-200 CFM56 planning table, not the NEO value.
+    clearanceEstimated: true,
+    clearanceReference: "Airbus A320 AC §2-3-0 Fig.029, CFM56: 0,568–0,672 м в указанных MRW/OEW состояниях; условия модели приближённые.",
   },
   aero: anchoredAero(),
   fuelDensityKgL: 0.785,

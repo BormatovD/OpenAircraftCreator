@@ -12,7 +12,7 @@ const base = evaluate(A320CEO, [], ctx);
 const mission = designMissionOf(base);
 const f0 = (x: number) => Math.round(x).toLocaleString("ru-RU");
 const pct = (a: number, b: number) => `${a >= b ? "+" : ""}${(((a - b) / b) * 100).toFixed(1)}%`;
-const icon = { ok: "✓", warning: "!", violation: "✗" } as const;
+const icon = { ok: "✓", info: "i", warning: "!", violation: "✗" } as const;
 
 console.log(
   `Расчётная миссия A320ceo: ${f0(mission.payloadKg)} кг (180 × 95) на ${f0(mission.rangeNm)} nm. ` +

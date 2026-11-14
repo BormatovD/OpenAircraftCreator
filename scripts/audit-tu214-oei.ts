@@ -15,10 +15,11 @@ const points = ratingsKgf.map((kgf) => {
   const ev = evaluate(def, [], contextFor(def));
   return {
     ratingKgf: kgf,
-    secondSegmentGradientPercent: Number((100 * ev.oei.gradient).toFixed(4)),
-    modelV2Kt: Number((ev.oei.v2Ms / 0.514444).toFixed(3)),
-    remainingEngineThrustN: Number(ev.oei.thrustN.toFixed(1)),
-    exceedsNumerical2p4PercentThreshold: ev.oei.gradient >= TAKEOFF_POLAR.requiredGradient,
+    evaluatedMassKg: ev.oeiAtMtow.massKg,
+    secondSegmentGradientPercent: Number((100 * ev.oeiAtMtow.gradient).toFixed(4)),
+    modelV2Kt: Number((ev.oeiAtMtow.v2Ms / 0.514444).toFixed(3)),
+    remainingEngineThrustN: Number(ev.oeiAtMtow.thrustN.toFixed(1)),
+    exceedsNumerical2p4PercentThreshold: ev.oeiAtMtow.gradient >= TAKEOFF_POLAR.requiredGradient,
   };
 });
 

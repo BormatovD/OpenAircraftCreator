@@ -467,7 +467,7 @@ function engineSection(current: Evaluation): string {
     ${tex(String.raw`D_{\text{вент}} = 1{,}73 + 0{,}0472\,(B - 5{,}7)\ \text{м},\qquad m_{\text{сух}} = 2380 + 115\,(B - 5{,}7)\ \text{кг}`)}
     <p>Гондола масштабируется по диаметру вентилятора. Линия массы — для прямоприводных двигателей; масса редуктора и сэкономленных ступеней ТНД не учитывается.
     Рычаг умножает исходные диаметр и массу выбранного двигателя на отношение значений соответствующей линии при новом и исходном B. Для других семейств это допущение.
-    Вне ${t(String.raw`B = 5\ldots13`)} это экстраполяция. Сейчас при ${t(String.raw`B = ${L(cur.bypassRatio, 1)}`)} диаметр ${nf(cur.fanDiameterM, 2)} м, сухая масса ${nf(cur.dryMassKg)} кг.</p>
+    Вне ${t(String.raw`B = 5{,}7\ldots11`)} это экстраполяция. Сейчас при ${t(String.raw`B = ${L(cur.bypassRatio, 1)}`)} диаметр ${nf(cur.fanDiameterM, 2)} м, сухая масса ${nf(cur.dryMassKg)} кг.</p>
 
     <h3>Что показывает разрез</h3>
     <p>${cur.architecture.spools === 3
@@ -484,7 +484,7 @@ function engineSection(current: Evaluation): string {
 function thrustSection(current: Evaluation): string {
   const d = current.definition;
   const rows = [0, 100, 200, 300, 350, 390].map((fl) => {
-    const m = fl === 0 ? 0.2 : current.thrust.mach;
+    const m = fl === 0 ? current.oei.v2Ms / isa(0).speedOfSoundMs : current.thrust.mach;
     const l = thrustLapse(flightLevelToM(fl), m);
     return [fl === 0 ? "Уровень моря (V2)" : `FL${fl}`, nf(m, 2), nf(l, 3), nf(Math.round((l * d.engine.takeoffThrustKn * d.engine.thrustScale * 1000) / 4.448 / 100) * 100)];
   });
@@ -498,7 +498,7 @@ function thrustSection(current: Evaluation): string {
     ${tex(String.raw`\frac{T}{T_{\text{взл}}} = \delta_0\,(1 - 0{,}49\sqrt{M}),\qquad \delta_0 = \frac{p}{p_0}\left(1 + 0{,}2M^2\right)^{3{,}5}`)}
     ${now(String.raw`\text{FL350},\ M = ${L(current.thrust.mach, 2)}:\ \frac{T}{T_{\text{взл}}} = ${L(thrustLapse(flightLevelToM(350), current.thrust.mach), 3)},\quad T_{\text{взл}} = ${L(d.engine.takeoffThrustKn * d.engine.thrustScale, 1)}\ \text{кН на двигатель}`)}
     <p>${t(String.raw`\delta_0`)} — полное давление на входе в двигатель: на высоте воздух реже, скоростной напор частично это возвращает.
-    Формула справедлива до температуры торможения стандартного дня на уровне моря (${t(String.raw`\theta_0 \le 1`)}) — это весь крейсер; жаркий день у земли модель не считает.</p>
+    Источник формулы ограничивает область по температуре торможения стандартного дня на уровне моря (${t(String.raw`\theta_0 \le 1`)}) — это крейсерская область. На V₂ у земли общий закон используется как неподтверждённая экстраполяция: для количественной проверки нужна скоростная характеристика тяги установленного двигателя; жаркий день модель не считает.</p>
     ${table(["", "M", "T / T<sub>взл</sub>", "lbf на двигатель"], rows, "num")}
     <p>Для базового CFM56-5B4 на FL350 модель даёт ≈5 400 lbf — порядок опубликованных крейсерских тяг двигателей этого класса (≈5 000–5 900 lbf).</p>
     <p class="caveat"><b>Почему нет зависимости от двухконтурности.</b> По теории импульса при той же мощности ядра двигатель с ${t("B = 11")} терял бы к верху набора
@@ -516,11 +516,12 @@ function thrustSection(current: Evaluation): string {
 
     <h3>Набор с отказавшим двигателем</h3>
     ${tex(String.raw`\gamma = \frac{T_{n-1}}{W} - \frac{C_D}{C_L},\qquad C_L = \frac{C_{L\max,\text{взл}}}{1{,}13^2},\qquad C_D = C_{D0} + \Delta C_{D,\text{мех}} + \Delta C_{D,\text{отказ}} + \frac{C_L^2}{\pi A e}`)}
-    ${now(String.raw`T_{n-1} = ${L(o.thrustN / 1000, 1)}\ \text{кН},\ W = ${L((d.weights.mtowKg * 9.80665) / 1000, 0)}\ \text{кН},\ L/D = ${L(o.ld, 1)}\ \Rightarrow\ \gamma = ${L(o.gradient * 100, 1)}\%`)}
+    ${now(String.raw`T_{n-1} = ${L(o.thrustN / 1000, 1)}\ \text{кН},\ W = ${L((o.massKg * 9.80665) / 1000, 0)}\ \text{кН},\ L/D = ${L(o.ld, 1)}\ \Rightarrow\ \gamma = ${L(o.gradient * 100, 1)}\%`)}
     <p>Второй сегмент: шасси убрано, закрылки во взлётном положении, скорость V2 ${ref("cs25")}. Норма для двух двигателей — ${t(String.raw`\gamma \ge 2{,}4\%`)}.
     Механизация даёт ${t(String.raw`C_{L\max,\text{взл}} = ${nf(current.highLift.clMaxTakeoff, 2).replace(",", "{,}")}`)} (см. «Механизация»); допущения: ${t(String.raw`\Delta C_{D,\text{мех}} = ${nf(p.flapCd0, 3).replace(",", "{,}")}`)}, ${t(String.raw`\Delta C_{D,\text{отказ}} = ${nf(p.oeiCd0, 3).replace(",", "{,}")}`)}
-    (авторотация и отклонённый руль направления). МСА, уровень моря, MTOW. Сейчас: V2 = ${nf(o.v2Ms * 1.944, 0)} уз, L/D = ${nf(o.ld, 1)}, ${t(String.raw`\gamma = ${nf(o.gradient * 100, 1).replace(",", "{,}")}\%`)}.
+    (авторотация и отклонённый руль направления). МСА, уровень моря, масса текущего рейса ${nf(o.massKg, 0)} кг. Сейчас: расчётная V₂MIN = ${nf(o.v2Ms * 1.944, 0)} уз, L/D = ${nf(o.ld, 1)}, ${t(String.raw`\gamma = ${nf(o.gradient * 100, 1).replace(",", "{,}")}\%`)}.
     </p>
+    <p>Отдельно при MTOW ${nf(current.oeiAtMtow.massKg, 0)} кг: ${nf(current.oeiAtMtow.gradient * 100, 2)}%. Это неподтверждённая проектная оценка; для проверки нормы нужны одобренная V₂, взлётная поляра и тяга конкретного типа.</p>
     ${current.oeiEmergency ? `<p><b>ПС-90А, кратковременный чрезвычайный режим:</b> штатная оценка ${nf(o.gradient * 100, 2)}%, при 17 500 кгс — ${nf(current.oeiEmergency.gradient * 100, 2)}%;
     порог второго сегмента 2,4%. Режим одноразовый и ограничен 3 минутами ${ref("tu214-ps90a-emergency")}. Это <b>условная</b> инженерная проверка,
     не решение о сертификационной применимости режима. Основная тяга в расчёте миссии по-прежнему 16 000 кгс.</p>` : ""}
@@ -769,8 +770,8 @@ function redesignSection(): string {
   </section>`;
 }
 
-function constraintsSection(): string {
-  const r = CTX.constraintsRef;
+function constraintsSection(def: AircraftDefinition): string {
+  const r = contextFor(def).constraintsRef;
   return `
   <section id="m-constraints">
     <h2>Ограничения</h2>
@@ -778,11 +779,19 @@ function constraintsSection(): string {
     <p>${t(String.raw`24 \le b < 36`)} м — код C, ${t(String.raw`36 \le b < 52`)} м — код D ${ref("icao")}. С шарклетами считается их размах 35,8 м ${ref("ac-a320")}.</p>
     <h3>Клиренс под гондолой</h3>
     ${tex(String.raw`h = h_0 - \frac{D_{\text{гонд}} - D_{\text{гонд},0}}{2} + \Delta h_{\text{подъём}}`)}
-    <p>${t(String.raw`h_0 = ${nf(r.nacelleClearanceM, 2)}`)} м — CFM56-5B при MRW ${ref("ac-a320")}. Норма — не меньше ${nf(r.provenMinClearanceM, 2)} м (A320neo по AC);
-    чистая геометрия NEO даёт ≈0,40 м, поэтому подъём установки на ≈6 см выведен, а не взят из источника. Порог 0,30 м — условный.</p>
-    <p>Для 737-800 с винглетами исходная модель использует номинальные 0,48 м при максимальной рулёжной массе
-    (0,64 м при эксплуатационной массе пустого самолёта) ${ref("b737ng")}. В сцене стойки зафиксированы в положении для рулёжной массы.
-    При изменении ширины гондолы её сплюснутый нижний профиль масштабируется вместе с ней.</p>
+    <p>Исходный клиренс выбранной геометрии — ${nf(r.nacelleClearanceM, 2)} м. ${r.clearanceReference ?? "Условия измерения не подтверждены."}
+    ${r.provenMinClearanceM === undefined ? "Подтверждённого типового размерного ориентира нет." : `Размерный ориентир своего типа — ${nf(r.provenMinClearanceM, 2)} м; вариация условий ±${nf(r.clearanceVariationM ?? .005, 3)} м.`}
+    Размеры ACAP зависят от массы, CG, шин и обжатия стоек; они не являются универсальным эксплуатационным минимумом. Контакт с землёй проверяется при h ≤ 0.
+    Оценка Ту-214 по чертежу и несогласованные стояночные условия отмечаются отдельно от геометрического нарушения.</p>
+    <h3>Набор с одним работающим двигателем</h3>
+    <p>Для текущего рейса используется взлётная масса OEW + фактически размещённая нагрузка + взлётное топливо с резервами.
+    Отдельно сохранён расчёт при MTOW. В обоих случаях сопротивление пересчитывается при расчётной скорости и МСА у земли,
+    с теми же геометрией, калибровкой и рычагами; крейсерский CD0 на FL350 не переносится на взлёт.</p>
+    <p>Скорость 1,13 VSR — нижняя расчётная оценка V₂MIN, а не одобренная V₂ конкретного типа. Взлётная поляра и скоростная характеристика тяги приближённые.
+    Порог 2,4% из CS 25.121(b) сохранён; 3% — условный запас модели. Проектная оценка при MTOW требует V₂, поляры и тяги по данным типа и не подтверждает сертификационное соответствие.</p>
+    <h3>Область применимости изменения двухконтурности</h3>
+    <p>Исходные двигатели используют собственные массу и размеры. Эмпирическая зависимость CFM56-5B → LEAP-1A вызывается только соответствующим рычагом.
+    Интервал опорных точек B = 5,7–11 проверяется для исходного и заданного двигателя; выход за него отмечается как экстраполяция массы и диаметра, а не неисправность двигателя.</p>
     <h3>Угол касания хвостом</h3>
     ${tex(String.raw`\theta = \arctan\frac{l \tan\theta_0}{l + \Delta L/2}`)}
     <p>${t(String.raw`\theta_0 = ${nf(r.tailStrikeDeg, 1)}^\circ`)} — A320 при обжатых стойках ${ref("safety-first")}; плечо ${t(String.raw`l = ${nf(r.tailContactArmM, 1)}`)} м подобрано так,
@@ -907,7 +916,7 @@ export function renderMethod(current: Evaluation, name = "Сейчас"): string
     ${checkSection()}
     ${leversSection(current.definition)}
     ${redesignSection()}
-    ${constraintsSection()}
+    ${constraintsSection(current.definition)}
     ${geometrySection()}
     ${limitsSection()}
     ${sourcesSection()}

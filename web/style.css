@@ -877,11 +877,42 @@ body.busy .busy-note {
 .c-ok .c-icon {
   background: var(--good);
 }
+.c-info .c-icon {
+  background: var(--panel-edge);
+  color: var(--ink);
+}
 .c-warning .c-icon {
   background: var(--warn);
 }
 .c-violation .c-icon {
   background: var(--bad);
+}
+.constraint-reference-group {
+  grid-column: 1 / -1;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--panel-edge);
+}
+.constraint-reference-group h3,
+.aggregate-constraints h3 {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 650;
+}
+.c-limit,
+.c-source {
+  margin-top: 2px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.aggregate-constraints {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--panel-edge);
+}
+.aggregate-constraints .constraints {
+  margin-top: 8px;
 }
 .c-head {
   display: flex;
@@ -2184,3 +2215,6 @@ button.kpi-tile {
 }
 .aircraft-preview canvas { cursor: grab; }
 .aircraft-preview canvas:active { cursor: grabbing; }
+.constraint-evidence { margin-top: 4px; color: var(--ink-soft); font-size: 11px; }
+.constraint-evidence summary { cursor: pointer; }
+.constraint-evidence[open] .c-source { overflow-wrap: anywhere; }

@@ -20,7 +20,7 @@ test("A320ceo и A320neo при MTOW занимают FL330 и выше; вто�
   for (const d of [A320CEO, A320NEO]) {
     const e = evaluate(d, [], ctx);
     assert.ok(e.thrust.ceilingFl >= 330 && e.thrust.ceilingFl <= 398, `${d.id} FL${e.thrust.ceilingFl}`);
-    assert.ok(e.oei.gradient > 0.03 && e.oei.gradient < 0.06, `${d.id} ${e.oei.gradient}`);
+    assert.ok(e.oeiAtMtow.gradient > 0.03 && e.oeiAtMtow.gradient < 0.06, `${d.id} ${e.oei.gradient}`);
   }
 });
 
@@ -30,7 +30,7 @@ test("меньший двигатель: легче, но ниже потоло�
   const tofl = (e: typeof b) => parseFloat(e.constraints.find((c) => c.id === "takeoff-field")!.value.replace(/\s/g, ""));
   assert.ok(s.oewKg < b.oewKg);
   assert.ok(s.thrust.ceilingFl < b.thrust.ceilingFl);
-  assert.ok(s.oei.gradient < b.oei.gradient);
+  assert.ok(s.oeiAtMtow.gradient < b.oeiAtMtow.gradient);
   assert.ok(tofl(s) > tofl(b));
 });
 

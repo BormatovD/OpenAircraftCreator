@@ -14,13 +14,14 @@ for (const layout of presetFor("b737-800")!.layouts) {
     for (const [levers, expected] of [
       [[], "ok"],
       [[thrustRating(110)], "warning"],
-      [[thrustRating(140)], "violation"],
+      [[thrustRating(140)], "warning"],
+      [[thrustRating(230)], "violation"],
       [[thrustRating(140), nacelleRaise(0.23)], "ok"],
     ] as const) {
       const ev = evaluate(def, [...levers], contextFor(def));
       const limit = ev.constraints.find(c => c.id === "nacelle-clearance")!;
       assert.equal(limit.status, expected);
-      assert.match(limit.limit, /737-800W/);
+      assert.match(limit.source ?? "", /737-800W/);
       const model = buildAircraft(ev.definition);
       const mesh = new Box3().setFromObject(model.parts.get("nacelles")!.group, true);
       const clearance = mesh.min.y - model.groundY;

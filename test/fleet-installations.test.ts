@@ -78,7 +78,8 @@ test("installed ground and wing limits at the lever endpoints for all seven pack
           assert.ok(measured > 0, id + " ground contact");
           if (id === "tu214-ps90a" && bpr === 15 && height === 0) {
             assert.ok(measured < .01);
-            assert.equal(reported.status, "violation");
+            assert.equal(reported.status, "warning"); // Very small positive gap is a warning, not proven contact.
+            assert.equal(reported.kind, "geometry");
           }
         }
         model.root.traverse(o => { if (o instanceof THREE.Mesh) o.geometry.dispose(); });

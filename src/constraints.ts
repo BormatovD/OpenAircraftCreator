@@ -6,7 +6,8 @@ import { BPR_VALID_RANGE } from "./propulsion.ts";
 import { takeoffThrustN } from "./thrust.ts";
 import { type HighLiftPerf } from "./highlift.ts";
 
-export type Status = "ok" | "warning" | "violation";
+export type Status = "ok" | "info" | "warning" | "violation";
+export type ConstraintKind = "geometry" | "mission" | "operational" | "model" | "classification";
 
 export interface ConstraintResult {
   id: string;
@@ -15,6 +16,8 @@ export interface ConstraintResult {
   value: string;
   limit: string;
   message: string;
+  kind?: ConstraintKind;
+  source?: string;
 }
 
 /** Опорные значения базового самолёта, от которых считаются изменения. */
@@ -41,8 +44,12 @@ export interface ConstraintReference {
   clMaxTakeoff: number;
   /** Длина фюзеляжа базового самолёта, м; по умолчанию — A320 (37,57 м). */
   baseLengthM?: number;
-  /** Минимальный клиренс, подтверждённый эксплуатацией (A320neo, AC 2-3-0: ≈0,46 м). */
-  provenMinClearanceM: number;
+  /** Lower planning dimension in the source's stated ground condition; NOT a safety limit. */
+  provenMinClearanceM?: number;
+  /** Source-condition variation, not an extra ground-contact safety allowance. */
+  clearanceVariationM?: number;
+  clearanceEstimated?: boolean;
+  baseBypassRatio?: number;
 }
 
 const ICAO_CODE_C_MAX_SPAN_M = 36; // ICAO Annex 14: код C — до 36 м, код D — 36–52 м
@@ -50,7 +57,9 @@ const ICAO_CODE_C_MAX_SPAN_M = 36; // ICAO Annex 14: код C — до 36 м, к
 export function checkConstraints(
   def: AircraftDefinition,
   ref: ConstraintReference,
-  opts: { payloadLimitedByMzfw: boolean; ceilingFl: number; oeiGradient: number; oeiEmergencyGradient?: number; highLift: HighLiftPerf },
+  opts: { payloadLimitedByMzfw: boolean; ceilingFl: number; oeiGradient: number; oeiEmergencyGradient?: number;
+    oeiMassKg?: number; oeiMtowGradient?: number; oeiMtowEmergencyGradient?: number;
+    bprModelUsed?: boolean; highLift: HighLiftPerf },
 ): ConstraintResult[] {
   const out: ConstraintResult[] = [];
 
@@ -59,7 +68,8 @@ export function checkConstraints(
   out.push({
     id: "span-code",
     label: "Код аэродрома по размаху",
-    status: span < ICAO_CODE_C_MAX_SPAN_M ? "ok" : "warning",
+    status: span < ICAO_CODE_C_MAX_SPAN_M ? "ok" : "info",
+    kind: "classification",
     value: `${span.toFixed(2)} м`,
     limit: `размах для кода C < ${ICAO_CODE_C_MAX_SPAN_M} м`,
     message:
@@ -72,19 +82,24 @@ export function checkConstraints(
   // При изменении размера нижний радиус масштабируется вместе с гондолой.
   const radiusChange = (def.engine.nacelleWidthM - ref.nacelleWidthM) * (ref.nacelleLowerRadiusPerWidth ?? 0.5);
   const clearance = ref.nacelleClearanceM - radiusChange + def.engine.nacelleRaiseM;
+  const minClearance = ref.provenMinClearanceM;
+  const outsideReference = minClearance !== undefined && clearance < minClearance - (ref.clearanceVariationM ?? 0.005);
+  const reducedClearance = clearance < ref.nacelleClearanceM - .005;
   out.push({
     id: "nacelle-clearance",
     label: "Клиренс под обшивкой гондолы · реверс убран",
     // Допуск 0,005 м — точность значений AC.
-    status: clearance >= ref.provenMinClearanceM - 0.005 ? "ok" : clearance >= 0.3 ? "warning" : "violation",
+    status: clearance <= 0 ? "violation" : outsideReference || reducedClearance ? "warning" : ref.clearanceEstimated ? "info" : "ok",
+    kind: clearance <= 0 || reducedClearance ? "geometry" : ref.clearanceEstimated ? "model" : "geometry",
     value: `${clearance.toFixed(2)} м`,
-    limit: `≥ ${ref.provenMinClearanceM} м (${ref.clearanceReference ?? "как у A320neo"}); < 0,30 м — условный предел модели`,
-    message:
-      clearance >= ref.provenMinClearanceM - 0.005
-        ? "Помещается без изменений пилона и шасси"
-        : clearance >= 0.3
-          ? "Нужно поднять пилон или удлинить стойки — так сделали на 737 MAX"
-          : "Зазор до земли меньше 30 см. Уменьшите диаметр гондолы или увеличьте подъём в доступном диапазоне.",
+    source: ref.clearanceReference,
+    limit: minClearance === undefined ? "Типовой эксплуатационный минимум не подтверждён; контакт с землёй ≤ 0 м"
+      : `Ориентир типа ${minClearance.toFixed(2)} м; вариация условий ±${(ref.clearanceVariationM ?? .005).toFixed(3)} м; контакт ≤ 0 м`,
+    message: clearance <= 0 ? "Расчётная обшивка гондолы касается земли. Измените размер или установку двигателя."
+      : reducedClearance ? `Клиренс уменьшился на ${((ref.nacelleClearanceM - clearance) * 100).toFixed(1)} см относительно своей базовой геометрии при тех же условиях. Проверьте размеры и установку; исходные стояночные условия приближённые.`
+      : outsideReference ? "Расчётный клиренс ниже собственного размерного ориентира типа. Нужна сверка геометрии и условий массы, CG, шин и обжатия стоек; это не установленный эксплуатационный допуск."
+      : ref.clearanceEstimated ? "Клиренс — оценка геометрии. Условия массы, центровки и обжатия стоек не согласованы с эксплуатационными данными; соответствие нормам не установлено."
+      : "В пределах собственного размерного ориентира типа; это сравнение геометрии, не эксплуатационный допуск.",
   });
 
   // 3. Угол касания хвостом: точка касания уходит назад на половину вставки в фюзеляж.
@@ -113,6 +128,7 @@ export function checkConstraints(
   const ceil = opts.ceilingFl;
   out.push({
     id: "thrust-ceiling",
+    kind: "model",
     label: "Эшелон по тяге при MTOW",
     status: ceil >= 330 ? "ok" : ceil >= 310 ? "warning" : "violation",
     value: ceil >= 398 ? "FL398 (потолок)" : `FL${ceil}`,
@@ -132,25 +148,37 @@ export function checkConstraints(
   const normalPasses = g >= 0.024;
   out.push({
     id: "oei-climb",
-    label: "Набор с отказавшим двигателем",
+    kind: "mission",
+    label: "Набор с одним двигателем · текущий рейс (оценка)",
     // Чрезвычайный кратковременный режим допускает лишь условную оценку — не зелёную
     // отметку сертификационного соответствия. Для остальных ВС оставляем старые пороги.
     status: normalPasses ? (g >= 0.03 ? "ok" : "warning") : emergencyPasses ? "warning" : "violation",
-    value: emergencyG === undefined ? `${(g * 100).toFixed(1)}%` :
-      `${(g * 100).toFixed(1)}% штат. / ${(emergencyG * 100).toFixed(1)}% ЧР`,
+    value: (emergencyG === undefined ? `${(g * 100).toFixed(2)}%` :
+      `${(g * 100).toFixed(2)}% штат. / ${(emergencyG * 100).toFixed(2)}% ЧР`) +
+      (opts.oeiMassKg === undefined ? "" : ` · ${(opts.oeiMassKg / 1000).toFixed(2)} т`),
     limit: emergencyG === undefined
-      ? "≥ 2,4% (CS 25.121(b)); МСА, уровень моря, MTOW; < 3% — условный порог запаса"
+      ? "≥ 2,4% (CS 25.121(b)); МСА, уровень моря, масса текущего рейса; < 3% — условный порог запаса"
       : "≥ 2,4% (второй сегмент); ЧР ПС-90А ≤ 3 мин, одноразовый",
     message: emergencyG === undefined
       ? g >= 0.03 ? "Запас есть" : g >= 0.024
         ? "Запас мал: в жару и на высокогорных аэродромах придётся снижать взлётную массу"
-        : "Не выполняется требование норм: нужна большая тяга, больше крыло или меньше MTOW"
+        : "Расчёт текущего рейса ниже 2,4%. Проверьте взлётную массу, тягу и аэродинамику; эта оценка не заменяет одобренные взлётные данные."
       : normalPasses
         ? "Оценка на штатной тяге проходит порог; чрезвычайный режим в миссии не используется."
         : emergencyPasses
           ? "Штатная тяга недостаточна по упрощённой модели; с учётом кратковременной ЧР исправного ПС-90А порог достигается. Требуется подтверждение применимости по РЛЭ/сертификационному расчёту, не вывод о сертификации."
           : "Даже чрезвычайный режим не достигает 2,4% в упрощённой модели. Проверить взлётные данные, ограничения режима и расчётную аэродинамику.",
   });
+
+  if (opts.oeiMtowGradient !== undefined) {
+    const gm = opts.oeiMtowGradient, ge = opts.oeiMtowEmergencyGradient;
+    out.push({ id: "oei-mtow", kind: "model", label: "Набор с одним двигателем · MTOW (не подтверждён по РЛЭ)",
+      status: gm >= .024 ? "info" : "warning",
+      value: `${(gm * 100).toFixed(2)}%${ge === undefined ? "" : ` штат. / ${(ge * 100).toFixed(2)}% ЧР`} · ${(def.weights.mtowKg / 1000).toFixed(2)} т`,
+      limit: "Ориентир 2,4%; расчётная V₂MIN = 1,13 VSR, МСА, уровень моря, шасси убрано",
+      source: "CS 25.107 и 25.121(b); поляра и скоростная характеристика тяги — общая инженерная модель",
+      message: "Сохранена отдельная проектная оценка при MTOW. Расчёт использует минимальную оценку V₂ и условные поправки на механизацию/отказ; нужны V₂, поляра и располагаемая тяга конкретного типа. Это не вывод о сертификационном соответствии." });
+  }
 
   // 6. Длина ВПП: TOFL ∝ W² / (S · CLmax,взл · T) (Raymer, параметр взлёта).
   const tofl =
@@ -170,8 +198,9 @@ export function checkConstraints(
   const vat = opts.highLift.vAppKt;
   out.push({
     id: "approach-speed",
+    kind: "classification",
     label: "Скорость захода при MLW",
-    status: vat <= 140.5 ? "ok" : vat <= 165.5 ? "warning" : "violation",
+    status: vat <= 140.5 ? "ok" : "info",
     value: `${Math.round(vat)} уз`,
     limit: "категория C ≤ 140 уз, D — 141–165 уз (ИКАО PANS-OPS)",
     message:
@@ -179,12 +208,13 @@ export function checkConstraints(
         ? "Категория C, как у A320"
         : vat <= 165.5
           ? "Категория D: выше минимумы захода, длиннее посадочная дистанция, часть схем недоступна"
-          : "Быстрее категории D: нужна более мощная механизация или больше крыло",
+          : "Категория E по расчётной скорости; применимость схем захода проверяется отдельно.",
   });
 
   // 8. Масса: все места не помещаются в MZFW.
   out.push({
     id: "mzfw",
+    kind: "mission",
     label: "Нагрузка в пределах MZFW и ограничений типа",
     status: opts.payloadLimitedByMzfw ? "warning" : "ok",
     value: opts.payloadLimitedByMzfw ? "нагрузка превышает предел" : "помещается",
@@ -196,14 +226,19 @@ export function checkConstraints(
 
   // 9. Двухконтурность вне диапазона данных.
   const bpr = def.engine.bypassRatio;
-  const inRange = bpr >= BPR_VALID_RANGE[0] && bpr <= BPR_VALID_RANGE[1];
+  // Both endpoints of the mass/diameter ratio must be within its empirical anchors.
+  const baselineBpr = ref.baseBypassRatio ?? bpr;
+  const inRange = bpr >= BPR_VALID_RANGE[0] && bpr <= BPR_VALID_RANGE[1] && baselineBpr >= BPR_VALID_RANGE[0] && baselineBpr <= BPR_VALID_RANGE[1];
   out.push({
     id: "bpr-range",
-    label: "Двухконтурность в диапазоне данных",
-    status: inRange ? "ok" : "warning",
+    kind: "model",
+    label: "Применимость эмпирики массы и диаметра двигателя",
+    status: !opts.bprModelUsed ? "info" : inRange ? "ok" : "warning",
     value: bpr.toFixed(1),
-    limit: `${BPR_VALID_RANGE[0]}–${BPR_VALID_RANGE[1]}`,
-    message: inRange ? "Внутри диапазона реальных двигателей" : "Экстраполяция: оценки массы и диаметра ненадёжны",
+    limit: "Опорные точки CFM56-5B B=5,7 и LEAP-1A B=11; проверяются исходное и заданное значения",
+    message: !opts.bprModelUsed ? "Использованы исходные масса и размеры выбранного двигателя. Эмпирика изменения двухконтурности не применялась."
+      : inRange ? "Оба значения внутри интервала эмпирических опорных точек. Это оценка изменения, не модель нового сертифицированного двигателя."
+      : `Применён рычаг двухконтурности ${baselineBpr.toFixed(1)} → ${bpr.toFixed(1)}: масса и диаметр требуют экстраполяции вне опорных точек.`,
   });
 
   return out;

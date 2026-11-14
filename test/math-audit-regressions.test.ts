@@ -103,7 +103,7 @@ test("Math audit 07 — exactly 36 m is at the code C/D boundary", () => {
   const result = evaluate(def, [], contextFor(def));
   const span = result.constraints.find(c => c.id === "span-code")!;
   assert.equal(span.value, "36.00 м");
-  assert.equal(span.status, "warning");
+  assert.equal(span.status, "info");
   assert.match(span.message, /Код D/);
 });
 

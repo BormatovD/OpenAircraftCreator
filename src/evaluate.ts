@@ -93,17 +93,20 @@ export interface Evaluation {
   thrust: ThrustCurve;
   /** Второй сегмент взлёта с отказавшим двигателем. */
   oei: OeiClimb;
+  /** Separate design-point estimate; never silently replaced by the lighter mission. */
+  oeiAtMtow: OeiClimb;
   /** Чрезвычайный PS-90A OEI только для проверки ограничения, не для миссии. */
   oeiEmergency?: OeiClimb;
+  oeiEmergencyAtMtow?: OeiClimb;
   /** Механизация: CLmax по конфигурациям, V2, скорость захода. */
   highLift: HighLiftPerf;
 }
 
 /** Аэродинамика с учётом рычагов. Общий множитель сопротивления действует через эквивалентные CD0 и e. */
-export function aeroFor(def: AircraftDefinition, base: BaselineAero, levers: Lever[]): AeroConfig {
+export function aeroFor(def: AircraftDefinition, base: BaselineAero, levers: Lever[], condition?: { mach: number; fl: number }): AeroConfig {
   const m = collectAero(levers);
   const built = base.cd0Factor !== undefined;
-  const cd0 = built ? dragBuildup(def).cd0 * base.cd0Factor! : base.cd0;
+  const cd0 = built ? dragBuildup(def, condition?.mach, condition?.fl).cd0 * base.cd0Factor! : base.cd0;
   const oswald = base.oswaldFactor !== undefined ? oswaldObert(aspectRatioOf(def)) * base.oswaldFactor : base.oswald;
   return {
     wingAreaM2: def.wing.areaM2,
@@ -111,7 +114,7 @@ export function aeroFor(def: AircraftDefinition, base: BaselineAero, levers: Lev
     cd0: (cd0 * m.cd0Factor + m.cd0Delta) * m.dragFactor,
     oswald: (oswald + m.oswaldDelta) / m.dragFactor,
     wave: built ? { ...waveParams(def), dragFactor: m.dragFactor } : undefined,
-    cd0Scale: built ? reynoldsScale(def) : undefined,
+    cd0Scale: built && !condition ? reynoldsScale(def) : undefined,
   };
 }
 
@@ -261,10 +264,22 @@ export function evaluateResolved(
   ];
   const thrust = thrustCurve(def, aero, w.mtowKg * TOC_MASS_FRACTION, as.cruiseMach);
   const highLift = highLiftPerf(def, ctx.highLiftAnchor);
-  const oei = oeiSecondSegment(def, aero, highLift.clMaxTakeoff);
-  const oeiEmergency = emergencyOeiSecondSegment(def, aero, highLift.clMaxTakeoff);
+  // A cruise CD0 (M0.78/FL350) is not the takeoff polar. Re-evaluate the same
+  // component buildup and lever effects at the actual V2, sea-level ISA.
+  const oeiAt = (massKg: number) => {
+    const speed = oeiSecondSegment(def, aero, highLift.clMaxTakeoff, massKg).v2Ms;
+    const takeoffAero = aeroFor(def, ctx.aero, levers, { mach: speed / isa(0).speedOfSoundMs, fl: 0 });
+    return { normal: oeiSecondSegment(def, takeoffAero, highLift.clMaxTakeoff, massKg),
+      emergency: emergencyOeiSecondSegment(def, takeoffAero, highLift.clMaxTakeoff, massKg) };
+  };
+  const missionOei = oeiAt(oew + payload + missionFuelKg);
+  const designOei = oeiAt(w.mtowKg);
+  const oei = missionOei.normal, oeiEmergency = missionOei.emergency;
   const k = 1 / (Math.PI * ((aero.spanM * aero.spanM) / aero.wingAreaM2) * aero.oswald);
-  const constraints = checkConstraints(def, ctx.constraintsRef, { payloadLimitedByMzfw, ceilingFl: thrust.ceilingFl, oeiGradient: oei.gradient, oeiEmergencyGradient: oeiEmergency?.gradient, highLift });
+  const constraints = checkConstraints(def, ctx.constraintsRef, { payloadLimitedByMzfw, ceilingFl: thrust.ceilingFl,
+    oeiGradient: oei.gradient, oeiEmergencyGradient: oeiEmergency?.gradient, oeiMassKg: oei.massKg,
+    oeiMtowGradient: designOei.normal.gradient, oeiMtowEmergencyGradient: designOei.emergency?.gradient,
+    bprModelUsed: levers.some(l => l.id === 'bypass-ratio'), highLift });
   if (!missionResult.feasible) constraints.push({
     id: "mission-distance",
     label: "Достижение заданной дальности с резервами",
@@ -310,7 +325,9 @@ export function evaluateResolved(
       ctx.aero, cruiseSample?.fl ?? as.cruiseFL, cruiseSample?.mach ?? as.cruiseMach),
     thrust,
     oei,
+    oeiAtMtow: designOei.normal,
     oeiEmergency,
+    oeiEmergencyAtMtow: designOei.emergency,
     highLift,
   };
 }
