@@ -1,9 +1,10 @@
 // Wheel-well boundaries in plan. Only rigid lower skins are trimmed;
 // keep the original vertex layout and UVs elsewhere, including the cockpit and wing tips.
 import * as THREE from "three";
+import type { Surface } from "./gearDoors.ts";
 
 type PlanPoint = { x: number; z: number };
-export type BayOpening = { x0: number; x1: number; z0: number; z1: number; polygon?: PlanPoint[] };
+export type BayOpening = { x0: number; x1: number; z0: number; z1: number; polygon?: PlanPoint[]; ceiling?: (x: number, y: number, z: number) => number };
 /** A blind well has sidewalls and a ceiling, so an open bay is not a window into the cabin.
  * The lower edge follows its installed skin, and sits behind the narrow hinge sill. */
 export function wellLiner(name: string, x0: number, x1: number, halfWidth: number, roof: (x: number, z: number) => number,
@@ -43,8 +44,38 @@ export function wellLiner(name: string, x0: number, x1: number, halfWidth: numbe
   return g;
 }
 
+/** One blind main-gear chamber. Sample both axes of the installed roof,
+ * including the wing/body fillet and any curvature towards the rear jamb. */
+export function mainWellLiner(side: -1 | 1, x0: number, x1: number, outer: number, roof: Surface,
+  lower: Surface, nx: number, nz: number, closedCentre: boolean) {
+  const positions: number[] = [];
+  type Point = [number, number, number];
+  const quad = (a: Point, b: Point, c: Point, d: Point) => positions.push(...a, ...b, ...c, ...a, ...c, ...d);
+  const point = (x: number, z: number, top: boolean): Point => [x,
+    top ? roof(x, z) : Math.min(lower(x, z) + .025, roof(x, z) - .015), side * z];
+  for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
+    const a = THREE.MathUtils.lerp(x0, x1, i / nx), b = THREE.MathUtils.lerp(x0, x1, (i + 1) / nx);
+    const c = outer * j / nz, d = outer * (j + 1) / nz;
+    quad(point(a, c, true), point(a, d, true), point(b, d, true), point(b, c, true));
+  }
+  for (const x of [x0, x1]) for (let j = 0; j < nz; j++) {
+    const a = outer * j / nz, b = outer * (j + 1) / nz;
+    quad(point(x, a, false), point(x, b, false), point(x, b, true), point(x, a, true));
+  }
+  for (const z of (closedCentre ? [0, outer] : [outer])) for (let i = 0; i < nx; i++) {
+    const a = THREE.MathUtils.lerp(x0, x1, i / nx), b = THREE.MathUtils.lerp(x0, x1, (i + 1) / nx);
+    quad(point(a, z, false), point(b, z, false), point(b, z, true), point(a, z, true));
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+  geometry.name = "main-wheel-well";
+  Object.assign(geometry.userData, { side, gearWell: true, tone: "detailDark", basePos: new THREE.Vector3(), roofGrid: { nx, nz } });
+  return geometry;
+}
+
 type Vertex = { index: number; x: number; y: number; z: number; nx: number; ny: number; nz: number; u: number; v: number };
-type HalfPlane = { nx: number; nz: number; offset: number };
+type HalfPlane = { nx: number; nz: number; offset: number; ceiling?: BayOpening["ceiling"] };
 
 /** Inward-facing lines for a convex opening, including a faceted circular wheel port. */
 function openingPlanes({ x0, x1, z0, z1, polygon }: BayOpening): HalfPlane[] {
@@ -64,9 +95,9 @@ function openingPlanes({ x0, x1, z0, z1, polygon }: BayOpening): HalfPlane[] {
   });
 }
 
-function slice(polygon: Vertex[], { nx, nz, offset }: HalfPlane): [Vertex[], Vertex[]] {
+function slice(polygon: Vertex[], { nx, nz, offset, ceiling }: HalfPlane): [Vertex[], Vertex[]] {
   const inside: Vertex[] = [], outside: Vertex[] = [];
-  const distances = polygon.map(p => nx * p.x + nz * p.z - offset);
+  const distances = polygon.map(p => ceiling ? ceiling(p.x, p.y, p.z) : nx * p.x + nz * p.z - offset);
   if (distances.every(d => d >= 0)) return [polygon, outside];
   if (distances.every(d => d <= 0)) return [inside, polygon];
   for (let i = 0; i < polygon.length; i++) {
@@ -103,12 +134,16 @@ function removeOpening(polygon: Vertex[], opening: BayOpening & { planes: HalfPl
 
 export function cutBayOpenings(g: THREE.BufferGeometry, openings: BayOpening[], keepUpper: boolean) {
   const p = g.getAttribute("position"), n = g.getAttribute("normal"), uv = g.getAttribute("uv"), index = g.getIndex();
-  if (!index || !uv || !n) return;
-  const cuts = openings.map(o => ({ ...o, planes: openingPlanes(o) }));
+  if (!index || !n) return;
+  const cuts = openings.map(o => {
+    const planes = openingPlanes(o);
+    if (o.ceiling) planes.push({ nx: 0, nz: 0, offset: 0, ceiling: o.ceiling });
+    return { ...o, planes };
+  });
   const pos: number[] = [], normals: number[] = [], tex: number[] = [], faces: number[] = [];
   const read = (i: number): Vertex => ({
     index: i, x: p.getX(i), y: p.getY(i), z: p.getZ(i),
-    nx: n.getX(i), ny: n.getY(i), nz: n.getZ(i), u: uv.getX(i), v: uv.getY(i)
+    nx: n.getX(i), ny: n.getY(i), nz: n.getZ(i), u: uv?.getX(i) ?? 0, v: uv?.getY(i) ?? 0
   });
   const id = (pt: Vertex) => {
     if (pt.index >= 0) return pt.index;
@@ -116,7 +151,7 @@ export function cutBayOpenings(g: THREE.BufferGeometry, openings: BayOpening[], 
     pos.push(pt.x, pt.y, pt.z);
     const length = Math.hypot(pt.nx, pt.ny, pt.nz) || 1;
     normals.push(pt.nx / length, pt.ny / length, pt.nz / length);
-    tex.push(pt.u, pt.v);
+    if (uv) tex.push(pt.u, pt.v);
     return pt.index;
   };
   let cut = false;
@@ -137,6 +172,6 @@ export function cutBayOpenings(g: THREE.BufferGeometry, openings: BayOpening[], 
   if (!cut) return;
   g.setAttribute("position", new THREE.Float32BufferAttribute([...p.array, ...pos], 3));
   g.setAttribute("normal", new THREE.Float32BufferAttribute([...n.array, ...normals], 3));
-  g.setAttribute("uv", new THREE.Float32BufferAttribute([...uv.array, ...tex], 2));
+  if (uv) g.setAttribute("uv", new THREE.Float32BufferAttribute([...uv.array, ...tex], 2));
   g.setIndex(faces);
 }

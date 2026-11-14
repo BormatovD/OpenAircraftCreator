@@ -325,6 +325,8 @@ export interface SurfaceShape {
   /** Optional curved centreline in the span plane, with its local inclination (radians). */
   spanPath?: (u: number) => { rise: number; run: number; angle: number };
   planform?: (u: number) => { le: number; chord: number; thickness?: number };
+  /** Local height of the upper wing/body fillet above the clean wing skin (m). */
+  upperFillet?: (x: number, z: number) => number;
   /** Абсолютная полутолщина в точке (u, v), м — для поверхностей с наплывом (форкиль), где профиль не подобен. */
   halfThickness?: (u: number, v: number) => number;
   /** Граница руля в доле хорды как функция u (прямая ось руля на поверхности с наплывом). */
@@ -350,8 +352,10 @@ export function surfacePoint(s: SurfaceShape, u: number, v: number, upper: boole
   const rise = path?.rise ?? span * Math.sin(d);
   const run = path?.run ?? span * Math.cos(d);
   const normal = new THREE.Vector3(0, Math.cos(d), -side * Math.sin(d));
-  return new THREE.Vector3(s.root.x + le + v * chord, s.root.y + rise, s.root.z + side * run)
+  const point = new THREE.Vector3(s.root.x + le + v * chord, s.root.y + rise, s.root.z + side * run)
     .addScaledVector(normal, half);
+  if (upper && s.upperFillet) point.y += s.upperFillet(point.x, Math.abs(point.z));
+  return point;
 }
 
 export function surfaceGeometry(s: SurfaceShape, segU = 24, segV = 28): THREE.BufferGeometry {

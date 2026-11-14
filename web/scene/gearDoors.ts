@@ -6,6 +6,8 @@ export type DoorDrive = "sequence" | "nose-link-front" | "nose-link-aft" | "nose
 export type DoorMotion = { axis: THREE.Vector3; angle: number; drive: DoorDrive };
 
 export type Surface = (x: number, absZ: number) => number;
+export type WingWellSkin = { roof: Surface; lower: Surface; trailingEdge: (absZ: number) => number };
+export const DOOR_RIM_INSET = .024;
 // A rigid two-sided shell follows the closed skin, with a narrow return around its perimeter.
 // The shell has thickness; both the interior and the outside remain visible with back-face culling.
 export function panel(name: string, profile: GearProfile, side: Side,
@@ -57,7 +59,7 @@ export function panelShell(name: string, side: Side, x0: number, x1: number, z0:
   g.setIndex(idx);
   g.computeVertexNormals();
   // Static rim is slightly inset under the door; the hinge side and centre seam stay supported.
-  const margin = .024;
+  const margin = DOOR_RIM_INSET;
   g.userData.bayOpening = {
     x0: x0 + margin, x1: x1 - margin,
     z0: Math.min(side * z0, side * z1) + margin, z1: Math.max(side * z0, side * z1) - margin

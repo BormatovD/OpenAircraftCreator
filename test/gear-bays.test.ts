@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import * as THREE from "three";
 import { AIRCRAFT } from "../web/aircraftCatalog.ts";
 import { buildAircraft } from "../web/scene/aircraft.ts";
+import { fuselageGeometry } from "../web/scene/shapes.ts";
 import { applyGearBracePose } from "../web/scene/landingGear.ts";
 import { gearLegTravel, applyGearBayPose } from "../web/scene/gearBay.ts";
 
@@ -89,6 +90,45 @@ for (const id of Object.keys(AIRCRAFT)) {
 function sortedPoint(mesh: THREE.Mesh, index: number) {
   return v().fromBufferAttribute(mesh.geometry.getAttribute("position"), index).applyMatrix4(mesh.matrixWorld);
 }
+
+test("737 MAX 8: continuous fuselage sidewall and fixed wing skin above the main well", () => {
+  const def = AIRCRAFT["b737-8"], model = buildAircraft(def);
+  const main = model.parts.get("gear.main")!.group.children as THREE.Mesh[];
+  const [hull] = model.parts.get("fuselage")!.group.children as THREE.Mesh[];
+  const wing = model.parts.get("wing.box")!.group.children as THREE.Mesh[];
+  const mat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+  const reference = new THREE.Mesh(fuselageGeometry(def.fuselage), mat);
+  for (const mesh of [hull, ...wing]) mesh.material = mat;
+  for (const side of [-1, 1]) {
+    const leg = main.find(m => m.geometry.name === "main-strut" && m.userData.side === side)!;
+    const cut = main.find(m => m.geometry.name === "main-inner-door" && m.userData.side === side)!.geometry.userData.bayOpening;
+    for (const frac of [.05, .35, .5, .85, .95]) {
+      const x = THREE.MathUtils.lerp(cut.x0, cut.x1, frac);
+      for (const y of [-.80, -.56, -.29, -.06]) {
+        const ray = new THREE.Raycaster(v(x, y, side * 5), v(0, 0, -side));
+        near(ray.intersectObject(hull)[0]?.distance, ray.intersectObject(reference)[0].distance);
+      }
+      // Fixed panels alone must cover the hinge even when the flaps leave the wing.
+      for (const z of [1.98, 2.2, 2.5, 2.86, 3.02]) {
+        const hits = new THREE.Raycaster(v(x, 3, side * z), v(0, -1, 0)).intersectObjects(wing);
+        assert.ok(hits[0] && hits[0].point.y > leg.userData.basePos.y - .015, "missing roof over the strut");
+      }
+    }
+    for (const up of [0, .25, .5, .75, 1]) {
+      pose(leg, up, 1);
+      const p = leg.geometry.getAttribute("position");
+      for (let i = 0; i < p.count; i += 3) {
+        const point = sortedPoint(leg, i);
+        if (side * point.z < 1.95 || point.y < leg.userData.basePos.y - .2) continue;
+        const roof = new THREE.Raycaster(v(point.x, 3, point.z), v(0, -1, 0)).intersectObjects(wing)[0];
+        assert.ok(roof && roof.point.y > point.y + .005, "trunnion projects through the fixed upper skin");
+      }
+    }
+  }
+  mat.dispose();
+  reference.geometry.dispose();
+  model.root.traverse(o => { if (o instanceof THREE.Mesh) o.geometry.dispose(); });
+});
 
 for (const id of ["b737-300", "b737-800", "b737-8"]) {
   test(`${id}: both outboard wheel faces remain exposed in their own openings after retraction`, () => {

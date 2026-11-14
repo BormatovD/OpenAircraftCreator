@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { panel, panelShell, type Surface } from "./gearDoors.ts";
-import { wellLiner } from "./gearOpenings.ts";
+import { panel, panelShell, type Surface, type WingWellSkin } from "./gearDoors.ts";
+import { cutBayOpenings, wellLiner, type BayOpening } from "./gearOpenings.ts";
 import type { ShapeSet } from "./shapeSet.ts";
 
 type Gear = ShapeSet["gear"];
@@ -47,7 +47,11 @@ function mesh(name: string, positions: number[], indices: number[], tone: string
 }
 function roundWell(g: Gear, side: Side, pivot: THREE.Vector3, lower: Surface, ground: number) {
   const a = rad(g.retractDeg), cap = capPoint(g, pivot.y, pivot.x, ground, a);
-  const n = 48, ca = Math.cos(a), sa = Math.sin(a), r = g.mainR + .045;
+  const n = 48, ca = Math.cos(a), sa = Math.sin(a);
+  // The rigid Classic/NG throat clears the mid-stroke tyre envelope behind
+  // the flexible shoulder seal; retain the approved MAX port dimensions.
+  const expandedThroat = g.boeing737Series === "classic" || g.boeing737Series === "ng";
+  const r = g.mainR + .045 + (expandedThroat ? .100 : 0);
   const oval = (i: number, radius: number) => {
     const t = i / n * Math.PI * 2;
     return { x: cap.x + radius * Math.cos(t), z: side * (cap.z + radius * Math.sin(t) * sa) };
@@ -104,11 +108,48 @@ function fixedToLeg(geom: THREE.BufferGeometry, pivot: THREE.Vector3, side: Side
   return geom;
 }
 
-export function boeing737MainDoors(g: Gear, side: Side, pivot: THREE.Vector3, lower: Surface, ground: number) {
+function trunnionFairing(side: Side, x: number, width: number, wingHinge: number,
+  doorSkin: Surface, openings: BayOpening[], skin: WingWellSkin) {
+  const x0 = x - width, x1 = x + width;
+  const outside: number[] = [], fi: number[] = [];
+  const patch = (nx: number, nz: number, f: (u: number, v: number) => THREE.Vector3) => {
+    const start = outside.length / 3;
+    for (let i = 0; i <= nx; i++) for (let j = 0; j <= nz; j++) outside.push(...f(i / nx, j / nz).toArray());
+    for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
+      const a = start + i * (nz + 1) + j, b = a + nz + 1;
+      if (side === 1) fi.push(a, b, b + 1, a, b + 1, a + 1); else fi.push(a, b + 1, b, a, a + 1, b + 1);
+    }
+  };
+  // One continuous wing/body insert. Sink its perimeter into intact skin and trim
+  // both real apertures after lofting, so a closed door meets the same sill it follows.
+  // The supplied Classic skin includes the fixed support aft of its original wing
+  // trailing edge; using that surface keeps the insert attached around its aft trunnion.
+  const outer = wingHinge + .20;
+  const station = (z: number, band: number) => [
+    x0 - .90, x0, x1, Math.min(x1 + .8, Math.max(x1 + .04, skin.trailingEdge(z) - .025))
+  ][band];
+  for (let band = 0; band < 3; band++) {
+    patch(16, 30, (u, v) => {
+      const z = THREE.MathUtils.lerp(.65, outer, v);
+      const xx = THREE.MathUtils.lerp(station(z, band), station(z, band + 1), u);
+      const along = band === 0 ? 1 - u : band === 2 ? u : 0;
+      const across = THREE.MathUtils.smoothstep(z, wingHinge, outer);
+      const blend = 1 - (1 - THREE.MathUtils.smoothstep(along, 0, 1)) * (1 - across);
+      return V(xx, THREE.MathUtils.lerp(doorSkin(xx, z), skin.lower(xx, z) + .004, blend), side * z);
+    });
+  }
+  const apron = mesh("main-trunnion-support-fairing", outside, fi, "detailPanel", side);
+  cutBayOpenings(apron, openings, false);
+  delete apron.userData.tone;
+  Object.assign(apron.userData, { fixedWingBody: true, bellyPaint: true });
+  return apron;
+}
+
+export function boeing737MainDoors(g: Gear, side: Side, pivot: THREE.Vector3, lower: Surface, ground: number, wellSkin: WingWellSkin) {
   const { seal, well, cap, r } = roundWell(g, side, pivot, lower, ground);
   const a = rad(g.retractDeg), angle = side * a, x = pivot.x;
-  // The wing skin in this mesh ends at the spar on the Classic. The actual
-  // shock strut pivots on the trunnion support beam aft of that spar (AMM 32-11).
+  // Seat the closed panels below the complete installed skin, including the
+  // Classic trunnion support aft of the original wing trailing edge.
   const doorSkin: Surface = (xx, z) => {
     const axisY = pivot.y + Math.min(0, z - g.mainZ) / Math.tan(a);
     const needed = axisY - .186 * g.mainR / .584 / Math.sin(a) - .014;
@@ -150,55 +191,37 @@ export function boeing737MainDoors(g: Gear, side: Side, pivot: THREE.Vector3, lo
   const localClosedPin = V(x, doorSkin(x, lowerHinge - .003), side * (lowerHinge - .003)).sub(pivot);
   inner.userData.inner737 = { localClosedPin, angle, side };
   const legWell = wellLiner("main-leg-well", x0 - .01, x1 + .01, wingHinge + .008,
-    (xx, z) => Math.max(lower(xx, Math.abs(z)) + .30, pivot.y + .26), lower, side, Math.min(...arc.map(pt => Math.abs(pt.z))));
-  // Stationary beam fairing around the strut slot: between the rear spar / flap end
-  // and aft trunnion. Fair the shell into the wing; taper the aft end to avoid
-  // adding a rectangular plate behind the Classic trailing edge.
-  const forwardReach = g.boeing737Series === "classic" ? 1.20 : .65;
-  const frameAt = (xx: number, z: number) => {
-    const chordT = THREE.MathUtils.clamp((xx - x0) / (x1 - x0), 0, 1);
-    const z0 = upperHinge - .14 + .10 * chordT, z1 = wingHinge + .07 + .11 * (1 - chordT);
-    return { z0, z1, y: doorSkin(xx, z) };
-  };
-  const outside: number[] = [], fi: number[] = [];
-  const patch = (nx: number, nz: number, f: (u: number, v: number) => THREE.Vector3) => {
-    const start = outside.length / 3;
-    for (let i = 0; i <= nx; i++) for (let j = 0; j <= nz; j++) outside.push(...f(i / nx, j / nz).toArray());
-    for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
-      const a = start + i * (nz + 1) + j, b = a + nz + 1;
-      if (side === 1) fi.push(a, b, b + 1, a, b + 1, a + 1); else fi.push(a, b + 1, b, a, a + 1, b + 1);
-    }
-  };
-  const face = (xx: number, z: number, depth: number) => V(xx, doorSkin(xx, z) + depth, side * z);
-  // Leading bridge: from the trailing-edge structure to the door jamb.
-  patch(8, 8, (u, v) => {
-    const xx = THREE.MathUtils.lerp(x - forwardReach, x0, u), { z0, z1 } = frameAt(xx, wingHinge);
-    const z = THREE.MathUtils.lerp(z0 - .09 * (1 - u), z1 + .09 * (1 - u), v);
-    return face(xx, z, (1 - u) * (lower(xx, z) - doorSkin(xx, z)) + .007);
-  });
-  // A tapered aft lip returns to a closed section instead of a floating trailing edge.
-  patch(4, 8, (u, v) => {
-    const xx = x1 + u * .10 * (1 - .65 * v), { z0, z1 } = frameAt(xx, wingHinge);
-    return face(xx, THREE.MathUtils.lerp(z0 + .04 * u, z1 - .04 * u, v), u * .095 + .006);
-  });
-  patch(8, 3, (u, v) => {
-    const xx = THREE.MathUtils.lerp(x0, x1, u), { z1 } = frameAt(xx, wingHinge);
-    return face(xx, THREE.MathUtils.lerp(wingHinge - .002, z1, v), .005 + .060 * v * v);
-  });
-  // Upper halves / returns enclose the trunnion and give the fixed beam depth.
-  patch(12, 6, (u, v) => {
-    const xx = THREE.MathUtils.lerp(x - forwardReach, x1 + .032, u), { z0, z1 } = frameAt(xx, wingHinge);
-    const z = THREE.MathUtils.lerp(z1, z0, v);
-    return face(xx, z, .12 + .07 * Math.sin(Math.PI * v));
-  });
-  for (const k of [0, 1]) patch(12, 2, (u, v) => {
-    const xx = THREE.MathUtils.lerp(x - forwardReach, x1 + .032, u), { z0, z1 } = frameAt(xx, wingHinge);
-    const z = k ? z1 : z0;
-    // The inboard sidewall stops at the actual door opening.
-    const lip = k ? .065 : xx >= x0 && xx <= x1 ? .117 : .011;
-    return face(xx, z, THREE.MathUtils.lerp(lip, .125, v));
-  });
-  const frame = mesh("main-trunnion-support-fairing", outside, fi, "detailPanel", side);
+    (xx, z) => wellSkin.roof(xx, Math.abs(z)), doorSkin, side, Math.min(...arc.map(pt => Math.abs(pt.z))));
+  const frame = trunnionFairing(side, x, width, wingHinge, doorSkin, [slot, seal.userData.bayOpening], wellSkin);
+  if (g.boeing737Series === "classic" || g.boeing737Series === "ng") {
+    // The visible port follows the outboard tyre; the hidden shared chamber must
+    // also clear the inboard tyre. Preserve the lower exterior skin and its seal.
+    const outer = cap.z + r * Math.sin(a) + .025;
+    const radius = g.mainR + .035, length = pivot.y - ground - g.mainR;
+    const axialHalf = g.mainTireW / 2 + .020;
+    // Bound the internal cut by the top of both swept tyre cylinders. A rectangular
+    // pocket alone reaches the outer barrel sidewall where the wheel never passes.
+    const chamberTop = (zz: number) => {
+      let top = ground + g.mainR;
+      for (let i = 1; i <= 100; i++) {
+        const turn = a * i / 100, sa = Math.sin(turn), ca = Math.cos(turn);
+        for (const axle of [-g.mainWheelGap, g.mainWheelGap]) {
+          const minAxial = Math.max(axle - axialHalf, (zz - g.mainZ + (length - radius) * sa) / ca);
+          const maxAxial = Math.min(axle + axialHalf, (zz - g.mainZ + (length + radius) * sa) / ca);
+          if (minAxial <= maxAxial) top = Math.max(top, pivot.y + (zz - g.mainZ) * ca / sa - minAxial / sa);
+        }
+      }
+      return top + .060;
+    };
+    const pocket: BayOpening = {
+      x0: x - radius, x1: x + radius,
+      z0: side > 0 ? 0 : -outer, z1: side > 0 ? outer : 0,
+      ceiling: (xx, y, z) => Math.min(y - lower(xx, Math.abs(z)) - .020,
+        wellSkin.roof(xx, Math.abs(z)) - .025 - y, chamberTop(Math.abs(z)) - y),
+    };
+    well.userData.wingPocket = pocket;
+    cutBayOpenings(frame, [pocket], false);
+  }
   // Only an OUTBOARD hubcap, moving with its wheel; never a panel closing the tyre port.
   const cover = new THREE.LatheGeometry([[0, .47], [.20, .47], [.45, .445], [.53, .41], [.535, .38]]
     .map(([rr, zz]) => new THREE.Vector2(g.mainR * rr, g.mainTireW * zz)), 40);

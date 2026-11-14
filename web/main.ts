@@ -362,7 +362,9 @@ function buildScene(): void {
       if (!(o instanceof THREE.Mesh)) return;
       const tone = o.userData.tone as string | null;
       // Детали двигателя красятся по валам: НД, ВД, камера сгорания; кожух — цветом группы.
-      if (tone === "casing") {
+      if (o.geometry.userData.bellyPaint) {
+        o.material = mat.clone();
+      } else if (tone === "casing") {
         if (!toned.has(tone)) {
           const m = mat.clone();
           m.transparent = true;
@@ -429,7 +431,7 @@ function buildScene(): void {
       part.group.traverse((o) => {
         if (o instanceof THREE.Mesh) {
           const m = o.material as THREE.MeshStandardMaterial;
-          if (!m.map && !o.userData.tone) {
+          if (!m.map && !o.userData.tone && !o.geometry.userData.bellyPaint) {
             m.map = tex;
             m.needsUpdate = true;
           }
@@ -614,6 +616,10 @@ function applyLivery(natural: boolean): void {
       // Полупрозрачный кожух двигателя — тоже в цвет окраски гондолы.
       if (!(o instanceof THREE.Mesh) || (o.userData.tone && o.userData.tone !== "casing")) return;
       const m = o.material as THREE.MeshStandardMaterial;
+      if (o.geometry.userData.bellyPaint) {
+        m.color.set(l?.belly ?? css(`--${p.family}`));
+        return;
+      }
       m.color.set(color ?? css(`--${p.family}`));
       if (o.userData.tone === "casing") return;
       if (map !== undefined && m.map !== map) {
@@ -709,7 +715,8 @@ function declutter(now: number): void {
 }
 
 function inspectingGearBay(): boolean {
-  return state.drawerTab === TRAVEL_TAB && mechanismFor(state.selected) === "gear";
+  return state.drawerTab === TRAVEL_TAB && mechanismFor(state.selected) === "gear"
+    && (state.selected !== "gear.main" || $<HTMLInputElement>("expose-gear-bay").checked);
 }
 
 function applySelection(): void {
@@ -798,7 +805,7 @@ function select(id: string | null, hitSide = 0): void {
     // inspection angle separate from framing so the user can orbit freely.
     if (state.selected === "gear.main" || state.selected === "gear.nose") {
       const side = selectedSide || (camera.position.z < controls.target.z ? -1 : 1);
-      const direction = new THREE.Vector3(state.selected === "gear.main" ? .62 : -.42, .06, side).normalize();
+      const direction = new THREE.Vector3(state.selected === "gear.main" ? .62 : -.42, state.selected === "gear.main" ? -.53 : .06, side).normalize();
       const distance = camera.position.distanceTo(controls.target);
       camera.position.copy(controls.target).addScaledVector(direction, distance);
       camera.lookAt(controls.target);
@@ -1106,6 +1113,10 @@ $("expose-mounts").addEventListener("change", event => {
   exposeMounts = (event.currentTarget as HTMLInputElement).checked;
   applyExplode();
 });
+$("expose-gear-bay").addEventListener("change", () => {
+  applySelection();
+  renderLevers();
+});
 $("travel-range").addEventListener("input", event => {
   const mechanism = mechanismFor(state.selected);
   if (!mechanism) return;
@@ -1166,6 +1177,7 @@ function renderLevers(): void {
   $("levers").hidden = about || reverser || inspectingMounts || !!mechanism;
   if (mechanism) {
     drawer.dataset.content = "travel";
+    $("gear-bay-view").hidden = state.selected !== "gear.main";
     $("travel-label").textContent = mechanism === "gear" ? "Выпуск шасси" : "Выпуск механизации крыла";
     const pct = Math.round(100 * inspectionTravel[mechanism]);
     $<HTMLInputElement>("travel-range").value = String(pct);
