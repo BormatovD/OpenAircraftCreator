@@ -26,6 +26,7 @@ export interface AircraftPreset {
   /** Equivalent spelling of the same engine in an external catalog, never a different model. */
   engineAliases?: string[];
   weightProfile: string;
+  routeSolver?: string;
   defaultLayoutId: string;
   layouts: CabinLayout[];
 }
@@ -142,10 +143,7 @@ export const LEAP_ROUTE_MODEL = "a320neo-leap-mission-v1";
 export const CFM56_ROUTE_MODEL = "a320ceo-cfm56-5b-mission-v1";
 
 export function routeModelFor(aircraftId: string) {
-  if (aircraftId === "a320ceo") return CFM56_ROUTE_MODEL;
-  if (aircraftId === "a320neo") return LEAP_ROUTE_MODEL;
-  if (aircraftId === "a321neo") return "a321neo-leap-mission-v1" as const;
-  return undefined;
+  return presetFor(aircraftId)?.routeSolver;
 }
 
 export interface FlightCostDesign {
