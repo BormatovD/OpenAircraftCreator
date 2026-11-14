@@ -4,6 +4,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { B757_PW2037, B757_RB211 } from "../../src/aircraft/b757.ts";
 import { useShapes } from "./shapeSet.ts";
 import { cockpitGlazing } from "./cockpit.ts";
 import { cabinOpenings } from "./features.ts";
@@ -22,7 +23,7 @@ import {
   leadingEdgeSweep,
   modelX,
   nacaHalfThickness,
-  nacelleBaseRadius,
+  nacelleScale,
   nacelleFanFace,
   nacelleSegments,
   nacelleStyleFor,
@@ -545,7 +546,12 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   const engZ = Math.min(SH.nacelle.axisZ, 0.6 * semi);
   const lePoint = surfacePoint(wingShape(1), engZ / semi, 0, false);
   const R = e.nacelleWidthM / 2;
-  const nacX = modelX(L, SH.nacelle.inletX) - (e.nacelleLengthM - SH.nacelle.refLengthM) * 0.6;
+  const rb211 = SH.id === "b757" && e.name.startsWith("RB211");
+  const pw2037 = SH.id === "b757" && e.name.startsWith("PW");
+  // Keep the measured shell dimensions independent of the calibrated drag/mass input.
+  const reference = pw2037 ? B757_PW2037 : rb211 ? B757_RB211 : undefined;
+  const shellLength = reference ? SH.nacelle.refLengthM * (e.nacelleLengthM / reference.engine.nacelleLengthM) : e.nacelleLengthM;
+  const nacX = modelX(L, SH.nacelle.inletX) - (shellLength - SH.nacelle.refLengthM) * 0.6;
   const wingLow = surfacePoint(wingShape(1), engZ / semi, 0.2, false).y;
   // Земля — низ шин на виде сбоку AC (3,87 м под осью фюзеляжа). Ось двигателя — из клиренса 0,57 м
   // базовой гондолы CEO: при большем вентиляторе ось на месте, низ гондолы опускается (как в слое ограничений).
@@ -554,33 +560,62 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
   const axisY = (SH.nacelle.axisY ?? groundY + SH.nacelle.clearanceM + 2.37 / 2) + e.nacelleRaiseM;
   // Гондола по AC 2-12-0: тип по двухконтурности (длинный канал CFM56 или раздельные потоки LEAP),
   // длина и радиус — от базовой гондолы этого типа, масштабированной по определению.
-  const style = nacelleStyleFor(e.bypassRatio);
-  const baseNacLen = style === "longDuct" ? 4.44 : 4.44 * (1.98 / 1.73);
-  const baseNacW = style === "longDuct" ? 2.37 : 2.37 * (1.98 / 1.73);
-  const lengthK = e.nacelleLengthM / baseNacLen;
-  const radiusK = ((e.nacelleWidthM / baseNacW) * (style === "longDuct" ? 1.185 : 1.355)) / nacelleBaseRadius(style);
+  const style = pw2037 ? "pw2037" : rb211 ? "rb211" : nacelleStyleFor(e.bypassRatio);
+  const { lengthK, radiusK } = nacelleScale(style, shellLength, e.nacelleWidthM);
   const nacelleParts: THREE.BufferGeometry[] = [];
   for (const side of [1, -1] as const) {
     for (const seg of nacelleSegments(style, lengthK, radiusK)) {
       seg.geometry.translate(nacX, axisY, side * engZ);
+      if ((rb211 && seg.id === "nozzle") || seg.id === "lip") seg.geometry.userData.tone = "detailSteel";
+      if (pw2037 && seg.id === "coreCowl") seg.geometry.userData.tone = "detailSteel";
+      if (pw2037 && (seg.id === "nozzle" || seg.id === "plug")) seg.geometry.userData.tone = "detailDark";
       // При разборе сегменты расходятся вдоль оси — видно, из чего состоит гондола.
-      const spread: Record<string, number> = { inlet: -1.2, fanCowl: -0.4, reverser: 0.4, nozzle: 1.2, coreCowl: 1.2, plug: 1.8 };
+      const spread: Record<string, number> = { lip: -1.2, inlet: -1.2, fanCowl: -0.4, reverser: 0.4, nozzle: 1.2, coreCowl: 1.2, plug: 1.8 };
       seg.geometry.userData.offset = v3(spread[seg.id] ?? 0, 0, 0);
       nacelleParts.push(sided(seg.geometry, side));
     }
     // Пилон: от верха гондолы к нижней поверхности крыла, передняя кромка скошена.
-    const pyl = new THREE.Shape();
-    const x0 = nacX + 0.9 * lengthK;
-    const x1 = lePoint.x + 2.4;
-    const yb = axisY + R * 0.75;
-    const yt = wingLow + 0.15;
-    pyl.moveTo(x0, yb);
-    pyl.lineTo(x1 + 0.6, yb + 0.25);
-    pyl.lineTo(x1, yt);
-    pyl.lineTo(x0 + 1.2, yt);
-    pyl.closePath();
-    const pg = new THREE.ExtrudeGeometry(pyl, { depth: 0.32, bevelEnabled: false });
-    pg.translate(0, 0, side * engZ - 0.16);
+    let pg: THREE.BufferGeometry;
+    if (rb211 || pw2037) {
+      // Rounded strut fairing in the common Boeing side view. Carry the aft
+      // end inside the wing and the lower edge inside the reverser housing.
+      const strut = new THREE.Shape();
+      const x = (station: number) => nacX + station * lengthK;
+      const low = axisY + R * 0.64;
+      const front = axisY + R;
+      const aft = surfacePoint(wingShape(side), engZ / semi, 0.31, false);
+      strut.moveTo(x(0.65), low);
+      strut.lineTo(x(0.65), front - 0.12);
+      strut.bezierCurveTo(x(0.73), front + 0.10, x(1.00), front + 0.24, x(1.40), front + 0.25);
+      strut.bezierCurveTo(x(2.15), front + 0.27, lePoint.x - 0.48, lePoint.y - 0.18, lePoint.x + 0.18, lePoint.y + 0.02);
+      strut.lineTo(aft.x, aft.y + 0.13);
+      if (pw2037) {
+        // The PW strut follows the narrower exposed core aft of the fan nozzle.
+        strut.quadraticCurveTo(aft.x - 0.10, aft.y - 0.18, x(5.85), axisY + 0.38 * R);
+        strut.lineTo(x(3.55), low);
+      } else {
+        strut.quadraticCurveTo(aft.x - 0.16, aft.y - 0.13, x(4.45), axisY + 0.78 * R);
+        strut.lineTo(x(4.20), low);
+      }
+      strut.closePath();
+      pg = new THREE.ExtrudeGeometry(strut, { depth: 0.28 * radiusK, bevelThickness: 0.06 * radiusK,
+        bevelSize: 0.055 * radiusK, bevelSegments: 4, curveSegments: 20 });
+      pg.translate(0, 0, side * engZ - 0.14 * radiusK);
+      if (pw2037) pg.userData.tone = "detailPanel";
+    } else {
+      const pyl = new THREE.Shape();
+      const x0 = nacX + 0.9 * lengthK;
+      const x1 = lePoint.x + 2.4;
+      const yb = axisY + R * 0.75;
+      const yt = wingLow + 0.15;
+      pyl.moveTo(x0, yb);
+      pyl.lineTo(x1 + 0.6, yb + 0.25);
+      pyl.lineTo(x1, yt);
+      pyl.lineTo(x0 + 1.2, yt);
+      pyl.closePath();
+      pg = new THREE.ExtrudeGeometry(pyl, { depth: 0.32, bevelEnabled: false });
+      pg.translate(0, 0, side * engZ - 0.16);
+    }
     nacelleParts.push(sided(pg, side));
   }
   add("nacelles", nacelleParts, v3(0, -10.5, 0), v3(-1.5, -1.6, 3), false, 3);
@@ -597,7 +632,11 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
     gearbox: e.cycle.gearbox,
   });
   for (const side of [1, -1] as const) {
-    const basePos = v3(nacX + nacelleFanFace(style, lengthK) - 0.1, axisY, side * engZ);
+    // The cutaway spinner starts at zero and its plug ends at 1.1 × lengthM.
+    const fanOffset = pw2037 ? 0.10 * engineBareLength : 0.1;
+    // EASA E.061 §III.4 measures the -535E4 from spinner nose to common nozzle.
+    const spinnerX = rb211 ? shellLength - 5.0359 * lengthK : nacelleFanFace(style, lengthK) - fanOffset;
+    const basePos = v3(nacX + spinnerX, axisY, side * engZ);
     for (const p of pieces) {
       const g = p.geometry.clone();
       g.userData = { side, tone: p.tone, spin: p.spin, offset: p.offset, basePos };
@@ -820,7 +859,12 @@ export function buildAircraft(def: AircraftDefinition, opts: BuildOptions = {}):
     harness.push(bundle([inHull(v3(wingRoot.x + 1.5, -0.85, z)), mid(0.12), mid(0.25), mid(engZ / semi), mid(0.6), mid(0.95)], false));
     // Ответвление к двигателю — вниз по пилону.
     const pyl = mid(engZ / semi);
-    harness.push(bundle([pyl, v3(pyl.x - 0.6, axisY + R * 0.9, side * engZ), v3(pyl.x - 1.6, axisY + R * 0.55, side * engZ)], false));
+    if (rb211 || pw2037) {
+      harness.push(bundle([pyl, v3(pyl.x - 0.12 * lengthK, axisY + R, side * engZ),
+        v3(nacX + 4.05 * lengthK, axisY + R * 0.70, side * engZ)], false));
+    } else {
+      harness.push(bundle([pyl, v3(pyl.x - 0.6, axisY + R * 0.9, side * engZ), v3(pyl.x - 1.6, axisY + R * 0.55, side * engZ)], false));
+    }
   }
   // В киль — к рулю направления и огням; в нос — к локатору.
   // В киле — вдоль заднего лонжерона (≈60% хорды основного киля).

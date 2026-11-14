@@ -1,9 +1,64 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import * as THREE from "three";
 import B757 from "../data/ac/b757-shapes.json" with { type: "json" };
+import { B757_PW2037, B757_RB211 } from "../src/aircraft/b757.ts";
+import { buildAircraft } from "../web/scene/aircraft.ts";
+import { nacelleSegments } from "../web/scene/shapes.ts";
 
 const near = (actual: number, reference: number, tolerance: number) =>
   assert.ok(Math.abs(actual - reference) <= tolerance, `${actual} differs from ${reference} by more than ${tolerance}`);
+
+test("757: обе гондолы RB211 имеют общее сопло и соответствуют установочным размерам", () => {
+  const model = buildAircraft(B757_RB211);
+  model.root.updateMatrixWorld(true);
+  for (const side of [-1, 1]) {
+    const parts = model.parts.get("nacelles")!.group.children.filter(o => o.userData.side === side);
+    const rings = parts.filter(o => (o as THREE.Mesh).geometry.type === "LatheGeometry");
+    const shell = rings.reduce((box, ring) => box.expandByObject(ring), new THREE.Box3());
+    near(shell.min.x, 16.84, 1e-4);
+    near(shell.max.x - shell.min.x, 5.50, 1e-4);
+    near(shell.max.z - shell.min.z, 2.46, 1e-4);
+    near((shell.min.z + shell.max.z) / 2, side * 6.48, 1e-4);
+    near(shell.min.y - B757.groundY, 0.8575, 1e-4);
+    const engine = model.parts.get("engines")!.group.children.filter(o => o.userData.side === side);
+    const spinner = new THREE.Box3().setFromObject(engine[0]);
+    near(shell.max.x - spinner.min.x, 5.0359, 1e-4);
+    const nozzle = rings.find(o => new THREE.Box3().setFromObject(o).max.x === shell.max.x) as THREE.Mesh;
+    const vertices = nozzle.geometry.getAttribute("position");
+    const lipRadii = [];
+    for (let i = 0; i < vertices.count; i++) {
+      if (Math.abs(vertices.getX(i) - shell.max.x) < 1e-4)
+        lipRadii.push(Math.hypot(vertices.getY(i) - B757.nacelle.axis_y, vertices.getZ(i) - side * 6.48));
+    }
+    near(Math.min(...lipRadii), 0.765, 1e-4);
+    near(Math.max(...lipRadii), 0.80, 1e-4);
+  }
+  model.root.traverse(o => { if (o instanceof THREE.Mesh) o.geometry.dispose(); });
+});
+
+test("757: PW2037 имеет два раздельных среза на обеих установленных гондолах", () => {
+  const model = buildAircraft(B757_PW2037);
+  model.root.updateMatrixWorld(true);
+  for (const side of [-1, 1]) {
+    const parts = model.parts.get("nacelles")!.group.children.filter(o => o.userData.side === side);
+    const rings = parts.filter(o => (o as THREE.Mesh).geometry.type === "LatheGeometry");
+    const shell = rings.reduce((box, ring) => box.expandByObject(ring), new THREE.Box3());
+    near(shell.min.x, 16.61, 1e-4);
+    near(shell.max.x - shell.min.x, 6.05, 1e-4);
+    near(shell.max.z - shell.min.z, 2.69, 1e-4);
+    near((shell.min.z + shell.max.z) / 2, side * 6.48, 1e-4);
+    near(shell.min.y - B757.groundY, .7425, 1e-4);
+  }
+  const segments = nacelleSegments("pw2037", 1, 1);
+  for (const [id, end] of [["reverser", 3.78], ["coreCowl", 4.92], ["nozzle", 6.05], ["plug", 5.94]] as const) {
+    const geometry = segments.find(s => s.id === id)!.geometry;
+    geometry.computeBoundingBox();
+    near(geometry.boundingBox!.max.x, end, 1e-4);
+  }
+  segments.forEach(s => s.geometry.dispose());
+  model.root.traverse(o => { if (o instanceof THREE.Mesh) o.geometry.dispose(); });
+});
 
 test("757: собственные векторные контуры имеют источник и отдельные длины корпуса/самолёта", () => {
   assert.equal(B757._source.revision, "H");

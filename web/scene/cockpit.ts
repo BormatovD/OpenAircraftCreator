@@ -5,7 +5,8 @@
 
 import * as THREE from "three";
 import { S } from "./shapeSet.ts";
-import { type FuselageShape, fuselageHalfWidthAt, fuselageSection } from "./shapes.ts";
+import { type FuselageShape, fuselageHalfWidthAt, fuselageSection, cockpitHullFacets } from "./shapes.ts";
+import { facetWidth } from "./cockpitSurfaces.ts";
 
 type P2 = [number, number];
 
@@ -89,6 +90,7 @@ function decal(
 }
 
 export function cockpitGlazing(f: FuselageShape): THREE.BufferGeometry[] {
+  const cockpit = S().cockpit;
   const axis = (p: THREE.Vector3) => new THREE.Vector3(Math.max(p.x, 3), fuselageSection(f, Math.max(p.x, 3)).cy, 0);
   // Где на обшивке носа точка (z, y) вида спереди: первая станция x, на которой ширина на высоте y достигает |z|.
   const front = (side: 1 | -1) => (z: number, y: number) => {
@@ -104,18 +106,27 @@ export function cockpitGlazing(f: FuselageShape): THREE.BufferGeometry[] {
   const sideMap = (side: 1 | -1) => (x: number, y: number) => new THREE.Vector3(x, y, side * fuselageHalfWidthAt(f, x, y));
   const out: THREE.BufferGeometry[] = [];
   const ownCockpit = S().id === "tu214" || S().id === "b757";
-  const window = (poly: P2[], mapping: (a: number, b: number) => THREE.Vector3) => {
+  const window = (poly: P2[], mapping: (a: number, b: number) => THREE.Vector3, glassInset = cockpit.glassInsetM ?? 0.065) => {
     if (ownCockpit) {
       // Обод плотно прилегает к форме обшивки; стекло внутри рамы чуть выше по нормали.
       // A320/737 retain their existing glazing and material settings.
       const rim = decal(poly, mapping, axis, 0.006, 0.011);
       rim.userData.tone = "glassFrame";
       out.push(rim);
-      const glass = decal(poly, mapping, axis, 0.065, 0.018);
+      const glass = decal(poly, mapping, axis, glassInset, 0.018);
       glass.userData.tone = "glass";
       out.push(glass);
     } else out.push(decal(poly, mapping, axis));
   };
+  if (cockpit.planarGlazing) {
+    for (const side of [1, -1] as const) {
+      for (const [i, panel] of cockpitHullFacets(f).entries()) {
+        window(panel.polygon, (x, y) => new THREE.Vector3(x, y, side * facetWidth(panel, x, y)),
+          i === 0 ? 0.016 : cockpit.glassInsetM);
+      }
+    }
+    return out;
+  }
   for (const side of [1, -1] as const) {
     window(S().cockpit.windscreen, front(side));
     for (const w of S().cockpit.side) window(w, sideMap(side));

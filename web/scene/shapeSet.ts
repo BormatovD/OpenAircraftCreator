@@ -9,6 +9,7 @@
 import A320 from "../../data/ac/a320-shapes.json" with { type: "json" };
 import B737 from "../../data/ac/b737-8-shapes.json" with { type: "json" };
 import B757 from "../../data/ac/b757-shapes.json" with { type: "json" };
+import PHOTO_FOREBODIES from "../../data/ac/photo-forebodies.json" with { type: "json" };
 import TU214 from "../../data/ac/tu214-shapes.json" with { type: "json" };
 import { type AircraftDefinition } from "../../src/definition.ts";
 
@@ -24,7 +25,11 @@ export interface Feature {
 
 export interface ShapeSet {
   id: "a320" | "b737" | "b757" | "tu214";
-  fuselage: { x: number[]; top: number[]; bottom: number[]; half_width: number[] };
+  fuselage: {
+    x: number[]; top: number[]; bottom: number[]; half_width: number[];
+    /** Small radome apex blend; dense sampling keeps close-up silhouettes smooth. */
+    tipBlendM?: number; noseSegments?: number;
+  };
   /** Радиус сечения по углу; fullTurn — таблица на полный оборот, иначе верхняя половина зеркалится вниз. */
   section: { deg: number[]; r: number[]; fullTurn: boolean };
   /** Полувысота и полуширина цилиндрической части на чертеже, м. */
@@ -37,7 +42,16 @@ export interface ShapeSet {
   stretchReference?: { referenceLengthM: number; forwardM: number };
   features: Feature[];
   featuresBySide?: { left: Feature[]; right: Feature[] };
-  cockpit: { windscreen: P2[]; side: P2[][] };
+  cockpit: {
+    windscreen: P2[]; side: P2[][];
+    /** Shared A-pillar from the side drawing; front-pane outer z is resolved on the hull. */
+    sideJunction?: { top: P2; bottom: P2 };
+    glassInsetM?: number;
+    /** Photo-guided flat panes and their common mounting surfaces. */
+    planarGlazing?: boolean;
+    sideSlopeX?: number[];
+    sillBlendM?: number;
+  };
   wing: {
     le: Line;
     /** Внутренняя часть передней кромки (наплыв у корня): кромка — ближняя к носу из двух прямых. */
@@ -268,13 +282,34 @@ const B737_SET: ShapeSet = {
   },
 };
 
+// Photo corrections belong to the visual shape set. Preserve the original
+// traced data and every aircraft definition used by the performance model.
+function photoForebody(base: ShapeSet["fuselage"], photo: typeof PHOTO_FOREBODIES.b757): ShapeSet["fuselage"] {
+  const rows = photo.stations.concat(base.x.flatMap((x, i) => x > photo.joinM
+    ? [[x, base.top[i], base.bottom[i], base.half_width[i]]] : []));
+  return {
+    x: rows.map(r => r[0]), top: rows.map(r => r[1]),
+    bottom: rows.map(r => r[2]), half_width: rows.map(r => r[3]),
+    tipBlendM: photo.tipBlendM, noseSegments: 128,
+  };
+}
+function photoCockpit(photo: typeof PHOTO_FOREBODIES.b757): ShapeSet["cockpit"] {
+  return {
+    windscreen: photo.cockpit.windscreen as P2[], side: photo.cockpit.side as P2[][],
+    sideJunction: { top: photo.cockpit.sideJunction.top as P2, bottom: photo.cockpit.sideJunction.bottom as P2 },
+    glassInsetM: photo.cockpit.glassInsetM,
+    planarGlazing: photo.cockpit.planarGlazing,
+    sideSlopeX: photo.cockpit.sideSlopeX,
+  };
+}
+
 const C = B757;
 const nacelle757 = (n: typeof C.nacelle): ShapeSet["nacelle"] => ({
   inletX: n.inlet_x, refLengthM: n.ref_length_m, axisZ: n.axis_z, axisY: n.axis_y, clearanceM: n.clearance_m,
 });
 const B757_SET: ShapeSet = {
   id: "b757",
-  fuselage: C.fuselage,
+  fuselage: photoForebody(C.fuselage, PHOTO_FOREBODIES.b757),
   section: { deg: C.section.deg, r: C.section.r, fullTurn: true },
   halfH: C.halfHeight,
   halfW: C.halfWidth,
@@ -284,7 +319,7 @@ const B757_SET: ShapeSet = {
   plugAft: 32,
   features: C.features,
   featuresBySide: C.featuresBySide,
-  cockpit: { windscreen: C.cockpit.windscreen as P2[], side: C.cockpit.side as P2[][] },
+  cockpit: photoCockpit(PHOTO_FOREBODIES.b757),
   wing: {
     le: C.wing.le,
     teInner: C.wing.te_inner,

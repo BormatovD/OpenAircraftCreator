@@ -1,0 +1,40 @@
+{
+  "schema": "aircraft-designer/photo-forebodies/v1",
+  "baseline": "7641220",
+  "method": "Visual loft fitted after inspecting attributed photographs in side and front-quarter views. Stations are model-space design controls, not metrically recovered photo coordinates. Perspective views constrain fullness and glazing relationships; published barrel dimensions remain fixed. See docs/NOSE_PHOTO_REVIEW.md.",
+  "columns": ["x aft, m", "upper y, m", "lower y, m", "half-width z, m"],
+  "b757": {
+    "crownSource": "Boeing D6-58327 Rev H, section 2.2.1, PDF page 20, upper outline of the 757-200 side view. Coordinates use the drawing calibration in b757-shapes.json.",
+    "referenceIds": [24238413, 24238420, 32530510, 74638675],
+    "joinM": 8.5,
+    "tipBlendM": 0.12,
+    "stations": [
+      [0, -0.929, -0.929, 0],
+      [0.08, -0.61, -1.19, 0.22],
+      [0.25, -0.44, -1.39, 0.43],
+      [0.55, -0.28, -1.52, 0.68],
+      [0.90, -0.02, -1.62, 0.93],
+      [1.20, 0.28, -1.70, 1.10],
+      [1.55, 0.66, -1.77, 1.26],
+      [1.90, 0.94, -1.83, 1.40],
+      [2.30, 1.19, -1.89, 1.53],
+      [2.80, 1.42, -1.93, 1.65],
+      [3.50, 1.65, -1.98, 1.76],
+      [4.50, 1.80, -2.005, 1.84],
+      [5.70, 1.93, -2.005, 1.88],
+      [7.50, 2.005, -2.005, 1.88],
+      [8.50, 2.005, -2.005, 1.88]
+    ],
+    "cockpit": {
+      "planarGlazing": true,
+      "sideSlopeX": [0.30, 0.17],
+      "windscreen": [[0.055, 0.60], [1.0, 0.69], [1.20, 0.12], [0.055, 0.08]],
+      "sideJunction": {"top": [2.14, 0.69], "bottom": [1.80, 0.12]},
+      "glassInsetM": 0.028,
+      "side": [
+        [[1.80, 0.12], [2.14, 0.69], [2.62, 0.71], [2.36, 0.01]],
+        [[2.36, 0.01], [2.62, 0.71], [3.09, 0.67], [3.09, 0.18]]
+      ]
+    }
+  }
+}

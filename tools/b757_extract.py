@@ -435,10 +435,10 @@ def extract(pdf):
         raise ValueError("The traced installation has no pose satisfying the labelled clearance ranges")
     ground_y = (ground_low+ground_high)/2
     nacelle = {"inlet_x": 16.84, "axis_z": 6.48, "axis_y": axis_y,
-               "ref_length_m": 5.4, "clearance_m": axis_y-2.46/2-ground_y}
+               "ref_length_m": 5.50, "clearance_m": axis_y-2.46/2-ground_y}
     nacelles = {
-        "RB211": {**nacelle, "width_m": 2.46, "ref_length_m": 5.4},
-        "PW2000": {**nacelle, "inlet_x": 16.61, "width_m": 2.69, "ref_length_m": 5.6,
+        "RB211": {**nacelle, "width_m": 2.46},
+        "PW2000": {**nacelle, "inlet_x": 16.61, "width_m": 2.69, "ref_length_m": 6.05,
                    "clearance_m": axis_y-2.69/2-ground_y},
     }
     gear = {"noseX": 5.89, "wheelbaseM": 18.29, "mainZ": 7.32/2,
@@ -491,7 +491,7 @@ def extract(pdf):
             "Wing t/c 0.15/0.10, gear retraction 85 degrees, zero rake, and the fairing ellipsoid are visual engineering assumptions. Horizontal-tail dihedral is measured from the front view.",
             "Boeing cabin doors, window stations, and high-lift surfaces are retained; cockpit glazing and the first 8.5 m of the forebody have a separate visual A321-family donor. Panel lines remain approximate.",
             f"Straight-edge planform integration with an extrapolated centre section gives {drawn_area:.2f} m2, versus the aircraft's 185.25 m2 aerodynamic reference area. The measured drawing polygon is not used to replace the aerodynamic area.",
-            "Nacelle inlet stations and external widths are RR/PW-specific labels. A common illustrated installation axis is used; complete longitudinal pod shapes and 5.4/5.6 m reference lengths remain parametric assumptions from the aircraft definitions.",
+            "RR/PW inlet stations and widths are labelled; the illustrated installation axis is shared. The RB211 inlet-to-common-nozzle length (about 5.50 m) is estimated from the TF-FIW photograph. EASA E.061 III.4 gives 5.0359 m from the spinner nose to that nozzle. The PW2037 fan and core nozzle exits are estimated at 3.78 m and 6.05 m aft of its inlet from Delta N6706Q; the common Boeing side outline does not dimension these exits.",
             "The ground plane is one feasible static pose in the intersection of labelled A, K and L clearance ranges, retaining the illustrated common engine axis. It is not a model of load-dependent aircraft attitude. The unadjusted drawing ground ordinate is retained in validation metadata.",
             "PDF31 repeats 757-200 in its second table-column heading; the first column is used for 757-200, not the visibly longer dimensions in the second column.",
             "Opposite-side windows are mirrored because the general arrangement gives one side. The first right service door uses its own published station and dimensions. Bulk cargo door is optional early production and omitted.",

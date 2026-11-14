@@ -3,7 +3,9 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { buildCockpitFairing, insideCockpitFairing } from "./cockpitFairing.ts";
 import { S } from "./shapeSet.ts";
+import { cockpitFacets, cockpitSurfaceWidth, type CockpitFacet } from "./cockpitSurfaces.ts";
 
 /** Толщина симметричного профиля NACA 00xx в точке x ∈ [0, 1] (доля хорды), полутолщина в долях хорды. */
 export function nacaHalfThickness(x: number, t: number): number {
@@ -37,6 +39,36 @@ function interp(xs: number[], ys: number[], x: number): number {
   const i = lo;
   const t = (x - xs[i]) / (xs[i + 1] - xs[i]);
   return ys[i] + (ys[i + 1] - ys[i]) * t;
+}
+
+const contourTangents = new WeakMap<number[], WeakMap<number[], number[]>>();
+/** Shape-preserving cubic Hermite contour: continuous tangents without overshoot
+ * at a cylinder join or a small-radius nose. Unlike Catmull-Rom it cannot create
+ * a bulge outside the measured section envelope. */
+export function contourAt(xs: number[], ys: number[], x: number): number {
+  if (x <= xs[0]) return ys[0];
+  const n = xs.length - 1;
+  if (x >= xs[n]) return ys[n];
+  let byValues = contourTangents.get(xs);
+  if (!byValues) { byValues = new WeakMap(); contourTangents.set(xs, byValues); }
+  let slopes = byValues.get(ys);
+  if (!slopes) {
+    const h = xs.slice(1).map((v, i) => v - xs[i]);
+    const delta = h.map((v, i) => (ys[i + 1] - ys[i]) / v);
+    slopes = [delta[0]];
+    for (let i = 1; i < n; i++) {
+      const a = delta[i - 1], b = delta[i];
+      const w1 = 2 * h[i] + h[i - 1], w2 = h[i] + 2 * h[i - 1];
+      slopes.push(a * b <= 0 ? 0 : (w1 + w2) / (w1 / a + w2 / b));
+    }
+    slopes.push(delta[n - 1]);
+    byValues.set(ys, slopes);
+  }
+  let lo = 0, hi = n;
+  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (xs[mid] <= x) lo = mid; else hi = mid; }
+  const h = xs[hi] - xs[lo], t = (x - xs[lo]) / h;
+  return (2 * t ** 3 - 3 * t ** 2 + 1) * ys[lo] + (t ** 3 - 2 * t ** 2 + t) * h * slopes[lo]
+    + (-2 * t ** 3 + 3 * t ** 2) * ys[hi] + (t ** 3 - t ** 2) * h * slopes[hi];
 }
 
 /** Координата на чертеже AC для точки модели: вставки удлинения повторяют цилиндрическое сечение. */
@@ -87,49 +119,136 @@ function sectionAngleForHeight(s: number): number {
 
 /** Полуширина сечения на высоте y. */
 export function fuselageHalfWidthAt(f: FuselageShape, x: number, y: number): number {
-  const { hw, hh, cy } = fuselageSection(f, x);
+  const panels = cockpitHullFacets(f);
+  const { hw, hh, cy } = clippedFuselageSection(f, x);
+  if (panels.length && insideCockpitFairing(x)) {
+    const offset = cockpitFairing(f, panels);
+    let lo = -Math.PI / 2, hi = Math.PI / 2;
+    for (let i = 0; i < 30; i++) {
+      const mid = (lo + hi) / 2;
+      const height = cy + hh * sectionUnit(mid)[1] + offset(x, mid)[0];
+      if (height < y) lo = mid;
+      else hi = mid;
+    }
+    const a = (lo + hi) / 2, [cx, sy] = sectionUnit(a);
+    return Math.max(0, cockpitSurfaceWidth(panels, x, cy + hh * sy, hw * cx) + offset(x, a)[1]);
+  }
+  const s = Math.max(-1, Math.min(1, (y - cy) / hh));
+  const width = hw * Math.max(0, sectionUnit(sectionAngleForHeight(s))[0]);
+  return cockpitSurfaceWidth(panels, x, y, width);
+}
+function rawFuselageHalfWidthAt(f: FuselageShape, x: number, y: number): number {
+  const { hw, hh, cy } = rawFuselageSection(f, x);
   const s = Math.max(-1, Math.min(1, (y - cy) / hh));
   return hw * Math.max(0, sectionUnit(sectionAngleForHeight(s))[0]);
 }
 
+const glazingSurfaces = new WeakMap<object, { dimensions: string; panels: CockpitFacet[] }>();
+export function cockpitHullFacets(f: FuselageShape): CockpitFacet[] {
+  const layout = S().cockpit;
+  if (!layout.planarGlazing) return [];
+  const dimensions = `${f.lengthM}/${f.widthM}/${f.heightM}`;
+  let cached = glazingSurfaces.get(layout);
+  if (!cached || cached.dimensions !== dimensions) {
+    cached = { dimensions, panels: cockpitFacets(layout, (x, y) => rawFuselageHalfWidthAt(f, x, y)) };
+    glazingSurfaces.set(layout, cached);
+  }
+  return cached.panels;
+}
+
+// Facets are already cached by shape set and fuselage dimensions.
+const fairings = new WeakMap<CockpitFacet[], ReturnType<typeof buildCockpitFairing>>();
+function cockpitFairing(f: FuselageShape, panels: CockpitFacet[]) {
+  let fairing = fairings.get(panels);
+  if (!fairing) {
+    fairing = buildCockpitFairing(panels, x => clippedFuselageSection(f, x), sectionUnit);
+    fairings.set(panels, fairing);
+  }
+  return fairing;
+}
+
 /** Полуширина, полувысота и смещение центра сечения по длине фюзеляжа. */
 export function fuselageSection(f: FuselageShape, x: number): { hw: number; hh: number; cy: number } {
+  const section = clippedFuselageSection(f, x);
+  const panels = cockpitHullFacets(f);
+  if (!panels.length || !insideCockpitFairing(x)) return section;
+  const offset = cockpitFairing(f, panels);
+  const top = offset(x, Math.PI / 2)[0], bottom = offset(x, -Math.PI / 2)[0];
+  return { hw: section.hw, hh: section.hh + (top - bottom) / 2, cy: section.cy + (top + bottom) / 2 };
+}
+
+function clippedFuselageSection(f: FuselageShape, x: number) {
+  const section = rawFuselageSection(f, x);
+  const front = cockpitHullFacets(f)[0];
+  if (!front) return section;
+  const cap = -(front.a * x + front.c) / front.b;
+  const sill = Math.min(...front.polygon.map(p => p[1]));
+  const top = section.cy + section.hh, bottom = section.cy - section.hh;
+  // Extend the screen plane smoothly below its sill. Its slope fades towards
+  // the radome without reversing or making a notch at the lower glass edge.
+  const blendHeight = 0.12;
+  const roof = cap >= sill ? cap : sill + blendHeight * Math.expm1((cap - sill) / blendHeight);
+  if (roof < top) return { hw: section.hw, hh: (roof - bottom) / 2, cy: (roof + bottom) / 2 };
+  return section;
+}
+
+function rawFuselageSection(f: FuselageShape, x: number): { hw: number; hh: number; cy: number } {
   const xa = acX(f.lengthM, x);
   const { fuselage: FUS, halfH, halfW } = S();
   const kH = f.heightM / 2 / halfH;
   const kW = f.widthM / 2 / halfW;
-  const top = interp(FUS.x, FUS.top, xa) * kH;
-  const bot = interp(FUS.x, FUS.bottom, xa) * kH;
-  let hw = interp(FUS.x, FUS.half_width, xa) * kW;
+  const sample = FUS.tipBlendM === undefined ? interp : contourAt;
+  const top = sample(FUS.x, FUS.top, xa) * kH;
+  const bot = sample(FUS.x, FUS.bottom, xa) * kH;
+  let hw = sample(FUS.x, FUS.half_width, xa) * kW;
   let hh = (top - bot) / 2;
-  // Кончик обтекателя локатора — скруглённый: на первых 0,1 м размеры растут как √x (как у сферы у вершины).
-  const TIP = 0.1;
+  // Малое скругление вершины обтекателя: размеры растут как √x, длина зависит от типа.
+  const TIP = FUS.tipBlendM ?? 0.1;
   if (xa < TIP) {
-    const k = Math.sqrt(Math.max(0, xa / TIP));
-    hw = interp(FUS.x, FUS.half_width, TIP) * kW * k;
-    hh = (interp(FUS.x, FUS.top, TIP) - interp(FUS.x, FUS.bottom, TIP)) * kH * 0.5 * k;
+    const t = Math.max(0, xa / TIP);
+    const widthAt = (x: number) => sample(FUS.x, FUS.half_width, x) * kW;
+    const heightAt = (x: number) => (sample(FUS.x, FUS.top, x) - sample(FUS.x, FUS.bottom, x)) * kH * 0.5;
+    const blend = (at: (x: number) => number) => {
+      const end = at(TIP);
+      if (FUS.tipBlendM === undefined) return end * Math.sqrt(t);
+      // Preserve the measured contour's tangent at the join while rounding
+      // the apex. Plain sqrt(x) leaves a kink where it meets the loft.
+      const e = 1e-5;
+      const q = Math.max(0, Math.min(1.5, (at(TIP + e) - at(TIP - e)) / (2 * e) * TIP / end));
+      return end * Math.sqrt(t) * (1.5 - q + (q - 0.5) * t);
+    };
+    hw = blend(widthAt);
+    hh = blend(heightAt);
   }
   return { hw: Math.max(0.01, hw), hh: Math.max(0.01, hh), cy: (top + bot) / 2 };
 }
 
-export function fuselageGeometry(f: FuselageShape, segR = 72): THREE.BufferGeometry {
+export function fuselageGeometry(f: FuselageShape, segR = S().cockpit.planarGlazing ? 144 : 72): THREE.BufferGeometry {
   // Шаг по длине: у носа и кабины мелкий (форма меняется быстро), в цилиндре крупный.
   const xsArr: number[] = [];
-  for (let k = 0; k <= 40; k++) xsArr.push(6 * (k / 40) ** 1.8);
+  const noseSegments = S().fuselage.noseSegments ?? 40;
+  for (let k = 0; k <= noseSegments; k++) xsArr.push(6 * (k / noseSegments) ** 1.8);
   for (let x = 6.25; x < f.lengthM - 0.01; x += 0.25) xsArr.push(x);
   xsArr.push(f.lengthM);
   const segX = xsArr.length - 1;
   const pos: number[] = [];
   const idx: number[] = [];
+  const panels = cockpitHullFacets(f);
+  const fairing = panels.length ? cockpitFairing(f, panels) : undefined;
   for (let i = 0; i <= segX; i++) {
     const x = xsArr[i];
     // Нос сходится в точку (без «дырки» на кончике), хвост оставляем открытым — там выхлоп ВСУ.
-    const { hw, hh, cy } = fuselageSection(f, Math.max(0.0005, Math.min(f.lengthM - 0.02, x)));
+    const { hw, hh, cy } = clippedFuselageSection(f, Math.max(0.0005, Math.min(f.lengthM - 0.02, x)));
     for (let j = 0; j <= segR; j++) {
       const a = (j / segR) * Math.PI * 2;
       // Сечение — по таблице набора контуров.
       const [cx, sy] = sectionUnit(a);
-      pos.push(x, cy + hh * sy, hw * cx);
+      const y = cy + (panels.length && i === 0 ? 0 : hh * sy);
+      const z = panels.length ? Math.sign(cx) * cockpitSurfaceWidth(panels, x, y, Math.abs(hw * cx)) : hw * cx;
+      if (fairing && insideCockpitFairing(x)) {
+        const [dy, dz] = fairing(x, Math.asin(Math.sin(a)));
+        pos.push(x, y + dy, z + Math.sign(cx) * dz);
+      } else pos.push(x, y, panels.length && i === 0 ? 0 : z);
     }
   }
   const row = segR + 1;
@@ -143,10 +262,27 @@ export function fuselageGeometry(f: FuselageShape, segR = 72): THREE.BufferGeome
   const uv: number[] = [];
   for (let i = 0; i <= segX; i++) for (let j = 0; j <= segR; j++) uv.push(xsArr[i] / f.lengthM, j / segR);
   const g = new THREE.BufferGeometry();
+  g.userData.radialSegments = segR;
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
   g.setIndex(idx);
   g.computeVertexNormals();
+  if (!panels.length) return g;
+  // The UV seam duplicates positions at 0/360°. Average their normals so the
+  // texture seam does not become a false crease along the whole fuselage.
+  const normals = g.getAttribute("normal");
+  const normal = new THREE.Vector3(), other = new THREE.Vector3();
+  for (let i = 1; i <= segX; i++) {
+    const first = i * row, last = first + segR;
+    normal.fromBufferAttribute(normals, first).add(other.fromBufferAttribute(normals, last)).normalize();
+    normals.setXYZ(first, normal.x, normal.y, normal.z);
+    normals.setXYZ(last, normal.x, normal.y, normal.z);
+  }
+  // All apex vertices occupy one point; they also need one shared normal.
+  normal.set(0, 0, 0);
+  for (let j = 0; j < segR; j++) normal.add(other.fromBufferAttribute(normals, j));
+  normal.normalize();
+  for (let j = 0; j <= segR; j++) normals.setXYZ(j, normal.x, normal.y, normal.z);
   return g;
 }
 
@@ -447,15 +583,15 @@ export function engineCutaway(e: EngineSpec): EnginePiece[] {
 // контура), открытый кожух ядра, сопло внутреннего контура и конус — 1,44 м; высота 2,60 м.
 // Профили — радиус по длине в метрах для базовой гондолы; модель масштабирует их по рычагам.
 
-export type NacelleStyle = "longDuct" | "separateFlow";
+export type NacelleStyle = "longDuct" | "separateFlow" | "rb211" | "pw2037";
 export interface NacelleSegment {
-  id: "inlet" | "fanCowl" | "reverser" | "nozzle" | "coreCowl" | "plug";
+  id: "inlet" | "lip" | "fanCowl" | "reverser" | "nozzle" | "coreCowl" | "plug";
   geometry: THREE.BufferGeometry;
 }
 
-const NACELLE_PROFILES: Record<NacelleStyle, { length: number; radius: number; fanFaceX: number; segs: Record<string, [number, number][]> }> = {
+const NACELLE_PROFILES: Record<NacelleStyle, { referenceLength: number; radius: number; fanFaceX: number; segs: Record<string, [number, number][]> }> = {
   longDuct: {
-    length: 5.25,
+    referenceLength: 4.44,
     radius: 1.15,
     fanFaceX: 0.75,
     segs: {
@@ -466,8 +602,41 @@ const NACELLE_PROFILES: Record<NacelleStyle, { length: number; radius: number; f
       plug: [[4.55, 0.4], [4.96, 0.28], [5.25, 0.04]],
     },
   },
+  // 757-200 / RB211-535E4. Boeing 2.2.1 gives the installation and width.
+  // The cowl and single mixed nozzle follow the near engine in the TF-FIW side photo.
+  rb211: {
+    referenceLength: 5.50,
+    radius: 1.23,
+    fanFaceX: 0.78,
+    segs: {
+      lip: [[0.78, 0.95], [0.37, 0.91], [0.12, 0.92], [0.035, 0.95], [0, 0.99],
+        [0.015, 1.025], [0.08, 1.055], [0.23, 1.095]],
+      inlet: [[0.23, 1.095], [0.50, 1.145], [0.80, 1.19], [1.05, 1.21]],
+      fanCowl: [[1.05, 1.21], [1.40, 1.225], [1.72, 1.23], [2.08, 1.226], [2.55, 1.205]],
+      reverser: [[2.55, 1.205], [3.05, 1.17], [3.65, 1.105], [4.15, 1.045], [4.50, 1.00], [4.50, 0.94]],
+      nozzle: [[4.50, 0.94], [4.83, 0.90], [5.17, 0.85], [5.50, 0.80], [5.50, 0.765], [5.20, 0.81]],
+    },
+  },
+  // 757/PW2037: the large fan duct ends well ahead of the exposed core cowl.
+  // Boeing 2.2.1 sets width and inlet station; axial stations follow Delta N6706Q.
+  pw2037: {
+    referenceLength: 6.05,
+    radius: 1.345,
+    fanFaceX: 0.90,
+    segs: {
+      lip: [[0.90, 1.015], [0.48, 1.005], [0.16, 0.995], [0.05, 1.015], [0, 1.055],
+        [0.015, 1.09], [0.07, 1.135], [0.20, 1.18]],
+      inlet: [[0.20, 1.18], [0.38, 1.225], [0.66, 1.275], [0.98, 1.31]],
+      fanCowl: [[0.98, 1.31], [1.33, 1.335], [1.63, 1.345], [1.97, 1.34], [2.18, 1.33]],
+      reverser: [[2.18, 1.33], [2.58, 1.30], [3.02, 1.25], [3.45, 1.185], [3.78, 1.12],
+        [3.78, 1.09], [3.35, 1.15]],
+      coreCowl: [[3.30, 0.98], [3.78, 0.92], [4.35, 0.83], [4.92, 0.73]],
+      nozzle: [[4.92, 0.73], [5.36, 0.65], [5.78, 0.575], [6.05, 0.54], [6.05, 0.51], [5.65, 0.57]],
+      plug: [[5.48, 0.34], [5.70, 0.27], [5.86, 0.14], [5.94, 0]],
+    },
+  },
   separateFlow: {
-    length: 5.09,
+    referenceLength: 4.44 * (1.98 / 1.73),
     radius: 1.3,
     fanFaceX: 0.75,
     segs: {
@@ -500,6 +669,10 @@ export function nacelleSegments(style: NacelleStyle, lengthK: number, radiusK: n
 export function nacelleFanFace(style: NacelleStyle, lengthK: number): number {
   return NACELLE_PROFILES[style].fanFaceX * lengthK;
 }
+export function nacelleScale(style: NacelleStyle, lengthM: number, widthM: number) {
+  return { lengthK: lengthM / NACELLE_PROFILES[style].referenceLength, radiusK: widthM / (2 * nacelleBaseRadius(style)) };
+}
+
 export function nacelleBaseRadius(style: NacelleStyle): number {
   return NACELLE_PROFILES[style].radius;
 }
