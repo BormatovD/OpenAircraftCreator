@@ -12,13 +12,19 @@ This package replaces the AirframeLab deploy directory. It does not require Dock
 
 ## Upload a release (run on your Mac, from the project root)
 
-Copy the `deploy` directory into the root of the local repository and commit it. `ship.sh` requires a clean working tree so your deployed build corresponds to a commit:
+Keep the current `deploy` directory in the repository and commit your changes. `ship.sh` requires a clean working tree so your deployed build corresponds to a commit:
 
 ```bash
 bash deploy/ship.sh deploy@YOUR_VPS_IP
 ```
 
-This script checks tests/TypeScript, builds `dist/`, uploads it to a timestamped release, switches `/srv/aircraft-designer/current` and verifies the **exact new release ID** at `https://aircraft-designer.app/release-id.txt` (not merely an old cached homepage). On failure it attempts rollback.
+Before building or uploading, the script reads the published release over HTTPS and SSH and requires both IDs to agree. Its commit must be an ancestor of local `HEAD`; an old or divergent branch is blocked. Fetch the published history and merge/update your branch if this check fails. Missing or malformed release metadata fails closed. Existing releases with a short commit in their ID remain supported if that commit resolves uniquely in local history.
+
+The script then runs tests/TypeScript, builds `dist/`, and verifies that `HEAD` and the source tree have not changed during the build. It rechecks the published release and uploads a new directory containing the full commit SHA and the release it was built against. On Ubuntu, `switch-release.sh` holds a `flock` lock and compares the expected current release immediately before the atomic switch. Two deployments based on the same release cannot both activate. The final HTTPS check requires the **exact new release ID**; automatic rollback is allowed only while that failed release is still current.
+
+For a genuinely empty installation only, append `--initial`. This requires HTTP 404 for the public release ID and an absent server current release; transport failures and other HTTP statuses block deployment. This flag cannot bypass an existing or broken current release. The server needs GNU `readlink`, `mv`, and `flock` (Ubuntu packages `coreutils` and `util-linux`). No Node.js is needed on the server.
+
+Use this updated deployment entry point in every working checkout. The guard prevents accidental stale deployments through these scripts; a historical script or a manual SSH command can still bypass it while the deploy account owns the site directory. Enforcing the same policy against arbitrary SSH commands would require a separately administered server activation service.
 
 For existing installations, apply the passport proxy from `deploy/aircraft-designer.caddy` to the active site fragment, validate the Caddyfile and reload Caddy. The live passport uses `GET /api/aircraft/type?icao=A321`. Until the proxy is active, the UI shows the dated FlightCost snapshot bundled in the release.
 
@@ -28,7 +34,9 @@ For existing installations, apply the passport proxy from `deploy/aircraft-desig
 bash deploy/rollback.sh deploy@YOUR_VPS_IP
 ```
 
-**Only `dist/` is published**; never copy `.env`, source files, FCOM manuals, `analysis/` or `.git` into the web root. The scripts have undergone shell syntax checks, not a live VPS run. After first deployment, test rollback and check that stale browser caches do not hide the new version.
+Rollback is an explicit exception to the forward-only ancestry rule. It checks and locks the expected current release, validates the previous artifact, and preserves the previous-release record. A delayed rollback cannot overwrite a newer deployment.
+
+**Only `dist/` is published**; never copy `.env`, source files, FCOM manuals, `analysis/` or `.git` into the web root. Automated tests cover Git ancestry, malformed state, concurrent activation and rollback. Test server changes in an isolated directory before using them for a live release.
 
 ## Prerequisites to go live
 
