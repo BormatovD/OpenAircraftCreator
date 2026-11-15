@@ -21,7 +21,7 @@
         <a href="#" id="nav-model" aria-current="page">Модель</a>
         <a href="#method" id="nav-method">Как рассчитано</a>
       </nav>
-      <button type="button" id="mobile-options" class="mobile-options" aria-expanded="false" aria-controls="scenario-bar">Сценарии и FlightCost</button>
+      <button type="button" id="mobile-options" class="mobile-options" aria-expanded="false" aria-controls="mobile-settings-panel">Настройки</button>
       <div class="bar-controls">
         <div class="model-pickers" id="model-pickers">
           <button type="button" class="model-picker" id="aircraft-picker" aria-label="Выбрать ВС" aria-haspopup="menu" aria-expanded="false" aria-controls="aircraft-options"><span aria-hidden="true">✈</span></button>
@@ -104,8 +104,23 @@
       <section id="metrics" class="kpi" aria-live="polite"></section>
       <div class="mobile-actions" aria-label="Управление моделью">
         <button type="button" id="mobile-levers" aria-expanded="false" aria-controls="drawer">Рычаги</button>
+        <button type="button" id="mobile-results" aria-expanded="false" aria-controls="mobile-results-panel">Результаты</button>
         <button type="button" id="mobile-constraints" aria-expanded="false" aria-controls="mobile-constraints-panel">Ограничения</button>
       </div>
+      <section id="mobile-results-panel" class="mobile-sheet" aria-label="Результаты" hidden>
+        <div class="mobile-sheet-head"><h2>Результаты</h2><button type="button" id="mobile-results-close">Закрыть</button></div>
+        <div id="mobile-results-content" class="mobile-sheet-content"></div>
+      </section>
+      <section id="mobile-settings-panel" class="mobile-sheet" aria-label="Настройки" hidden>
+        <div class="mobile-sheet-head"><h2>Настройки</h2><button type="button" id="mobile-settings-close">Закрыть</button></div>
+        <div class="mobile-sheet-content mobile-settings-content">
+          <details open><summary>Сценарии, салон и FlightCost</summary><div id="mobile-settings-scenarios"></div></details>
+          <details><summary>Режим пересчёта</summary><div id="mobile-settings-recalc"></div></details>
+          <details><summary>Агрегаты</summary><div id="mobile-settings-assemblies"></div></details>
+          <details><summary>Вид самолёта</summary><div id="mobile-settings-view"></div></details>
+          <details><summary>Оформление</summary><div id="mobile-settings-theme"></div></details>
+        </div>
+      </section>
       <section id="mobile-constraints-panel" class="mobile-sheet" aria-label="Ограничения" hidden>
         <div class="mobile-sheet-head"><h2>Ограничения</h2><button type="button" id="mobile-constraints-close">Закрыть</button></div>
         <ul class="constraints" id="mobile-constraints-list"></ul>

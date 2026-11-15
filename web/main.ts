@@ -820,8 +820,8 @@ function aimInside() {
 }
 
 function select(id: string | null, hitSide = 0): void {
-  const showingAll = mobileLayout.matches && mobileAllLevers;
-  if (mobileLayout.matches) { closeMobileConstraints(); mobileAllLevers = false; }
+  const showingAll = mobileLayout.matches && (mobileAllLevers || !$("mobile-settings-panel").hidden);
+  if (mobileLayout.matches) { closeMobileConstraints(); $("mobile-results-panel").hidden = true; $("mobile-settings-panel").hidden = true; mobileAllLevers = false; }
   const side = id && individualSideParts.has(id) ? hitSide : 0;
   const same = !showingAll && state.selected === id && (!side || side === selectedSide);
   state.selected = same ? null : id;
@@ -859,7 +859,6 @@ function select(id: string | null, hitSide = 0): void {
   renderLevers();
   if (mobileLayout.matches) {
     syncMobileActions();
-    if (state.selected && (viewport.getBoundingClientRect().top >= innerHeight || viewport.getBoundingClientRect().bottom <= 0)) viewport.scrollIntoView({ block: "start" });
   }
   requestCameraFrame();
 }
@@ -899,7 +898,7 @@ function sceneFrameArea(): SceneFrameArea {
     }
   }
   let left = inset, right = inset;
-  for (const panel of [$("drawer"), $("mobile-constraints-panel")]) {
+  for (const panel of [$("drawer"), $("mobile-constraints-panel"), $("mobile-results-panel"), $("mobile-settings-panel")]) {
     const position = getComputedStyle(panel).position;
     if (position !== "absolute" && position !== "fixed") continue;
     const r = panel.getBoundingClientRect();
@@ -1699,14 +1698,31 @@ function renderConstraints(): void {
   $("mobile-constraints-list").innerHTML = renderRows(ordered, true);
 }
 
-$("mobile-options").addEventListener("click", () => {
-  const open = document.body.classList.toggle("mobile-options-open");
-  $("mobile-options").setAttribute("aria-expanded", String(open));
-});
 const mobileLayout = window.matchMedia("(max-width: 1100px)");
+// Move the original controls into mobile sheets and restore them in place on desktop.
+const mobileMoves: Array<{ node: HTMLElement; marker: Comment; destination: HTMLElement }> = [
+  ["scenario-bar", "mobile-settings-scenarios"],
+  ["#left-panel .recalc-card", "mobile-settings-recalc"],
+  ["#left-panel .summary", "mobile-settings-assemblies"],
+  [".view-tools", "mobile-settings-view"],
+  ["theme-toggle", "mobile-settings-theme"],
+  [".right-content", "mobile-results-content"],
+].map(([selector, destination]) => {
+  const node = (selector.startsWith(".") || selector.includes(" ") ? document.querySelector<HTMLElement>(selector) : $(selector))!;
+  const marker = document.createComment("mobile placement");
+  node.before(marker);
+  return { node, marker, destination: $(destination) };
+});
+function placeMobileContent(): void {
+  for (const { node, marker, destination } of mobileMoves) {
+    if (mobileLayout.matches) destination.append(node);
+    else marker.after(node);
+  }
+}
+placeMobileContent();
 let mobilePose: { distance: number; zoomFactor: number; interactionStart: number; offsetX: number; offsetY: number; width: number; height: number } | null = null;
 function syncMobileFrame(): void {
-  const open = mobileLayout.matches && (state.drawerOpen || !$("mobile-constraints-panel").hidden);
+  const open = mobileLayout.matches && (state.drawerOpen || !$("mobile-constraints-panel").hidden || !$("mobile-results-panel").hidden || !$("mobile-settings-panel").hidden);
   if (open && !mobilePose) {
     const rect = viewport.getBoundingClientRect();
     mobilePose = { distance: camera.position.distanceTo(controls.target), zoomFactor: 1, interactionStart: 0, offsetX: camera.view?.offsetX ?? 0, offsetY: camera.view?.offsetY ?? 0, width: rect.width, height: rect.height };
@@ -1732,6 +1748,8 @@ controls.addEventListener("end", () => {
 function syncMobileActions(): void {
   $("mobile-levers").setAttribute("aria-expanded", String(state.drawerOpen && mobileLayout.matches));
   $("mobile-constraints").setAttribute("aria-expanded", String(!$("mobile-constraints-panel").hidden));
+  $("mobile-results").setAttribute("aria-expanded", String(!$("mobile-results-panel").hidden));
+  $("mobile-options").setAttribute("aria-expanded", String(!$("mobile-settings-panel").hidden));
   requestAnimationFrame(syncMobileFrame);
 }
 function closeMobileConstraints(): void {
@@ -1739,8 +1757,9 @@ function closeMobileConstraints(): void {
   syncMobileActions();
 }
 $("mobile-levers").addEventListener("click", () => {
-  if (viewport.getBoundingClientRect().bottom <= 0 || viewport.getBoundingClientRect().top >= innerHeight) viewport.scrollIntoView({ block: "start" });
-  const opening = !state.drawerOpen || !$("mobile-constraints-panel").hidden;
+  const opening = !state.drawerOpen || !$("mobile-constraints-panel").hidden || !$("mobile-results-panel").hidden || !$("mobile-settings-panel").hidden;
+  $("mobile-results-panel").hidden = true;
+  $("mobile-settings-panel").hidden = true;
   closeMobileConstraints();
   mobileAllLevers = opening;
   state.drawerOpen = opening;
@@ -1748,8 +1767,9 @@ $("mobile-levers").addEventListener("click", () => {
   syncMobileActions();
 });
 function openMobileConstraints(): void {
-  if (viewport.getBoundingClientRect().bottom <= 0 || viewport.getBoundingClientRect().top >= innerHeight) viewport.scrollIntoView({ block: "start" });
   state.drawerOpen = false;
+  $("mobile-results-panel").hidden = true;
+  $("mobile-settings-panel").hidden = true;
   renderLevers();
   $("mobile-constraints-panel").hidden = false;
   syncMobileActions();
@@ -1759,13 +1779,30 @@ $("mobile-constraints").addEventListener("click", () => {
   else closeMobileConstraints();
 });
 $("mobile-constraints-close").addEventListener("click", closeMobileConstraints);
-mobileLayout.addEventListener("change", () => { closeMobileConstraints(); mobileAllLevers = false; renderLevers(); });
+function toggleMobileSheet(id: "mobile-results-panel" | "mobile-settings-panel"): void {
+  const opening = $(id).hidden;
+  state.drawerOpen = false;
+  $("mobile-constraints-panel").hidden = true;
+  $("mobile-results-panel").hidden = true;
+  $("mobile-settings-panel").hidden = true;
+  $(id).hidden = !opening;
+  if (id === "mobile-results-panel" && state.rightTab === "constraints") setRightTab("pr");
+  renderLevers();
+  syncMobileActions();
+}
+$("mobile-results").addEventListener("click", () => toggleMobileSheet("mobile-results-panel"));
+$("mobile-options").addEventListener("click", () => toggleMobileSheet("mobile-settings-panel"));
+$("mobile-results-close").addEventListener("click", () => toggleMobileSheet("mobile-results-panel"));
+$("mobile-settings-close").addEventListener("click", () => toggleMobileSheet("mobile-settings-panel"));
+mobileLayout.addEventListener("change", () => { closeMobileConstraints(); $("mobile-results-panel").hidden = true; $("mobile-settings-panel").hidden = true; mobileAllLevers = false; placeMobileContent(); renderLevers(); syncMobileActions(); });
 window.addEventListener("resize", () => { if (mobilePose) requestCameraFrame(); });
 for (const id of ["constraints", "mobile-constraints-list"]) $(id).addEventListener("click", event => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-constraint-control]");
   const control = controlsFor(AIRCRAFT[state.aircraftId]).find(c => c.id === button?.dataset.constraintControl);
   if (!control) return;
   closeMobileConstraints();
+  $("mobile-results-panel").hidden = true;
+  $("mobile-settings-panel").hidden = true;
   mobileAllLevers = mobileLayout.matches;
   // Desktop keeps the selection but shows all groups for an explicit constraint link.
   if (!mobileLayout.matches && state.selected && !control.parts.includes(state.selected)) mobileAllLevers = true;
@@ -1830,8 +1867,6 @@ function renderTree(): void {
   }).join("");
   for (const b of tree.querySelectorAll<HTMLButtonElement>("button")) b.addEventListener("click", () => {
     select(b.dataset.id!);
-    if (state.selected && window.matchMedia("(max-width: 980px)").matches)
-      viewport.scrollIntoView({ block: "start", behavior: reduceMotion ? "instant" : "smooth" });
   });
   applySelection();
   if (focusedFamily) tree.querySelector<HTMLElement>(`details[data-family="${focusedFamily}"] > summary`)?.focus({ preventScroll: true });
@@ -2212,6 +2247,11 @@ if (!cardPreview) new ResizeObserver(resize).observe(viewport);
 const panelObserver = new ResizeObserver(requestCameraFrame);
 panelObserver.observe($("metrics"));
 panelObserver.observe($("drawer"));
+const mobilePanelObserver = new ResizeObserver(() => {
+  if (mobilePose && (!$('mobile-results-panel').hidden || !$('mobile-settings-panel').hidden)) requestCameraFrame();
+});
+mobilePanelObserver.observe($("mobile-results-panel"));
+mobilePanelObserver.observe($("mobile-settings-panel"));
 
 try {
   const saved = cardPreview ? "dark" : localStorage.getItem("oac-theme");
