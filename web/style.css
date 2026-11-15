@@ -2252,7 +2252,7 @@ button.kpi-tile {
 /* Мобильные действия используют те же состояние и поля, что и основной редактор. */
 .mobile-actions, .mobile-sheet, .mobile-lever-effect { display: none; }
 .constraint-lever { font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--panel-edge); border-radius: 6px; padding: 6px 9px; margin: 5px 5px 0 0; cursor: pointer; }
-@media (max-width: 1100px) {
+@media (max-width: 980px), (max-width: 1100px) and (pointer: coarse) {
   body:not(.method-mode) { height: auto; min-height: 100%; grid-template-columns: minmax(0,1fr); grid-template-rows: auto auto minmax(360px, 72svh) auto auto; grid-template-areas: "bar" "scen" "view" "right" "left"; overflow-x: hidden; overflow-y: auto; }
   .bar, .bar-controls { flex-wrap: wrap; min-width: 0; }
   .mobile-actions { display: flex; justify-content: space-between; position: fixed; z-index: 35; left: max(8px, env(safe-area-inset-left)); right: max(8px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom)); pointer-events: none; }
@@ -2286,12 +2286,12 @@ button.kpi-tile {
   .constraint-lever { min-height: 44px; }
   .aircraft-preview .mobile-actions, .aircraft-preview .mobile-sheet { display: none !important; }
 }
-@media (max-width: 1100px) and (orientation: landscape) {
+@media (max-width: 980px) and (orientation: landscape), (max-width: 1100px) and (pointer: coarse) and (orientation: landscape) {
   .drawer[data-open="true"], .mobile-sheet:not([hidden]) { left: auto; right: max(8px, env(safe-area-inset-right)); top: max(8px, env(safe-area-inset-top)); bottom: calc(max(8px, env(safe-area-inset-bottom)) + 52px); width: min(390px, 48vw); max-height: none; }
 }
 body.method-mode .mobile-actions, body.method-mode .mobile-sheet { display: none !important; }
 .mobile-options { display: none; }
-@media (max-width: 1100px) {
+@media (max-width: 980px), (max-width: 1100px) and (pointer: coarse) {
   body:not(.method-mode) .bar { gap: 4px 8px; padding: 5px 8px; }
   body:not(.method-mode) .brand { flex: 1 1 auto; }
   body:not(.method-mode) .brand h1 { font-size: 15px; }
@@ -2304,15 +2304,15 @@ body.method-mode .mobile-actions, body.method-mode .mobile-sheet { display: none
   body:not(.method-mode):not(.mobile-options-open) .scenario-bar { display: none; }
   body:not(.method-mode) { grid-template-rows: auto auto minmax(360px, calc(100svh - 105px)) auto auto; }
 }
-@media (max-width: 1100px) {
+@media (max-width: 980px), (max-width: 1100px) and (pointer: coarse) {
   body:not(.method-mode).mobile-options-open .theme-toggle { display: inline-block; min-height: 44px; }
 }
-@media (max-width: 1100px) and (orientation: portrait) {
+@media (max-width: 980px) and (orientation: portrait), (max-width: 1100px) and (pointer: coarse) and (orientation: portrait) {
   .drawer[data-open="true"], .mobile-sheet:not([hidden]) { max-height: min(42dvh, 440px); }
 }
 
 /* В мобильном редакторе сцена и нижняя навигация остаются на экране. */
-@media (max-width: 1100px) {
+@media (max-width: 980px), (max-width: 1100px) and (pointer: coarse) {
   body:not(.method-mode):not(.aircraft-preview body) {
     height: 100dvh; min-height: 0; overflow: hidden;
     grid-template-columns: minmax(0, 1fr);
@@ -2344,10 +2344,10 @@ body.method-mode .mobile-actions, body.method-mode .mobile-sheet { display: none
   #mobile-settings-theme .theme-toggle { display: inline-block; min-height: 44px; }
   #mobile-settings-assemblies .tree { overflow: visible; }
 }
-@media (max-width: 1100px) and (orientation: landscape) {
+@media (max-width: 980px) and (orientation: landscape), (max-width: 1100px) and (pointer: coarse) and (orientation: landscape) {
   #mobile-results-panel, #mobile-settings-panel { height: auto; max-height: none; }
 }
-@media (max-width: 1100px) and (orientation: portrait) {
+@media (max-width: 980px) and (orientation: portrait), (max-width: 1100px) and (pointer: coarse) and (orientation: portrait) {
   #mobile-results-panel { height: auto; max-height: min(72dvh, calc(100dvh - 120px)); }
 }
 @media (max-width: 350px) {
@@ -2355,7 +2355,7 @@ body.method-mode .mobile-actions, body.method-mode .mobile-sheet { display: none
   #mobile-results-content .tabs button { min-width: 0; min-height: 40px; padding: 7px 4px; font-size: 12px; }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 980px), (max-width: 1100px) and (pointer: coarse) {
   #kpi-limits { display: none; }
   #mobile-constraints { position: relative; overflow: visible; }
   .mobile-constraint-badge {

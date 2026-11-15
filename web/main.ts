@@ -1716,11 +1716,17 @@ function renderConstraints(): void {
   };
   const available = controlsFor(AIRCRAFT[state.aircraftId]);
   const renderRows = (items: ConstraintResult[], mobile: boolean) => items.map(c => {
+    if (!mobile) return `<li class="c-${c.status}">
+      <span class="c-icon" aria-hidden="true">${STATUS_ICON[c.status]}</span>
+      <div><div class="c-head"><span>${c.label}</span><span class="c-value">${c.value}</span></div>
+        <div class="c-msg">${c.message}</div>
+        <details class="constraint-evidence"><summary>Условия и источник</summary>
+          <div class="c-limit">${c.limit}</div>${c.source ? `<div class="c-source">${c.source}</div>` : ""}</details></div></li>`;
     const related = (links[c.id] ?? []).map(id => available.find(control => control.id === id)).filter((v): v is Control => !!v);
     return `<li class="c-${c.status}">
       <span class="c-icon" aria-hidden="true">${STATUS_ICON[c.status]}</span>
       <div><div class="c-head"><span>${c.label}</span><span class="c-value">${c.value}</span></div>
-        <div class="c-msg">${c.message}</div>${mobile ? `<div class="c-limit">Предел: ${c.limit}</div>` : ""}
+        <div class="c-msg">${c.message}</div><div class="c-limit">Предел: ${c.limit}</div>
         <details class="constraint-evidence"><summary>Условия и источник</summary><div class="c-limit">${c.limit}</div>${c.source ? `<div class="c-source">Источник: ${c.source}</div>` : c.id === "span-code" ? `<div class="c-source">Основание: ICAO Annex 14, классификация аэродромов по размаху.</div>` : ""}${isReferenceConstraint(c) ? `<div class="c-source">Справочный предел: применимость указана в пояснении.</div>` : ""}</details>
         ${related.map(control => `<button type="button" class="constraint-lever" data-constraint-control="${control.id}">Изменить рычаг${related.length > 1 ? `: ${control.label}` : ""}</button>`).join("")}</div></li>`;
   }).join("");
@@ -1731,7 +1737,7 @@ function renderConstraints(): void {
   $("mobile-constraints-list").innerHTML = renderRows(ordered, true);
 }
 
-const mobileLayout = window.matchMedia("(max-width: 1100px)");
+const mobileLayout = window.matchMedia("(max-width: 980px), (max-width: 1100px) and (pointer: coarse)");
 // Move the original controls into mobile sheets and restore them in place on desktop.
 const mobileMoves: Array<{ node: HTMLElement; marker: Comment; destination: HTMLElement }> = [
   ["scenario-bar", "mobile-settings-scenarios"],
@@ -1829,7 +1835,7 @@ $("mobile-results-close").addEventListener("click", () => toggleMobileSheet("mob
 $("mobile-settings-close").addEventListener("click", () => toggleMobileSheet("mobile-settings-panel"));
 mobileLayout.addEventListener("change", () => { closeMobileConstraints(); $("mobile-results-panel").hidden = true; $("mobile-settings-panel").hidden = true; mobileAllLevers = false; placeMobileContent(); renderLevers(); syncMobileActions(); });
 window.addEventListener("resize", () => { if (mobilePose) requestCameraFrame(); });
-for (const id of ["constraints", "mobile-constraints-list"]) $(id).addEventListener("click", event => {
+$("mobile-constraints-list").addEventListener("click", event => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-constraint-control]");
   const control = controlsFor(AIRCRAFT[state.aircraftId]).find(c => c.id === button?.dataset.constraintControl);
   if (!control) return;
@@ -1837,8 +1843,6 @@ for (const id of ["constraints", "mobile-constraints-list"]) $(id).addEventListe
   $("mobile-results-panel").hidden = true;
   $("mobile-settings-panel").hidden = true;
   mobileAllLevers = mobileLayout.matches;
-  // Desktop keeps the selection but shows all groups for an explicit constraint link.
-  if (!mobileLayout.matches && state.selected && !control.parts.includes(state.selected)) mobileAllLevers = true;
   state.drawerOpen = true;
   state.drawerTab = control.group;
   renderLevers();
