@@ -820,8 +820,10 @@ function aimInside() {
 }
 
 function select(id: string | null, hitSide = 0): void {
+  const showingAll = mobileLayout.matches && mobileAllLevers;
+  if (mobileLayout.matches) { closeMobileConstraints(); mobileAllLevers = false; }
   const side = id && individualSideParts.has(id) ? hitSide : 0;
-  const same = state.selected === id && (!side || side === selectedSide);
+  const same = !showingAll && state.selected === id && (!side || side === selectedSide);
   state.selected = same ? null : id;
   selectedSide = 0;
   if (state.selected) {
@@ -855,6 +857,10 @@ function select(id: string | null, hitSide = 0): void {
   } else state.drawerOpen = false;
   applySelection();
   renderLevers();
+  if (mobileLayout.matches) {
+    syncMobileActions();
+    if (state.selected && (viewport.getBoundingClientRect().top >= innerHeight || viewport.getBoundingClientRect().bottom <= 0)) viewport.scrollIntoView({ block: "start" });
+  }
   requestCameraFrame();
 }
 
@@ -892,12 +898,16 @@ function sceneFrameArea(): SceneFrameArea {
       if (intersects(r)) top = Math.max(top, r.bottom - rect.top + inset);
     }
   }
-  const drawer = $("drawer");
-  if (getComputedStyle(drawer).position === "absolute") {
-    const r = drawer.getBoundingClientRect();
-    if (intersects(r)) bottom = Math.max(bottom, rect.bottom - r.top + inset);
+  let left = inset, right = inset;
+  for (const panel of [$("drawer"), $("mobile-constraints-panel")]) {
+    const position = getComputedStyle(panel).position;
+    if (position !== "absolute" && position !== "fixed") continue;
+    const r = panel.getBoundingClientRect();
+    if (!intersects(r)) continue;
+    if (position === "fixed" && matchMedia("(orientation: landscape)").matches) right = Math.max(right, rect.right - r.left + inset);
+    else bottom = Math.max(bottom, rect.bottom - r.top + inset);
   }
-  return { width: rect.width, height: rect.height, top, bottom, left: inset, right: inset };
+  return { width: rect.width, height: rect.height, top, bottom, left, right };
 }
 
 function frameCamera(): void {
@@ -1188,6 +1198,7 @@ $("travel-range").addEventListener("input", event => {
   $("travel-position").textContent = pct + "%";
   pose();
 });
+let mobileAllLevers = false;
 function renderLevers(): void {
   const def = AIRCRAFT[state.aircraftId];
   const notice = $("mount-notice");
@@ -1196,7 +1207,7 @@ function renderLevers(): void {
   const visible = controlsFor(def);
   const activeControls = visible.filter((c) => c.id !== "mach" || state.values.lrc !== true);
   const allGroups = [...new Set(visible.map((c) => c.group))];
-  const sel = state.selected;
+  const sel = mobileAllLevers ? null : state.selected;
   const groups = sel ? linkedGroups(sel) : allGroups;
   const tabs = sel ? [...groups, ABOUT_TAB] : groups;
   if (!tabs.includes(state.drawerTab)) state.drawerTab = tabs[0];
@@ -1336,11 +1347,9 @@ $("drawer-toggle").addEventListener("click", () => {
   requestCameraFrame();
 });
 $("drawer-close").addEventListener("click", () => {
-  if (state.selected) select(state.selected);
-  else {
-    state.drawerOpen = false;
-    renderLevers();
-  }
+  if (!mobileLayout.matches && state.selected) select(state.selected);
+  else { state.drawerOpen = false; mobileAllLevers = false; renderLevers(); }
+  syncMobileActions();
 });
 
 // ——— Правая панель ———
@@ -1399,6 +1408,10 @@ function renderMetrics(): void {
     Math.abs(ev.fuelPerSeatPer100KmKg / base.fuelPerSeatPer100KmKg - 1) < 5e-4;
   const tile = (label: string, value: string, delta: string, note: string) =>
     `<div class="kpi-tile" title="${note}"><div class="kpi-label">${label}</div><div class="kpi-value">${value}</div><div class="kpi-delta">${delta}</div></div>`;
+  const effect = $("mobile-lever-effect");
+  effect.innerHTML = ev.missionResult.feasible
+    ? `Топливо на рейс: ${fmtKg(ev.tripFuelKg)} · ${deltaPct(ev.tripFuelKg, base.tripFuelKg)}`
+    : "Рейс недостижим — см. ограничения";
   const actionable = ev.constraints.filter((c) => !isReferenceConstraint(c));
   const references = ev.constraints.filter(isReferenceConstraint).length;
   const uncertain = ev.constraints.filter(c => isReferenceConstraint(c) && (c.status === "warning" || c.status === "violation")).length;
@@ -1438,7 +1451,10 @@ function renderMetrics(): void {
     const compare = metrics.querySelector<HTMLElement>(".kpi-compare");
     if (compare) compare.textContent = `${AIRCRAFT_LABEL[scenario!.compareWith!]}: — кг/100 км, OEW ${fmtKg(cmp.oewKg)}`;
   }
-  $("kpi-limits").onclick = () => setRightTab("constraints");
+  $("kpi-limits").onclick = () => {
+    if (mobileLayout.matches) openMobileConstraints();
+    else setRightTab("constraints");
+  };
   const d = result.ev.definition;
   $("mode-hint").innerHTML =
     state.mode === "fixed"
@@ -1660,17 +1676,107 @@ function renderThrust(): void {
 const STATUS_ICON = { ok: "✓", info: "i", warning: "!", violation: "✕" } as const;
 function renderConstraints(): void {
   const cs: ConstraintResult[] = result.ev.constraints;
-  const renderRows = (items: ConstraintResult[]) => items.map(c => `<li class="c-${c.status}">
-    <span class="c-icon" aria-hidden="true">${STATUS_ICON[c.status]}</span>
-    <div><div class="c-head"><span>${c.label}</span><span class="c-value">${c.value}</span></div>
-      <div class="c-msg">${c.message}</div>
-      <details class="constraint-evidence"><summary>Условия и источник</summary>
-        <div class="c-limit">${c.limit}</div>${c.source ? `<div class="c-source">${c.source}</div>` : ""}</details></div></li>`).join("");
+  const links: Record<string, string[]> = {
+    "span-code": ["span"], "nacelle-clearance": ["bpr", "raise"], "tail-strike": ["rows"],
+    "thrust-ceiling": ["thrust"], "oei-climb": ["thrust"], "oei-mtow": ["thrust"],
+    "takeoff-field": ["thrust", "doubleFlaps", "flapChord", "slats"],
+    "approach-speed": ["doubleFlaps", "flapChord", "slats"], "mzfw": ["rows"], "bpr-range": ["bpr"],
+  };
+  const available = controlsFor(AIRCRAFT[state.aircraftId]);
+  const renderRows = (items: ConstraintResult[], mobile: boolean) => items.map(c => {
+    const related = (links[c.id] ?? []).map(id => available.find(control => control.id === id)).filter((v): v is Control => !!v);
+    return `<li class="c-${c.status}">
+      <span class="c-icon" aria-hidden="true">${STATUS_ICON[c.status]}</span>
+      <div><div class="c-head"><span>${c.label}</span><span class="c-value">${c.value}</span></div>
+        <div class="c-msg">${c.message}</div>${mobile ? `<div class="c-limit">Предел: ${c.limit}</div>` : ""}
+        <details class="constraint-evidence"><summary>Условия и источник</summary><div class="c-limit">${c.limit}</div>${c.source ? `<div class="c-source">Источник: ${c.source}</div>` : c.id === "span-code" ? `<div class="c-source">Основание: ICAO Annex 14, классификация аэродромов по размаху.</div>` : ""}${isReferenceConstraint(c) ? `<div class="c-source">Справочный предел: применимость указана в пояснении.</div>` : ""}</details>
+        ${related.map(control => `<button type="button" class="constraint-lever" data-constraint-control="${control.id}">Изменить рычаг${related.length > 1 ? `: ${control.label}` : ""}</button>`).join("")}</div></li>`;
+  }).join("");
+  const ordered = [...cs].sort((a, b) => ({violation: 0, warning: 1, info: 2, ok: 3}[a.status] - {violation: 0, warning: 1, info: 2, ok: 3}[b.status]));
   const active = cs.filter(c => !isReferenceConstraint(c));
   const references = cs.filter(isReferenceConstraint);
-  $("constraints").innerHTML = `${active.length ? renderRows(active) : ""}${references.length ?
-    `<li class="constraint-reference-group"><h3>Применимость расчёта и справочные данные</h3></li>${renderRows(references)}` : ""}`;
+  $("constraints").innerHTML = `${renderRows(active, false)}${references.length ? `<li class="constraint-reference-group"><h3>Применимость расчёта и справочные данные</h3></li>${renderRows(references, false)}` : ""}`;
+  $("mobile-constraints-list").innerHTML = renderRows(ordered, true);
 }
+
+$("mobile-options").addEventListener("click", () => {
+  const open = document.body.classList.toggle("mobile-options-open");
+  $("mobile-options").setAttribute("aria-expanded", String(open));
+});
+const mobileLayout = window.matchMedia("(max-width: 1100px)");
+let mobilePose: { distance: number; zoomFactor: number; interactionStart: number; offsetX: number; offsetY: number; width: number; height: number } | null = null;
+function syncMobileFrame(): void {
+  const open = mobileLayout.matches && (state.drawerOpen || !$("mobile-constraints-panel").hidden);
+  if (open && !mobilePose) {
+    const rect = viewport.getBoundingClientRect();
+    mobilePose = { distance: camera.position.distanceTo(controls.target), zoomFactor: 1, interactionStart: 0, offsetX: camera.view?.offsetX ?? 0, offsetY: camera.view?.offsetY ?? 0, width: rect.width, height: rect.height };
+  }
+  if (!open && mobilePose) {
+    const direction = camera.position.clone().sub(controls.target).normalize();
+    camera.position.copy(controls.target).addScaledVector(direction, mobilePose.distance * mobilePose.zoomFactor);
+    const saved = mobilePose;
+    mobilePose = null;
+    aim = null;
+    cameraFramePending = false;
+    const rect = viewport.getBoundingClientRect();
+    camera.setViewOffset(rect.width, rect.height, saved.offsetX * rect.width / saved.width, saved.offsetY * rect.height / saved.height, rect.width, rect.height);
+  } else if (open) requestCameraFrame();
+}
+controls.addEventListener("start", () => { if (mobilePose) mobilePose.interactionStart = camera.position.distanceTo(controls.target); });
+controls.addEventListener("end", () => {
+  if (mobilePose && mobilePose.interactionStart > 0) {
+    mobilePose.zoomFactor *= camera.position.distanceTo(controls.target) / mobilePose.interactionStart;
+    mobilePose.interactionStart = 0;
+  }
+});
+function syncMobileActions(): void {
+  $("mobile-levers").setAttribute("aria-expanded", String(state.drawerOpen && mobileLayout.matches));
+  $("mobile-constraints").setAttribute("aria-expanded", String(!$("mobile-constraints-panel").hidden));
+  requestAnimationFrame(syncMobileFrame);
+}
+function closeMobileConstraints(): void {
+  $("mobile-constraints-panel").hidden = true;
+  syncMobileActions();
+}
+$("mobile-levers").addEventListener("click", () => {
+  if (viewport.getBoundingClientRect().bottom <= 0 || viewport.getBoundingClientRect().top >= innerHeight) viewport.scrollIntoView({ block: "start" });
+  const opening = !state.drawerOpen || !$("mobile-constraints-panel").hidden;
+  closeMobileConstraints();
+  mobileAllLevers = opening;
+  state.drawerOpen = opening;
+  renderLevers();
+  syncMobileActions();
+});
+function openMobileConstraints(): void {
+  if (viewport.getBoundingClientRect().bottom <= 0 || viewport.getBoundingClientRect().top >= innerHeight) viewport.scrollIntoView({ block: "start" });
+  state.drawerOpen = false;
+  renderLevers();
+  $("mobile-constraints-panel").hidden = false;
+  syncMobileActions();
+}
+$("mobile-constraints").addEventListener("click", () => {
+  if ($("mobile-constraints-panel").hidden) openMobileConstraints();
+  else closeMobileConstraints();
+});
+$("mobile-constraints-close").addEventListener("click", closeMobileConstraints);
+mobileLayout.addEventListener("change", () => { closeMobileConstraints(); mobileAllLevers = false; renderLevers(); });
+window.addEventListener("resize", () => { if (mobilePose) requestCameraFrame(); });
+for (const id of ["constraints", "mobile-constraints-list"]) $(id).addEventListener("click", event => {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-constraint-control]");
+  const control = controlsFor(AIRCRAFT[state.aircraftId]).find(c => c.id === button?.dataset.constraintControl);
+  if (!control) return;
+  closeMobileConstraints();
+  mobileAllLevers = mobileLayout.matches;
+  // Desktop keeps the selection but shows all groups for an explicit constraint link.
+  if (!mobileLayout.matches && state.selected && !control.parts.includes(state.selected)) mobileAllLevers = true;
+  state.drawerOpen = true;
+  state.drawerTab = control.group;
+  renderLevers();
+  syncMobileActions();
+  const input = document.querySelector<HTMLInputElement>(`#levers [data-ctrl="${control.id}"]`);
+  input?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  input?.focus({ preventScroll: true });
+});
 
 function familyOf(id: string): Family {
   return FAMILY[id] ?? "systems";

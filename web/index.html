@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="dark">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <link rel="canonical" href="https://aircraft-designer.app/" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Aircraft Designer — интерактивный конструктор самолётов" />
@@ -21,6 +21,7 @@
         <a href="#" id="nav-model" aria-current="page">Модель</a>
         <a href="#method" id="nav-method">Как рассчитано</a>
       </nav>
+      <button type="button" id="mobile-options" class="mobile-options" aria-expanded="false" aria-controls="scenario-bar">Сценарии и FlightCost</button>
       <div class="bar-controls">
         <div class="model-pickers" id="model-pickers">
           <button type="button" class="model-picker" id="aircraft-picker" aria-label="Выбрать ВС" aria-haspopup="menu" aria-expanded="false" aria-controls="aircraft-options"><span aria-hidden="true">✈</span></button>
@@ -57,7 +58,7 @@
       </div>
     </header>
 
-    <nav class="scenario-bar" aria-label="Сценарии">
+    <nav class="scenario-bar" id="scenario-bar" aria-label="Сценарии">
       <span class="scenario-label">Сценарии</span>
       <div class="scenarios" id="scenarios"></div>
       <p class="scenario-text" id="scenario-text"></p>
@@ -101,6 +102,14 @@
     <main id="viewport" aria-label="3D-модель самолёта">
       <div class="busy-note" aria-live="polite">Перепроектирую…</div>
       <section id="metrics" class="kpi" aria-live="polite"></section>
+      <div class="mobile-actions" aria-label="Управление моделью">
+        <button type="button" id="mobile-levers" aria-expanded="false" aria-controls="drawer">Рычаги</button>
+        <button type="button" id="mobile-constraints" aria-expanded="false" aria-controls="mobile-constraints-panel">Ограничения</button>
+      </div>
+      <section id="mobile-constraints-panel" class="mobile-sheet" aria-label="Ограничения" hidden>
+        <div class="mobile-sheet-head"><h2>Ограничения</h2><button type="button" id="mobile-constraints-close">Закрыть</button></div>
+        <ul class="constraints" id="mobile-constraints-list"></ul>
+      </section>
       <section id="drawer" class="drawer" data-open="false" aria-label="Агрегат и рычаги">
         <div class="drawer-head">
           <button class="drawer-toggle" id="drawer-toggle" aria-expanded="false">Рычаги</button>
@@ -111,7 +120,7 @@
         <div id="mount-notice" role="status" aria-live="polite" hidden></div>
         <div class="tabs" role="tablist" id="drawer-tabs"></div>
         <div class="drawer-body">
-          <div id="levers" class="lever-grid" role="group" aria-label="Рычаги — вертикальная прокрутка" tabindex="0"></div>
+          <div id="mobile-lever-effect" class="mobile-lever-effect" aria-live="polite"></div><div id="levers" class="lever-grid" role="group" aria-label="Рычаги — вертикальная прокрутка" tabindex="0"></div>
           <div id="detail" class="detail" hidden></div>
           <section id="cabin-panel" class="lever" hidden>
             <label for="cabin-zone">Область осмотра</label>
