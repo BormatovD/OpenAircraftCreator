@@ -1442,6 +1442,13 @@ function renderMetrics(): void {
   const uncertain = ev.constraints.filter(c => isReferenceConstraint(c) && (c.status === "warning" || c.status === "violation")).length;
   const bad = actionable.filter((c) => c.status === "violation").length;
   const warn = actionable.filter((c) => c.status === "warning").length;
+  const badge = $("mobile-constraint-badge");
+  const alertText = bad ? `✕ ${bad}` : warn ? `! ${warn}` : uncertain ? `? ${uncertain}` : "";
+  badge.hidden = !alertText;
+  badge.dataset.severity = bad ? "bad" : warn ? "warn" : "uncertain";
+  badge.textContent = alertText;
+  const descriptions = [bad ? `нарушено: ${bad}` : "", warn ? `предупреждений: ${warn}` : "", uncertain ? `требуют сверки модели: ${uncertain}` : ""].filter(Boolean);
+  $("mobile-constraints").setAttribute("aria-label", descriptions.length ? `Ограничения: ${descriptions.join(", ")}` : "Ограничения");
   const metrics = $("metrics");
   const scrollLeft = metrics.querySelector<HTMLElement>(".kpi-strip")?.scrollLeft ?? 0;
   metrics.innerHTML = `
@@ -1457,7 +1464,7 @@ function renderMetrics(): void {
     ${tile("Дальность, все места", `${nf(Math.round(ev.rangeWithMissionPayloadNm))} nm`, deltaPct(ev.rangeWithMissionPayloadNm, base.rangeWithMissionPayloadNm, false), `${nf(Math.round(ev.rangeWithMissionPayloadNm * 1.852))} км`)}
     <button class="kpi-tile kpi-limits ${bad ? "bad" : warn || uncertain ? "warn" : "ok"}" id="kpi-limits" title="Открыть список ограничений">
       <div class="kpi-label">Ограничения</div>
-      <div class="kpi-value">${bad ? `✕ ${bad}` : warn ? `! ${warn}` : uncertain ? `? ${uncertain}` : references ? `i ${references}` : "✓"}</div>
+      <div class="kpi-value">${alertText || (references ? `i ${references}` : "✓")}</div>
       <div class="kpi-delta">${bad ? "нарушено" : warn ? "на грани" : uncertain ? "нужна сверка модели" : references ? "справочные данные" : "в норме"}${references && (bad || warn) ? ` · ${references} справ.` : ""}</div>
     </button>
     </div>

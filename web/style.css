@@ -2354,3 +2354,19 @@ body.method-mode .mobile-actions, body.method-mode .mobile-sheet { display: none
   #mobile-results-content .right-content > .tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; }
   #mobile-results-content .tabs button { min-width: 0; min-height: 40px; padding: 7px 4px; font-size: 12px; }
 }
+
+@media (max-width: 1100px) {
+  #kpi-limits { display: none; }
+  #mobile-constraints { position: relative; overflow: visible; }
+  .mobile-constraint-badge {
+    position: absolute; right: 3px; bottom: calc(100% - 3px);
+    min-width: 25px; min-height: 24px; padding: 2px 6px;
+    display: grid; place-items: center; border-radius: 12px;
+    background: var(--warn); color: var(--bg); border: 1px solid var(--panel);
+    font-size: 12px; line-height: 1; font-weight: 600; white-space: nowrap;
+    box-shadow: 0 2px 8px #0006;
+  }
+  .mobile-constraint-badge[data-severity="bad"] { background: var(--bad); }
+  :root[data-theme="light"] .mobile-constraint-badge[data-severity="warn"] { color: var(--ink); background: color-mix(in srgb, var(--warn) 72%, var(--panel)); }
+  .mobile-constraint-badge[data-severity="uncertain"] { background: var(--panel-edge); color: var(--ink); border-color: var(--ink-soft); }
+}
