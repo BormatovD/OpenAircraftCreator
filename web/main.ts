@@ -1147,6 +1147,26 @@ function controlRow(c: Control, def: AircraftDefinition): string {
 }
 
 let leversBuilt = "";
+// Touch browsers need not focus a range on pointerdown; keep its native node
+// alive until the gesture ends, independently of document.activeElement.
+let leverDrag: { input: HTMLInputElement; pointerId: number } | null = null;
+$("levers").addEventListener("pointerdown", event => {
+  const input = event.target as HTMLElement;
+  if (input instanceof HTMLInputElement && input.type === "range" && input.dataset.ctrl)
+    leverDrag = { input, pointerId: event.pointerId };
+});
+for (const name of ["pointerup", "pointercancel"] as const) window.addEventListener(name, event => {
+  const drag = leverDrag;
+  if (!drag || drag.pointerId !== event.pointerId) return;
+  requestAnimationFrame(() => {
+    if (leverDrag !== drag) return;
+    // Commit the last input (or restore a rejected configuration) before rebuilding.
+    finishPendingCalculation();
+    leverDrag = null;
+    if (document.activeElement === drag.input) drag.input.blur();
+    renderLevers();
+  });
+});
 function updateReverserControl(): void {
   const input = $<HTMLInputElement>("reverser-deployment");
   const style = nacelleStyleFor(result.ev.definition.engine);
@@ -1309,14 +1329,16 @@ function renderLevers(): void {
   const scrollTop = leversBuilt === contentKey ? box.scrollTop : 0;
   // Пока ползунок тянут, разметку не пересобираем — иначе он потеряет захват.
   const active = document.activeElement as HTMLInputElement | null;
-  if (active?.dataset.ctrl && active.type === "range" && leversBuilt === contentKey) {
+  if ((leverDrag?.input.isConnected || (active?.dataset.ctrl && active.type === "range")) && leversBuilt === contentKey) {
     for (const c of list) {
       if (c.kind !== "range") continue;
       const { v, max, disabled, changed, hint } = controlDisplay(c, def);
       const input = $<HTMLInputElement>(`ctrl-${c.id}`);
-      input.max = String(max);
-      input.value = String(v);
-      input.disabled = disabled;
+      if (input !== leverDrag?.input) {
+        input.max = String(max);
+        input.value = String(v);
+        input.disabled = disabled;
+      }
       input.closest(".lever")!.classList.toggle("changed", changed);
       const note = $(`hint-${c.id}`);
       note.title = note.textContent = hint;
@@ -1337,7 +1359,11 @@ function renderLevers(): void {
       schedule();
     });
     // После отпускания ползунка обновляем подписи «база …».
-    if (c.kind === "range") input.addEventListener("change", () => requestAnimationFrame(() => (input.blur(), renderLevers())));
+    if (c.kind === "range") input.addEventListener("change", () => requestAnimationFrame(() => {
+      if (leverDrag?.input === input) return;
+      input.blur();
+      renderLevers();
+    }));
   }
 }
 $("drawer-toggle").addEventListener("click", () => {
