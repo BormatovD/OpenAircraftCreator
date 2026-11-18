@@ -7,7 +7,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { buildCockpitFairing, insideCockpitFairing } from "./cockpitFairing.ts";
 import { combustorPieces } from "./combustor.ts";
 import type { EngineArchitecture, EngineDef } from "../../src/definition.ts";
-import { S } from "./shapeSet.ts";
+import { S, type ShapeSet } from "./shapeSet.ts";
 import { cockpitFacets, cockpitSurfaceWidth, type CockpitFacet } from "./cockpitSurfaces.ts";
 import { fleetPackages, isFleetStyle, type FleetStyle } from "./fleetPackages.ts";
 import { reverser757Layout, reverser757Segments } from "./reverser757.ts";
@@ -111,8 +111,22 @@ function sectionUnit(a: number): [number, number] {
   const r = interp(section.deg, section.r, dd);
   return [(r * Math.cos(a)) / halfW, (r * Math.sin(a)) / halfH];
 }
+// Каркасные детали многократно запрашивают одни и те же высоты сечения.
+// Кешируем точный результат деления пополам для исходной таблицы контура.
+const sectionAngles = new WeakMap<ShapeSet["section"], { halfH: number; byHeight: Map<number, number> }>();
+const SECTION_ANGLE_CACHE_LIMIT = 16384;
+
 /** Угол сечения, на котором нормированная высота равна s ∈ [−1, 1] (правый борт). */
 function sectionAngleForHeight(s: number): number {
+  const { section, halfH } = S();
+  let cached = sectionAngles.get(section);
+  if (!cached || cached.halfH !== halfH) {
+    cached = { halfH, byHeight: new Map() };
+    sectionAngles.set(section, cached);
+  }
+  const angle = cached.byHeight.get(s);
+  if (angle !== undefined) return angle;
+
   let lo = -Math.PI / 2;
   let hi = Math.PI / 2;
   for (let i = 0; i < 30; i++) {
@@ -120,7 +134,10 @@ function sectionAngleForHeight(s: number): number {
     if (sectionUnit(mid)[1] < s) lo = mid;
     else hi = mid;
   }
-  return (lo + hi) / 2;
+  const result = (lo + hi) / 2;
+  if (cached.byHeight.size >= SECTION_ANGLE_CACHE_LIMIT) cached.byHeight.clear();
+  cached.byHeight.set(s, result);
+  return result;
 }
 
 /** Полуширина сечения на высоте y. */
