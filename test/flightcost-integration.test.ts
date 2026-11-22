@@ -11,8 +11,8 @@ test("Public config is versioned and valid", () => {
   assert.equal(DATA.schema, FC_SCHEMA);
   assert.equal(DATA.version, 1);
   assert.deepEqual(validatePresetCatalog(), []);
-  // The Classic installation can be inspected without a FlightCost cabin preset.
-  assert.deepEqual(Object.keys(AIRCRAFT_CHOICES).filter(id => !presetFor(id)), ["b737-300"]);
+  // The Classic and the Tu-214 type-certificate limit comparison are Designer-only.
+  assert.deepEqual(Object.keys(AIRCRAFT_CHOICES).filter(id => !presetFor(id)), ["b737-300", "tu214-ps90a-published-limit"]);
 });
 
 test("Every engine maps exactly to the real Aircraft Designer definition", () => {

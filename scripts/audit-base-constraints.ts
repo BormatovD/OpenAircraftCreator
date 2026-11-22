@@ -9,7 +9,7 @@ import { evaluate } from '../src/evaluate.ts';
 import { constraintTints, isReferenceConstraint } from '../web/constraintPresentation.ts';
 
 export function auditBaseConstraints() {
-  assert.equal(Object.keys(AIRCRAFT).length, 13);
+  assert.equal(Object.keys(AIRCRAFT).length, 14);
   return Object.entries(AIRCRAFT).map(([id, definition]) => {
     const layout = layoutFor(id);
     const d = layout ? withCabinLayout(definition, layout) : definition;

@@ -1,22 +1,23 @@
 {
-  "schema": "aircraft-designer/tu214-weight-presets/v2",
+  "schema": "aircraft-designer/tu214-weight-presets/v3",
   "status": "PRELIMINARY ENGINEERING FORECAST — NOT CERTIFIED PERFORMANCE",
   "sources": [
     "UAC public Tu-214 figures for MTOW/MLW/fuel/max payload; applicability of weight definitions must be checked",
     "59,000 kg factory reference is indicative, not a component-level weighing report",
-    "61,830 kg operational OEW and resulting 22,370 kg payload are a planning assumption, not verified as-aircraft data",
+    "Tupolev catalogue on AmasEnergy lists 65,265 kg OEW; 22,370 kg payload at 3,800 km is the study reference",
+    "FATA-02019A edition 03 (29 May 2020) p. 4 lists 86,000 kg MZFW",
     "Tu-204-200 three-view, UIGA 2024, Perm Motors PS-90A; docs/TU214_MODEL.md"
   ],
   "constraints": {
     "mtowKg": 110750,
     "mlwKg": 93000,
-    "mzfwKg": 84200,
+    "reportedMZFWKg": 86000,
     "maxFuelKg": 35710,
     "densityKgPerL": 0.78
   },
   "factory": {
     "id": "tu214-ps90a-factory",
-    "label": "Ту-214 / ПС-90А · заводская комплектация (β)",
+    "label": "Ту-214 / ПС-90А · заводская комплектация",
     "modeledOewKg": 59000,
     "maxPayloadKg": 25200,
     "maxZeroFuelWeightKg": 84200,
@@ -80,13 +81,13 @@
     "constraints": [
       {
         "id": "span-code",
-        "status": "warning",
+        "status": "info",
         "value": "41.84 м"
       },
       {
         "id": "nacelle-clearance",
-        "status": "ok",
-        "value": "0.79 м"
+        "status": "info",
+        "value": "0.37 м"
       },
       {
         "id": "tail-strike",
@@ -100,8 +101,13 @@
       },
       {
         "id": "oei-climb",
-        "status": "violation",
-        "value": "1.9%"
+        "status": "ok",
+        "value": "5.00% штат. / 6.36% ЧР · 88.57 т"
+      },
+      {
+        "id": "oei-mtow",
+        "status": "warning",
+        "value": "1.97% штат. / 3.05% ЧР · 110.75 т"
       },
       {
         "id": "takeoff-field",
@@ -120,40 +126,40 @@
       },
       {
         "id": "bpr-range",
-        "status": "warning",
+        "status": "info",
         "value": "4.4"
       }
     ]
   },
   "operational": {
     "id": "tu214-ps90a",
-    "label": "Ту-214 / ПС-90А · эксплуатационная комплектация (β)",
-    "modeledOewKg": 61830,
+    "label": "Ту-214 / ПС-90А · рабочий сценарий",
+    "modeledOewKg": 65265,
     "maxPayloadKg": 22370,
-    "maxZeroFuelWeightKg": 84200,
+    "maxZeroFuelWeightKg": 87635,
     "maxTakeoffWeightKg": 110750,
     "maxLandingWeightKg": 93000,
     "fuelDensityKgPerL": 0.78,
     "tankMassCapacityKg": 35709.96,
-    "fuelAtMaximumPayloadKg": 26550,
+    "fuelAtMaximumPayloadKg": 23115,
     "massReconciliation": {
       "rawA320CalibratedModelOewKg": 58260.18802078101,
       "unresolvedOewDifferenceKg": 739.81197921899,
-      "extraEquipmentKg": 2830
+      "extraEquipmentKg": 6265
     },
     "with210PaxAt95Kg": {
       "passengerAndBaggageKg": 19950,
       "commercialCargoKg": 0,
-      "availableFuelByMtowKg": 28970,
-      "missionFuelWithReservesKg": 9899.662969404599,
-      "tripFuelKg": 6429.766682734549,
+      "availableFuelByMtowKg": 25535,
+      "missionFuelWithReservesKg": 11236.006287026394,
+      "tripFuelKg": 7335.293277615067,
       "feasible": true
     },
     "withMaximumPayloadAt210Pax": {
       "cargoKg": 2420,
-      "zfwKg": 84200,
-      "availableFuelByMtowKg": 26550,
-      "missionFuelWithReservesKg": 10079.10337826761,
+      "zfwKg": 87635,
+      "availableFuelByMtowKg": 23115,
+      "missionFuelWithReservesKg": 11491.025539635157,
       "feasible": true
     },
     "requested3000KgCargo": {
@@ -166,9 +172,9 @@
       "manufacturerReferenceCruiseTsfcKgPerKgfH": 0.595
     },
     "maxPayloadPoint": {
-      "rangeNm": 2856.0030783997313,
+      "rangeNm": 2051.844497280773,
       "payloadKg": 22370,
-      "rangeKm": 5289.317701196303
+      "rangeKm": 3800.0160089639917
     },
     "payloadRange": [
       {
@@ -176,28 +182,28 @@
         "payloadKg": 22370
       },
       {
-        "rangeNm": 2856.0030783997313,
+        "rangeNm": 2051.844497280773,
         "payloadKg": 22370
       },
       {
-        "rangeNm": 4212.948509970002,
-        "payloadKg": 13410.04
+        "rangeNm": 3654.258859992493,
+        "payloadKg": 9975.04
       },
       {
-        "rangeNm": 4880.070674996693,
+        "rangeNm": 4054.5884089580927,
         "payloadKg": 0
       }
     ],
     "constraints": [
       {
         "id": "span-code",
-        "status": "warning",
+        "status": "info",
         "value": "41.84 м"
       },
       {
         "id": "nacelle-clearance",
-        "status": "ok",
-        "value": "0.79 м"
+        "status": "info",
+        "value": "0.37 м"
       },
       {
         "id": "tail-strike",
@@ -206,13 +212,18 @@
       },
       {
         "id": "thrust-ceiling",
-        "status": "ok",
-        "value": "FL340"
+        "status": "warning",
+        "value": "FL320"
       },
       {
         "id": "oei-climb",
-        "status": "violation",
-        "value": "1.9%"
+        "status": "ok",
+        "value": "3.58% штат. / 4.83% ЧР · 96.45 т"
+      },
+      {
+        "id": "oei-mtow",
+        "status": "warning",
+        "value": "1.79% штат. / 2.87% ЧР · 110.75 т"
       },
       {
         "id": "takeoff-field",
@@ -231,25 +242,146 @@
       },
       {
         "id": "bpr-range",
-        "status": "warning",
+        "status": "info",
         "value": "4.4"
       }
     ]
   },
+  "publishedLimit": {
+    "id": "tu214-ps90a-published-limit",
+    "label": "Ту-214 / ПС-90А · предел массы по КДСТ 2020",
+    "modeledOewKg": 65265,
+    "maxPayloadKg": 20735,
+    "maxZeroFuelWeightKg": 86000,
+    "maxTakeoffWeightKg": 110750,
+    "maxLandingWeightKg": 93000,
+    "fuelDensityKgPerL": 0.78,
+    "tankMassCapacityKg": 35709.96,
+    "fuelAtMaximumPayloadKg": 24750,
+    "massReconciliation": {
+      "rawA320CalibratedModelOewKg": 58260.18802078101,
+      "unresolvedOewDifferenceKg": 739.81197921899,
+      "extraEquipmentKg": 6265
+    },
+    "with210PaxAt95Kg": {
+      "passengerAndBaggageKg": 19950,
+      "commercialCargoKg": 0,
+      "availableFuelByMtowKg": 25535,
+      "missionFuelWithReservesKg": 11236.006287026394,
+      "tripFuelKg": 7335.293277615067,
+      "feasible": true
+    },
+    "withMaximumPayloadAt210Pax": {
+      "cargoKg": 785,
+      "zfwKg": 86000,
+      "availableFuelByMtowKg": 24750,
+      "missionFuelWithReservesKg": 11318.782399815973,
+      "feasible": true
+    },
+    "requested3000KgCargo": {
+      "carriedKg": 785,
+      "payloadKg": 20735,
+      "payloadTruncated": true
+    },
+    "engine": {
+      "modelCruiseTsfcKgPerKgfH": 0.6231935386629318,
+      "manufacturerReferenceCruiseTsfcKgPerKgfH": 0.595
+    },
+    "maxPayloadPoint": {
+      "rangeNm": 2254.433118584555,
+      "payloadKg": 20735,
+      "rangeKm": 4175.210135618596
+    },
+    "payloadRange": [
+      {
+        "rangeNm": 0,
+        "payloadKg": 20735
+      },
+      {
+        "rangeNm": 2254.433118584555,
+        "payloadKg": 20735
+      },
+      {
+        "rangeNm": 3654.258859992493,
+        "payloadKg": 9975.04
+      },
+      {
+        "rangeNm": 4054.5884089580927,
+        "payloadKg": 0
+      }
+    ],
+    "constraints": [
+      {
+        "id": "span-code",
+        "status": "info",
+        "value": "41.84 м"
+      },
+      {
+        "id": "nacelle-clearance",
+        "status": "info",
+        "value": "0.37 м"
+      },
+      {
+        "id": "tail-strike",
+        "status": "ok",
+        "value": "9.5°"
+      },
+      {
+        "id": "thrust-ceiling",
+        "status": "warning",
+        "value": "FL320"
+      },
+      {
+        "id": "oei-climb",
+        "status": "ok",
+        "value": "3.58% штат. / 4.83% ЧР · 96.45 т"
+      },
+      {
+        "id": "oei-mtow",
+        "status": "warning",
+        "value": "1.79% штат. / 2.87% ЧР · 110.75 т"
+      },
+      {
+        "id": "takeoff-field",
+        "status": "ok",
+        "value": "2340 м"
+      },
+      {
+        "id": "approach-speed",
+        "status": "ok",
+        "value": "124 уз"
+      },
+      {
+        "id": "mzfw",
+        "status": "ok",
+        "value": "помещается"
+      },
+      {
+        "id": "bpr-range",
+        "status": "info",
+        "value": "4.4"
+      }
+    ]
+  },
+  "workingRangeCalibration": {
+    "commercialPayloadKg": 22370,
+    "targetRangeKm": 3800,
+    "workingMZFWKg": 87635,
+    "cd0Factor": 1.21944
+  },
   "consistency": {
-    "oewDifferenceKg": 2830,
-    "fullPayloadMaxFuelEqual": true,
-    "fullPayloadRangeDifferenceNm": 0,
-    "differsOnlyByWeight": true
+    "oewDifferenceKg": 6265,
+    "fullPayloadMaxFuelEqual": false,
+    "fullPayloadRangeDifferenceNm": -804.1585811189584
   },
   "caveats": [
     "No manufacturer weight-and-balance sheet for either specific variant; do not treat the profiles as certified OEW.",
-    "The 2,830 kg delta is a placeholder for changed equipment; no allocation by ATA is known.",
+    "The 6,265 kg delta is an OEW accounting difference without an ATA component allocation.",
     "The baseline 59 t minus Raymer/A320-calibrated estimate is an explicit, non-physical reconciliation item.",
     "Structural/levers changes remain driven by the physical model, with reconciliation held constant.",
     "Mission and reserves inherit the A320 comparison policy, not a Tu-214 approved dispatch flight plan.",
     "PS-90A cycle efficiencies and cruise T4 are assumptions; mixer-nozzle effects absent.",
-    "OAK 3,800 km at published max payload uses unknown reserves/configuration and cannot be treated as matched validation.",
+    "The operating scenario exceeds the 2020 type-certificate MZFW by 1,635 kg. The fitted point sets the study model and gives no independent performance validation.",
     "The second-segment climb model warning is not evidence of real Tu-214 certification performance."
   ]
 }

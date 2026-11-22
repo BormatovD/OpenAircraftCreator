@@ -4,7 +4,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { CSS2DObject, CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import { isSuspensionHardware } from "./scene/pylonGeometry.ts";
 import { pylonFor } from "./scene/pylonPackages.ts";
-import { AIRCRAFT, AIRCRAFT_LABEL } from "./aircraftCatalog.ts";
+import { AIRCRAFT, AIRCRAFT_CHOICES, AIRCRAFT_LABEL } from "./aircraftCatalog.ts";
+import { FLIGHTCOST_TU214_V1 } from "./flightCostTu214V1.ts";
 import { bindAircraftPickers } from "./aircraftPickers.ts";
 import { contextFor } from "../src/aircraft/contextFor.ts";
 import { type ConstraintResult } from "../src/constraints.ts";
@@ -55,6 +56,9 @@ const flightCostOrigin = import.meta.env.VITE_FLIGHTCOST_ORIGIN || FC_ORIGIN;
 const cardPreview = launchParams.get("view") === "aircraft-preview";
 if (cardPreview) document.documentElement.classList.add("aircraft-preview");
 const isFlightCostEmbed = launchParams.get("embed") === "flightcost" && window.parent !== window;
+const usesTu214V1 = (id: string) => isFlightCostEmbed && id === "tu214-ps90a";
+const definitionFor = (id: string) => usesTu214V1(id) ? FLIGHTCOST_TU214_V1 : AIRCRAFT[id];
+const aircraftLabel = (id: string) => usesTu214V1(id) ? FLIGHTCOST_TU214_V1.label : AIRCRAFT_LABEL[id];
 const hasFlightCostParams = ["ac", "aircraft", "engine", "layout"].some((key) => launchParams.has(key));
 const requested = hasFlightCostParams ? resolveFlightCostAircraft(launchParams) : null;
 const launchError = requested && "error" in requested ? requested.error : null;
@@ -72,7 +76,7 @@ const state = {
   layoutId: initialLayoutId,
   flightCostError: launchError as string | null,
   mode: "fixed" as Mode,
-  values: defaults(AIRCRAFT[initialId]),
+  values: defaults(definitionFor(initialId)),
   scenarioId: null as string | null,
   explode: 0,
   reverserDeployment: 0,
@@ -125,7 +129,8 @@ const baseCache = new Map<string, Evaluation>();
 function baseOf(id: string): Evaluation {
   let e = baseCache.get(id);
   if (!e) {
-    e = evaluate(AIRCRAFT[id], [], contextFor(AIRCRAFT[id]));
+    const def = definitionFor(id);
+    e = evaluate(def, [], contextFor(def));
     baseCache.set(id, e);
   }
   return e;
@@ -134,7 +139,7 @@ function baseOf(id: string): Evaluation {
 let result: ReturnType<typeof evaluateConfiguration>;
 
 function compute() {
-  const baseDef = AIRCRAFT[state.aircraftId];
+  const baseDef = definitionFor(state.aircraftId);
   const layout = layoutFor(state.aircraftId, state.layoutId);
   const def = layout ? withCabinLayout(baseDef, layout) : baseDef;
   return evaluateConfiguration(def, leversFor(def, state.values), state.mode, baseOf(state.aircraftId));
@@ -1051,7 +1056,13 @@ function renderScenarios(): void {
     : fam === "b737-8"
     ? "Сценарии про решения самого 737: что дал бы больший вентилятор, старое крыло, пилон."
     : fam === "tu214"
-      ? "Ту-214 / ПС-90А: предварительный инженерный прогноз, не подтверждён по графикам РЛЭ. Масса, дальность и цикл двигателя требуют независимой проверки."
+      ? usesTu214V1(state.aircraftId)
+        ? "Версия FlightCost v1 для расчёта и сохранения проекта. Рабочий сценарий 65 265 кг доступен в отдельной вкладке Aircraft Designer."
+        : AIRCRAFT_CHOICES[state.aircraftId].variant === "operational"
+        ? "Рабочая точка: OEW 65 265 кг, нагрузка 22 370 кг, дальность 3 800 км. MZFW 87 635 кг — допущение модели. Вариант «КДСТ 2020» показывает расчёт при опубликованном пределе 86 000 кг."
+        : AIRCRAFT_CHOICES[state.aircraftId].variant === "published-limit"
+          ? "Предел MZFW 86 000 кг по карте Росавиации FATA-02019A (2020). При опорной OEW 65 265 кг это даёт до 20 735 кг нагрузки. Дальность рассчитана моделью."
+          : "Иллюстративная заводская комплектация с OEW 59 000 кг. Дальность рассчитана моделью."
     : fam === "b757"
       ? "757-200: выберите RB211 или PW2037 и сравните расчёт. Исходная масса пока недооценена; это контрольный тип для модели масс."
       : "Сценарии — готовые наборы рычагов с объяснением. Нажмите ещё раз, чтобы снять.");
@@ -1071,9 +1082,9 @@ function applyScenario(id: string | null): void {
     state.layoutId = presetFor(s.aircraft)?.defaultLayoutId ?? AIRCRAFT[s.aircraft].cabinLayout?.id ?? "";
     state.flightCostError = null;
     state.mode = s.mode;
-    state.values = { ...defaults(AIRCRAFT[s.aircraft]), ...s.values };
+    state.values = { ...defaults(definitionFor(s.aircraft)), ...s.values };
   } else {
-    state.values = defaults(AIRCRAFT[state.aircraftId]);
+    state.values = defaults(definitionFor(state.aircraftId));
   }
   syncHeader();
   renderScenarios();
@@ -1081,7 +1092,7 @@ function applyScenario(id: string | null): void {
 }
 
 function syncHeader(): void {
-  const nameNow = AIRCRAFT[state.aircraftId].shortName ?? AIRCRAFT_LABEL[state.aircraftId];
+  const nameNow = AIRCRAFT[state.aircraftId].shortName ?? aircraftLabel(state.aircraftId);
   document.querySelector(".brand h1")!.textContent = `${nameNow} в разборе`;
   document.title = `${nameNow} в разборе`;
   syncPickers();
@@ -1428,7 +1439,7 @@ function renderMetrics(): void {
   const scenario = SCENARIOS.find((s) => s.id === state.scenarioId);
   const cmp = scenario?.compareWith ? baseOf(scenario.compareWith) : null;
   const seatsNote = ev.seatsCarried < ev.seats ? `${ev.seatsCarried} из ${ev.seats} мест — лимит нагрузки` : `${ev.seats} мест`;
-  const name = AIRCRAFT_LABEL[state.aircraftId];
+  const name = aircraftLabel(state.aircraftId);
   const same = Number.isFinite(ev.fuelPerSeatPer100KmKg) && Number.isFinite(base.fuelPerSeatPer100KmKg) &&
     Math.abs(ev.fuelPerSeatPer100KmKg / base.fuelPerSeatPer100KmKg - 1) < 5e-4;
   const tile = (label: string, value: string, delta: string, note: string) =>
@@ -1630,8 +1641,11 @@ function renderPayloadRange(): void {
       <text x="${W - P.r}" y="${H - 4}" text-anchor="end">nm</text>
       <text x="4" y="${P.t + 4}">т</text>
     </svg>
-    <div class="pr-legend"><span><i class="k-cur"></i>сейчас</span><span><i class="k-base"></i>${AIRCRAFT_LABEL[state.aircraftId]}</span><span><i class="k-mission"></i>рейс ${nf(Math.round(DEFAULT_MISSION.distanceNm * 1.852))} км</span></div>
-    ${ev.definition.shapeSet === "tu214" ? `<p class="drag-note"><b>Ту-214 — инженерная оценка.</b> Дальность и взлётные характеристики требуют сверки по РЛЭ; ПС-90А с соплом смешения моделируется приближённо. Ограничение коммерческой нагрузки зависит от весовой комплектации.</p>` : ""}
+    <div class="pr-legend"><span><i class="k-cur"></i>сейчас</span><span><i class="k-base"></i>${aircraftLabel(state.aircraftId)}</span><span><i class="k-mission"></i>рейс ${nf(Math.round(DEFAULT_MISSION.distanceNm * 1.852))} км</span></div>
+    ${ev.definition.shapeSet === "tu214" ? `<p class="drag-note"><b>${fmtKg(ev.maxPayloadKg)} нагрузки · ${nf(Math.round(ev.payloadRange[1].rangeNm * 1.852))} км.</b>
+      Ту-214 — инженерная оценка. Дальность и взлётные характеристики требуют сверки по РЛЭ.
+      ${ev.definition.id === "tu214-ps90a" ? "MZFW 87 635 кг принят для рабочей точки. Предел карты Росавиации 2020 года — 86 000 кг." : ""}
+      </p>` : ""}
     ${missionProfileNote(ev)}`;
 }
 
@@ -1699,7 +1713,7 @@ function renderThrust(): void {
       <text x="${W - P.r - 2}" y="${cy - 4}" text-anchor="end" class="th-ceil-t">потолок FL${Math.min(ceil, 398)}</text>
       <text x="${W - P.r}" y="${H - 4}" text-anchor="end">кН</text>
     </svg>
-    <div class="pr-legend"><span><i class="k-avail"></i>располагаемая</span><span><i class="k-req"></i>потребная + 300 фут/мин</span><span><i class="k-base"></i>${AIRCRAFT_LABEL[state.aircraftId]}</span></div>
+    <div class="pr-legend"><span><i class="k-avail"></i>располагаемая</span><span><i class="k-req"></i>потребная + 300 фут/мин</span><span><i class="k-base"></i>${aircraftLabel(state.aircraftId)}</span></div>
     <p class="drag-note">Масса ${nf(Math.round(ev.thrust.massKg / 100) / 10, 1)} т (MTOW − 2% на набор), M ${nf(ev.thrust.mach, 2)}. Тяга на FL350 — ${nf(
       Math.round((ev.thrust.points.find((p) => p.fl === 350)!.availableN / ev.definition.engine.count / 4.448 / 100)) * 100,
     )} lbf на двигатель, ${nf(Math.round((ev.thrust.points.find((p) => p.fl === 350)!.availableN / (ev.definition.engine.takeoffThrustKn * 1000 * ev.definition.engine.thrustScale * ev.definition.engine.count)) * 100))}% взлётной.</p>`;
@@ -1939,7 +1953,7 @@ function renderDetail(): void {
     <div class="detail-main">
     <dl>
       <dt>Масса</dt><dd>${fmtKg(n.kg)}</dd>
-      ${Math.abs(n.kg - baseKg) > 0.5 ? `<dt>У ${AIRCRAFT_LABEL[state.aircraftId]}</dt><dd>${fmtKg(baseKg)}</dd>` : ""}
+      ${Math.abs(n.kg - baseKg) > 0.5 ? `<dt>У ${aircraftLabel(state.aircraftId)}</dt><dd>${fmtKg(baseKg)}</dd>` : ""}
       <dt>Доля пустого снаряжённого</dt><dd>${nf((n.kg / masses.oewKg) * 100, 1)}%</dd>
       ${factor !== undefined ? `<dt>Оценка по формуле</dt><dd>${fmtKg(n.rawKg)}</dd><dt>Поправка по аналогу</dt><dd>×${nf(factor, 2)}</dd>` : ""}
     </dl>
@@ -2030,7 +2044,7 @@ function engineExplainer(): string {
       <dt>Тепловой КПД η<sub>th</sub></dt><dd>${nf(et, 3)}</dd>
       <dt>Перед турбиной</dt><dd>${nf(e.cycle.t4K)} К, охлаждение ${nf(e.cycle.coolingFrac * 100, 0)}%</dd>
       <dt>КПД вентилятора / компрессоров / турбин</dt><dd>${nf(e.cycle.fanEff, 3)} / ${nf(e.cycle.compEff, 3)} / ${nf(e.cycle.hptEff, 3)}–${nf(e.cycle.lptEff, 3)}</dd>${e.cycle.gearbox ? "<dt>Привод вентилятора</dt><dd>через редуктор</dd>" : ""}
-      <dt>Расход TSFC к ${AIRCRAFT_LABEL[state.aircraftId]}</dt><dd>${Math.abs(dT) < 0.05 ? "как у базы" : `${dT > 0 ? "+" : "−"}${nf(Math.abs(dT), 1)}%`}</dd>
+      <dt>Расход TSFC к ${aircraftLabel(state.aircraftId)}</dt><dd>${Math.abs(dT) < 0.05 ? "как у базы" : `${dT > 0 ? "+" : "−"}${nf(Math.abs(dT), 1)}%`}</dd>
     </dl>
   </div>`;
 }
@@ -2088,13 +2102,14 @@ const pickAircraft = (id: string) => {
   state.layoutId = presetFor(id)?.defaultLayoutId ?? AIRCRAFT[id].cabinLayout?.id ?? "";
   state.flightCostError = null;
   state.scenarioId = null;
-  state.values = defaults(AIRCRAFT[state.aircraftId]);
+  state.values = defaults(definitionFor(state.aircraftId));
   if (state.selected) select(state.selected);
   syncHeader();
   renderScenarios();
   schedule();
 };
-const syncPickers = bindAircraftPickers(() => state.aircraftId, pickAircraft);
+const syncPickers = bindAircraftPickers(() => state.aircraftId, pickAircraft,
+  (id) => usesTu214V1(id) ? { label: FLIGHTCOST_TU214_V1.label, variantLabel: "FlightCost v1 · 61,83 т" } : undefined);
 // Конфигурация салона общая для 3D, масс и FlightCost.
 $("cabin-layout").addEventListener("change", (event) => {
   state.layoutId = (event.target as HTMLSelectElement).value;
@@ -2234,7 +2249,7 @@ function route(): void {
   if (method) {
     finishPendingCalculation();
     if (!$("method").dataset.ready || $("method").dataset.for !== resultKey()) {
-      $("method").innerHTML = renderMethod(result.ev, `${AIRCRAFT_LABEL[state.aircraftId]}${result.levers.length || state.mode === "redesign" ? " с рычагами" : ""}`);
+      $("method").innerHTML = renderMethod(result.ev, `${aircraftLabel(state.aircraftId)}${result.levers.length || state.mode === "redesign" ? " с рычагами" : ""}`);
       $("method").dataset.ready = "1";
       $("method").dataset.for = resultKey();
     }

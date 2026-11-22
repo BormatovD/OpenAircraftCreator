@@ -14,8 +14,8 @@ const configurations = Object.entries(AIRCRAFT).flatMap(([id, def]) =>
   (presetFor(id)?.layouts ?? [null]).map(layout => ({ id, layout, def: layout ? withCabinLayout(def, layout) : def })));
 const overlaps = (a: CabinDoorZone, b: CabinDoorZone) => a.x1 > b.x0 + 1e-6 && a.x0 < b.x1 - 1e-6;
 
-test("Passenger cabin: all 23 offered configurations and 19 lengths preserve seats and open exits", () => {
-  assert.equal(configurations.length, 23);
+test("Passenger cabin: all 24 offered configurations and 19 lengths preserve seats and open exits", () => {
+  assert.equal(configurations.length, 24);
   for (const { id, layout, def } of configurations) for (let stretch = -6; stretch <= 12; stretch++) {
     const d = applyDefinition(def, [fuselageStretch(stretch)]);
     useShapes(d);

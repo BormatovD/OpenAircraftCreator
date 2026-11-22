@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { A320CEO } from "../src/aircraft/a320.ts";
 import { B757_RB211 } from "../src/aircraft/b757.ts";
-import { TU214_FACTORY, TU214_PS90A } from "../src/aircraft/tu214.ts";
+import { TU214_FACTORY, TU214_PS90A, TU214_PUBLISHED_LIMIT } from "../src/aircraft/tu214.ts";
 import { contextFor } from "../src/aircraft/contextFor.ts";
 import { evaluate } from "../src/evaluate.ts";
 import { PS90A_EMERGENCY_OEI } from "../src/thrust.ts";
@@ -13,8 +13,8 @@ import { AIRCRAFT_CHOICES } from "../web/aircraftCatalog.ts";
 
 const ref = (d: typeof TU214_PS90A) => evaluate(d, [], contextFor(d));
 
-test("Ту-214: оба весовых профиля без β в каталоге и названии", () => {
-  for (const a of [TU214_PS90A, TU214_FACTORY]) {
+test("Ту-214: весовые профили без β в каталоге и названии", () => {
+  for (const a of [TU214_PS90A, TU214_FACTORY, TU214_PUBLISHED_LIMIT]) {
     assert.doesNotMatch(a.label, /β|бета|preview/i);
     assert.doesNotMatch(AIRCRAFT_CHOICES[a.id].label, /β|бета|preview/i);
   }
@@ -25,10 +25,10 @@ test("Ту-214: оба весовых профиля без β в каталог
 test("OEI ПС-90А: ЧР отдельная, порог условно проходит, остаётся warning", () => {
   assert.equal(PS90A_EMERGENCY_OEI.emergencyKgf, 17500);
   assert.equal(PS90A_EMERGENCY_OEI.maxMinutes, 3);
-  for (const d of [TU214_PS90A, TU214_FACTORY]) {
+  for (const d of [TU214_PS90A, TU214_FACTORY, TU214_PUBLISHED_LIMIT]) {
     const ev = ref(d);
-    assert.ok(ev.oeiAtMtow.gradient > 0.018 && ev.oeiAtMtow.gradient < 0.022);
-    assert.ok(ev.oeiEmergencyAtMtow && ev.oeiEmergencyAtMtow.gradient > 0.029 && ev.oeiEmergencyAtMtow.gradient < 0.033);
+    assert.ok(ev.oeiAtMtow.gradient > 0.017 && ev.oeiAtMtow.gradient < 0.022);
+    assert.ok(ev.oeiEmergencyAtMtow && ev.oeiEmergencyAtMtow.gradient > 0.028 && ev.oeiEmergencyAtMtow.gradient < 0.033);
     const c = ev.constraints.find(c => c.id === "oei-mtow")!;
     assert.equal(c.status, "warning");
     assert.match(c.value, /ЧР/);
@@ -39,8 +39,8 @@ test("OEI ПС-90А: ЧР отдельная, порог условно прох
 test("Обычная миссия и двигатель ПС-90А не получили повышенной тяги", () => {
   assert.ok(Math.abs(TU214_PS90A.engine.takeoffThrustKn - 16000 * 9.80665 / 1000) < 1e-9);
   const e = ref(TU214_PS90A);
-  assert.ok(Math.abs(e.oewKg - 61830) < 1e-6);
-  assert.ok(Math.abs(e.missionFuelKg - 9899.662969404599) < 1e-4);
+  assert.ok(Math.abs(e.oewKg - 65265) < 1e-6);
+  assert.ok(Math.abs(e.missionFuelKg - 11236.006287026394) < 1e-4);
 });
 
 test("OEI чрезвычайный: A320 и Boeing 757 не наследуют ПС-90А", () => {

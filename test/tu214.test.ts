@@ -74,7 +74,7 @@ test("Ту-214: данные производителя ПС-90А не смеш�
 });
 
 test("Ту-214: селектор и профиль независимы от Boeing и FCOM A320", () => {
-  assert.deepEqual(variantsFor("tu214"), ["tu214-ps90a", "tu214-ps90a-factory"]);
+  assert.deepEqual(variantsFor("tu214"), ["tu214-ps90a", "tu214-ps90a-published-limit", "tu214-ps90a-factory"]);
   assert.equal(aircraftForType("tu214", "a320ceo"), "tu214-ps90a");
   assert.equal(AIRCRAFT["tu214-ps90a"], TU214_PS90A);
   assert.equal(AIRCRAFT["tu214-ps90a-factory"], TU214_FACTORY);
@@ -96,7 +96,7 @@ test("Ту-214: расчётная масса, сертификационные 
   assert.equal(ev.maxPayloadKg, 22370);
   assert.equal(d.weights.mtowKg, 110750);
   assert.equal(d.weights.mlwKg, 93000);
-  assert.equal(d.weights.mzfwKg, 84200);
+  assert.equal(d.weights.mzfwKg, 87635);
   close(d.systems.fuelVolumeL * contextFor(d).fuelDensityKgL, 35710, 1);
   assert.equal(ev.missionResult.feasible, true);
   assert.ok(ev.missionFuelKg > 0 && ev.tripFuelKg > 0);

@@ -6,6 +6,9 @@ import { type AircraftDefinition } from "../definition.ts";
 import { DEFAULT_ASSUMPTIONS, type MissionAssumptions } from "../mission.ts";
 import { A320CEO } from "./a320.ts";
 
+const operationalOewKg = 65265;
+const operationalMaxPayloadKg = 22370;
+
 export const TU214_REFERENCE = {
   lengthOverallM: 46.14,
   wingSpanM: 41.84,
@@ -13,11 +16,13 @@ export const TU214_REFERENCE = {
   wingAreaDesignM2: 168.63,
   maxFuelKg: 35710,
   factoryMaxPayloadKg: 25200,
-  operationalMaxPayloadKg: 22370,
-  // Разные весовые комплектации, НЕ единая заводская взвешенная ведомость.
+  operationalMaxPayloadKg,
   factoryOewKg: 59000,
-  operationalOewKg: 61830,
-  mzfwKg: 84200,
+  operationalOewKg,
+  factoryMZFWKg: 84200,
+  publishedMZFWKg: 86000, // Росавиация, FATA-02019A изд. 03, стр. 4.
+  operationalMZFWKg: operationalOewKg + operationalMaxPayloadKg,
+  operationalRangeTargetKm: 3800,
   mtowKg: 110750,
   mlwKg: 93000,
   engineCruiseTsfcKgPerKgfHour: 0.595,
@@ -26,6 +31,10 @@ export const TU214_REFERENCE = {
 // 0,78 кг/л — согласованная плотность для указанных пользователем 35 710 кг;
 // у A320 остаётся собственная калибровочная плотность 0,785.
 export const TU214_FUEL_DENSITY_KG_L = 0.78;
+
+// Калибровка CD0 по рабочей точке 22 370 кг / 3 800 км (М 0,78, общие резервы).
+// Сохраняем цикл ПС-90А и физические изменения составляющих сопротивления.
+export const TU214_OPERATIONAL_CD0_FACTOR = 1.21944;
 // Исходная OEW, вычисленная тем же оценщиком с калибровкой A320 до ввода весовых профилей.
 // Версионированный диагностический якорь — НЕ заводская масса агрегатов. При изменении
 // формул/калибровки тест покажет дрейф опорной OEW, вместо скрытой переподгонки.
@@ -37,7 +46,7 @@ export const TU214_ADDITIONAL_EQUIPMENT_KG =
 
 export const TU214_PS90A: AircraftDefinition = {
   id: "tu214-ps90a",
-  label: "Ту-214 / ПС-90А · эксплуатационная комплектация",
+  label: "Ту-214 / ПС-90А · рабочий сценарий",
   shortName: "Ту-214",
   shapeSet: "tu214",
   wing: {
@@ -114,11 +123,11 @@ export const TU214_PS90A: AircraftDefinition = {
   weights: {
     mtowKg: TU214_REFERENCE.mtowKg,
     mlwKg: TU214_REFERENCE.mlwKg,
-    mzfwKg: TU214_REFERENCE.mzfwKg,
+    mzfwKg: TU214_REFERENCE.operationalMZFWKg, // Допущение исследования, см. предел КДСТ ниже.
     maxPayloadKg: TU214_REFERENCE.operationalMaxPayloadKg,
     // Разница заводской OEW от физического оценщика отдельно, без подгонки крыла/двигателя.
     oewReconciliationKg: TU214_FACTORY_OEW_RECONCILIATION_KG,
-    // Временная оценка дополнительного оснащения конкретной эксплуатационной комплектации.
+    // Нераспределённая разница между опорными OEW; ведомости масс по агрегатам нет.
     additionalEquipmentKg: TU214_ADDITIONAL_EQUIPMENT_KG,
     ultimateLoadFactor: 3.75,
     landingLoadFactor: 4.5,
@@ -133,8 +142,21 @@ export const TU214_FACTORY: AircraftDefinition = {
   label: "Ту-214 / ПС-90А · заводская комплектация",
   weights: {
     ...TU214_PS90A.weights,
+    mzfwKg: TU214_REFERENCE.factoryMZFWKg,
     maxPayloadKg: TU214_REFERENCE.factoryMaxPayloadKg,
     additionalEquipmentKg: 0,
+  },
+};
+
+/** Сопоставление с пределом КДСТ 2020 г. при той же опорной OEW. */
+export const TU214_PUBLISHED_LIMIT: AircraftDefinition = {
+  ...TU214_PS90A,
+  id: "tu214-ps90a-published-limit",
+  label: "Ту-214 / ПС-90А · предел массы по КДСТ 2020",
+  weights: {
+    ...TU214_PS90A.weights,
+    mzfwKg: TU214_REFERENCE.publishedMZFWKg,
+    maxPayloadKg: TU214_REFERENCE.factoryMaxPayloadKg,
   },
 };
 

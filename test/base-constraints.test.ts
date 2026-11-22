@@ -11,9 +11,9 @@ import { constraintTints } from '../web/constraintPresentation.ts';
 
 const byId = (e: ReturnType<typeof evaluate>, id: string) => e.constraints.find(c => c.id === id)!;
 
-test('all 13 UI baseline configurations retain both mass points and explicit model limitations', () => {
+test('all 14 UI baseline configurations retain both mass points and explicit model limitations', () => {
   const reports = auditBaseConstraints();
-  assert.equal(reports.length, 13);
+  assert.equal(reports.length, 14);
   for (const r of reports) {
     assert.deepEqual(r.tints, {}, r.id + ': no baseline aggregate is declared faulty');
     assert.ok(r.missionOeiPct > 2.4, r.id);

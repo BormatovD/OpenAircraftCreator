@@ -13,7 +13,11 @@ function option(text: string, current: boolean): PickerOption {
 }
 
 /** Keep FlightCost links, scenarios and manual selections on the same catalogue id. */
-export function bindAircraftPickers(currentId: () => string, pick: (id: string) => void): () => void {
+export function bindAircraftPickers(
+  currentId: () => string,
+  pick: (id: string) => void,
+  displayOverride?: (id: string) => { label: string; variantLabel: string } | undefined,
+): () => void {
   const root = document.getElementById("model-pickers")!;
   const airframe = root.querySelector<HTMLButtonElement>("#aircraft-picker")!;
   const engine = root.querySelector<HTMLButtonElement>("#engine-picker")!;
@@ -88,7 +92,7 @@ export function bindAircraftPickers(currentId: () => string, pick: (id: string) 
       trigger.title = label;
       trigger.setAttribute("aria-label", label);
     };
-    describe(airframe, `Выбрать ВС · ${current.label}`);
+    describe(airframe, `Выбрать ВС · ${displayOverride?.(id)?.label ?? current.label}`);
     describe(engine, `Выбрать МСУ · ${current.definition.engine.name}`);
     for (const choice of root.querySelectorAll<PickerOption>("[data-type]")) {
       choice.setAttribute("aria-checked", String(choice.dataset.type === type));
@@ -97,13 +101,13 @@ export function bindAircraftPickers(currentId: () => string, pick: (id: string) 
     for (const old of weights.querySelectorAll("button")) old.remove();
     if (!weights.hidden) {
       for (const preset of ids) {
-        const choice = option(AIRCRAFT_CHOICES[preset].variantLabel, preset === id);
+        const choice = option(displayOverride?.(preset)?.variantLabel ?? AIRCRAFT_CHOICES[preset].variantLabel, preset === id);
         choice.dataset.weightPreset = preset;
         weights.append(choice);
       }
     }
     engines.replaceChildren();
-    // Both Tu-214 weight presets share one PS-90A. Keep the chosen weight when inspecting the engine.
+    // The Tu-214 weight presets share one PS-90A. Keep the chosen weight when inspecting the engine.
     for (const variant of (type === "tu214" ? [id] : ids)) {
       const data = AIRCRAFT_CHOICES[variant];
       const name = data.definition.engine.name;

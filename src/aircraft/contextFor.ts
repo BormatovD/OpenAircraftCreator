@@ -15,6 +15,7 @@ import tuShape from "../../data/ac/tu214-shapes.json" with { type: "json" };
 import { B737_800, B737_800_NACELLE } from "./b737ng.ts";
 import { b757NacelleFor } from "./b757.ts";
 import { comparisonAssumptionsFor } from "./missionProfiles.ts";
+import { TU214_OPERATIONAL_CD0_FACTOR, TU214_PS90A, TU214_PUBLISHED_LIMIT } from "./tu214.ts";
 
 const cache = new Map<string, EvalContext>();
 
@@ -30,8 +31,11 @@ export function contextFor(def: AircraftDefinition): EvalContext {
   const tofl =
     (r.takeoffFieldLengthM * Math.pow(def.weights.mtowKg / r.mtowKg, 2) * (r.wingAreaM2 / def.wing.areaM2) * (r.clMaxTakeoff / clTo)) /
     (takeoffThrustN(def) / r.takeoffThrustN);
+  const tu214WorkingAirframe = def.id === TU214_PS90A.id || def.id === TU214_PUBLISHED_LIMIT.id;
+  const aero = A320_CONTEXT.aero;
   c = {
     ...A320_CONTEXT,
+    aero: tu214WorkingAirframe ? { ...aero, cd0Factor: aero.cd0Factor! * TU214_OPERATIONAL_CD0_FACTOR } : aero,
     // Ту-214: 35 710 кг баки при плотности 0,78 кг/л; для A320 — прежние 0,785.
     fuelDensityKgL: def.shapeSet === "tu214" ? 0.78 : A320_CONTEXT.fuelDensityKgL,
     assumptions: comparisonAssumptionsFor(def),

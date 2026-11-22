@@ -14,7 +14,7 @@ const wheelbases: Record<string, number> = {
   a319ceo: 11.039, a319neo: 11.039, a320ceo: 12.64, a320neo: 12.64,
   a321ceo: 16.906, a321neo: 16.906, "b737-300": 12.45, "b737-800": 15.60,
   "b737-8": 15.60, "b757-200-rb": 18.29, "b757-200-pw": 18.29,
-  "tu214-ps90a": 16.967, "tu214-ps90a-factory": 16.967,
+  "tu214-ps90a": 16.967, "tu214-ps90a-published-limit": 16.967, "tu214-ps90a-factory": 16.967,
 };
 
 test("assembled nose and main tyres touch the pavement at the variant footprint", () => {
