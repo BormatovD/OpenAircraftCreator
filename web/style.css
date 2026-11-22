@@ -1402,6 +1402,10 @@ body.method-mode .scenario-bar {
     left: 0;
     right: auto;
   }
+  #aircraft-options:has(#weight-options:not([hidden])) {
+    max-height: min(475px, calc(100dvh - 120px));
+    overscroll-behavior: contain;
+  }
   .picker-menu button {
     min-height: 44px;
   }
