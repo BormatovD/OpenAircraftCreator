@@ -1403,6 +1403,8 @@ body.method-mode .scenario-bar {
     right: auto;
   }
   #aircraft-options:has(#weight-options:not([hidden])) {
+    left: auto;
+    right: 0;
     max-height: min(475px, calc(100dvh - 120px));
     overscroll-behavior: contain;
   }
